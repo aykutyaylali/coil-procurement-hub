@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: coil-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coil
+      POSTGRES_PASSWORD: coil
+      POSTGRES_DB: coil_procurement
+    ports:
+      - "5432:5432"
+    volumes:
+      - coil_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coil -d coil_procurement"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: coil-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coil-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://coil:coil@db:5432/coil_procurement?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      APP_URL: "http://localhost:3000"
+      AUTH_SECRET: "${AUTH_SECRET:-degistirin-en-az-32-karakter-rastgele-gizli-anahtar-01234567}"
+      EMAIL_PROVIDER: "${EMAIL_PROVIDER:-mock}"
+      DEFAULT_TIMEZONE: "Europe/Istanbul"
+      DEFAULT_LOCALE: "tr"
+    ports:
+      - "3000:3000"
+
+volumes:
+  coil_db_data:

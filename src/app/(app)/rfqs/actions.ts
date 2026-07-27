@@ -1,0 +1,292 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
+import { requireUser, requirePermission } from "@/lib/auth/context";
+import { PERMISSIONS } from "@/lib/rbac";
+import { nextNumber } from "@/domain/numbering";
+import { RFQ_TRANSITIONS, assertTransition } from "@/domain/state-machines";
+import { writeAudit } from "@/lib/audit";
+import { hashToken, secureToken } from "@/lib/ids";
+import { addDays } from "@/lib/dates";
+import { queueEmail, processQueue } from "@/lib/email/service";
+import { rfqInviteTemplate, rfqReminderTemplate } from "@/lib/email/templates";
+import { formatDateTime } from "@/lib/dates";
+import { ok, fail, type Result, NotFoundError, AppError } from "@/lib/errors";
+
+/** Onaylı talepten RFQ oluşturur (satırları kopyalar). */
+export async function createRfqFromRequisition(requisitionId: string): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_CREATE);
+    const created = await prisma.$transaction(async (tx) => {
+      const req = await tx.purchaseRequisition.findFirst({
+        where: { id: requisitionId, tenantId: user.tenantId },
+        include: { lines: { orderBy: { lineNo: "asc" } } },
+      });
+      if (!req) throw new NotFoundError("Talep bulunamadı.");
+      if (req.status !== "APPROVED" && req.status !== "ASSIGNED") {
+        throw new AppError("Yalnızca onaylanmış talepten RFQ oluşturulabilir.");
+      }
+
+      const number = await nextNumber(tx, user.tenantId, "RFQ");
+      const rfq = await tx.rFQ.create({
+        data: {
+          tenantId: user.tenantId,
+          number,
+          companyId: req.companyId,
+          title: `${req.number} için teklif talebi`,
+          status: "DRAFT",
+          operationType: req.operationType,
+          currencyOptions: JSON.stringify([req.currency]),
+          dueAt: addDays(new Date(), 7),
+          createdById: user.id,
+          lines: {
+            create: req.lines.map((l, i) => ({
+              lineNo: i + 1,
+              requisitionId: req.id,
+              requisitionLineId: l.id,
+              itemId: l.itemId,
+              description: l.description,
+              specs: l.specs,
+              quantity: l.quantity,
+              uom: l.uom,
+              neededBy: l.neededBy,
+            })),
+          },
+        },
+      });
+
+      await tx.purchaseRequisition.update({
+        where: { id: req.id },
+        data: { status: "IN_RFQ", assignedBuyerId: user.id },
+      });
+      await writeAudit(
+        {
+          tenantId: user.tenantId,
+          userId: user.id,
+          action: "CREATE",
+          entityType: "RFQ",
+          entityId: rfq.id,
+          after: { number, fromRequisition: req.number },
+        },
+        tx,
+      );
+      return rfq;
+    });
+
+    revalidatePath("/rfqs");
+    return ok({ id: created.id });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const sendSchema = z.object({
+  rfqId: z.string(),
+  supplierIds: z.array(z.string()).min(1, "En az bir tedarikçi seçin."),
+  dueAt: z.string().optional(),
+  sealed: z.boolean().optional(),
+});
+
+/** Tedarikçileri davet eder, benzersiz magic link üretir, gerçek e-posta kuyruğa alır ve gönderir. */
+export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent: number }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_SEND);
+    const data = sendSchema.parse(input);
+
+    const rfq = await prisma.rFQ.findFirst({
+      where: { id: data.rfqId, tenantId: user.tenantId },
+      include: { company: true, lines: true },
+    });
+    if (!rfq) throw new NotFoundError("RFQ bulunamadı.");
+    if (!["DRAFT", "APPROVED", "SENT", "OPEN"].includes(rfq.status)) {
+      throw new AppError("Bu RFQ durumunda tedarikçi daveti yapılamaz.");
+    }
+
+    const dueAt = data.dueAt ? new Date(data.dueAt) : (rfq.dueAt ?? addDays(new Date(), 7));
+    const ttlHours = env.MAGIC_LINK_TTL_HOURS;
+    const tokenExpiresAt = new Date(Math.min(dueAt.getTime(), Date.now() + ttlHours * 3600_000));
+
+    const suppliers = await prisma.supplier.findMany({
+      where: { id: { in: data.supplierIds }, tenantId: user.tenantId },
+      include: { contacts: { where: { isPrimary: true }, take: 1 } },
+    });
+
+    const lineSummary = rfq.lines
+      .map((l) => `• ${l.description} (${l.quantity} ${l.uom ?? ""})`)
+      .join("<br/>");
+
+    await prisma.$transaction(async (tx) => {
+      for (const supplier of suppliers) {
+        const existing = await tx.rFQSupplier.findUnique({
+          where: { rfqId_supplierId: { rfqId: rfq.id, supplierId: supplier.id } },
+        });
+        const token = secureToken(32);
+        const replyToken = secureToken(16);
+        let rfqSupplierId: string;
+
+        if (existing) {
+          await tx.rFQSupplier.update({
+            where: { id: existing.id },
+            data: { tokenHash: hashToken(token), tokenExpiresAt, replyToken, status: "INVITED" },
+          });
+          rfqSupplierId = existing.id;
+        } else {
+          const rs = await tx.rFQSupplier.create({
+            data: {
+              rfqId: rfq.id,
+              supplierId: supplier.id,
+              tokenHash: hashToken(token),
+              tokenExpiresAt,
+              replyToken,
+              status: "INVITED",
+            },
+          });
+          rfqSupplierId = rs.id;
+        }
+
+        const magicLinkUrl = `${env.APP_URL}/teklif/${token}`;
+        const contact = supplier.contacts[0];
+        // E-posta dili tedarikçinin tercih ettiği dile göre otomatik belirlenir
+        const supplierLocale = (supplier.preferredLanguage === "en" ? "en" : "tr") as "tr" | "en";
+        const tmpl = rfqInviteTemplate(
+          {
+            supplierName: contact?.name ?? supplier.legalName,
+            rfqNumber: rfq.number,
+            title: rfq.title,
+            dueAt: formatDateTime(dueAt),
+            companyName: rfq.company.name,
+            magicLinkUrl,
+            lineSummary,
+          },
+          supplierLocale,
+        );
+
+        // Reply-To benzersiz token içerir => gelen yanıt doğru RFQ'ya bağlanır
+        const replyTo = `rfq+${replyToken}@${env.EMAIL_INBOUND_DOMAIN}`;
+        await queueEmail({
+          tenantId: user.tenantId,
+          to: contact?.email ?? `${supplier.code}@tedarikci.example`,
+          subject: `[${rfq.number}] ${tmpl.subject}`,
+          html: tmpl.html,
+          text: tmpl.text,
+          replyTo,
+          templateKey: "rfq_invite",
+          refType: "RFQ",
+          refId: rfq.id,
+        });
+
+        await tx.rFQMessage.create({
+          data: {
+            rfqId: rfq.id,
+            supplierId: supplier.id,
+            direction: "OUTBOUND",
+            subject: tmpl.subject,
+            body: "Teklif daveti gönderildi (magic link).",
+          },
+        });
+        void rfqSupplierId;
+      }
+
+      assertTransition(RFQ_TRANSITIONS, rfq.status, "SENT", "RFQ");
+      await tx.rFQ.update({
+        where: { id: rfq.id },
+        data: { status: "SENT", dueAt, sealed: data.sealed ?? rfq.sealed },
+      });
+      await writeAudit(
+        {
+          tenantId: user.tenantId,
+          userId: user.id,
+          action: "STATUS_CHANGE",
+          entityType: "RFQ",
+          entityId: rfq.id,
+          after: { status: "SENT", suppliers: suppliers.length },
+        },
+        tx,
+      );
+    });
+
+    // Kuyruğu işle (gerçek gönderim; mock modda konsola loglar)
+    const result = await processQueue();
+
+    // SENT -> OPEN (teklif toplamaya açık)
+    await prisma.rFQ.update({ where: { id: rfq.id }, data: { status: "OPEN" } });
+
+    revalidatePath(`/rfqs/${rfq.id}`);
+    return ok({ sent: result.sent });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Yanıt vermeyen tedarikçilere hatırlatma gönderir. */
+export async function sendRfqReminders(rfqId: string): Promise<Result<{ sent: number }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_SEND);
+    const rfq = await prisma.rFQ.findFirst({
+      where: { id: rfqId, tenantId: user.tenantId },
+      include: {
+        company: true,
+        suppliers: {
+          where: { status: { in: ["INVITED", "VIEWED"] } },
+          include: { supplier: { include: { contacts: { where: { isPrimary: true }, take: 1 } } } },
+        },
+      },
+    });
+    if (!rfq) throw new NotFoundError("RFQ bulunamadı.");
+
+    for (const rs of rfq.suppliers) {
+      const token = secureToken(32);
+      await prisma.rFQSupplier.update({
+        where: { id: rs.id },
+        data: { tokenHash: hashToken(token), remindersSent: { increment: 1 } },
+      });
+      const contact = rs.supplier.contacts[0];
+      const tmpl = rfqReminderTemplate({
+        supplierName: contact?.name ?? rs.supplier.legalName,
+        rfqNumber: rfq.number,
+        dueAt: formatDateTime(rfq.dueAt ?? new Date()),
+        magicLinkUrl: `${env.APP_URL}/teklif/${token}`,
+      });
+      await queueEmail({
+        tenantId: user.tenantId,
+        to: contact?.email ?? `${rs.supplier.code}@tedarikci.example`,
+        subject: `[${rfq.number}] ${tmpl.subject}`,
+        html: tmpl.html,
+        text: tmpl.text,
+        templateKey: "rfq_reminder",
+        refType: "RFQ",
+        refId: rfq.id,
+      });
+    }
+    const result = await processQueue();
+    revalidatePath(`/rfqs/${rfqId}`);
+    return ok({ sent: result.sent });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Değerlendirme aşamasına geçir. */
+export async function moveRfqToEvaluation(rfqId: string): Promise<Result<{ status: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_EVALUATE);
+    const rfq = await prisma.rFQ.findFirst({ where: { id: rfqId, tenantId: user.tenantId } });
+    if (!rfq) throw new NotFoundError("RFQ bulunamadı.");
+    assertTransition(RFQ_TRANSITIONS, rfq.status, "EVALUATION", "RFQ");
+    await prisma.rFQ.update({ where: { id: rfq.id }, data: { status: "EVALUATION" } });
+    await writeAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entityType: "RFQ",
+      entityId: rfq.id,
+      after: { status: "EVALUATION" },
+    });
+    revalidatePath(`/rfqs/${rfqId}`);
+    return ok({ status: "EVALUATION" });
+  } catch (e) {
+    return fail(e);
+  }
+}

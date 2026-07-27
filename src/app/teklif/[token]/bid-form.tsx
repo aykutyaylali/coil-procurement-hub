@@ -1,0 +1,356 @@
+"use client";
+import { useState, useMemo } from "react";
+import type { BidContext } from "@/domain/bidding";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { add, lineNet, lineTax, formatMoney } from "@/lib/money";
+import { submitBidAction } from "./actions";
+import type { Locale } from "@/lib/i18n";
+
+const S = {
+  tr: {
+    terms: "Teklif Koşulları",
+    currency: "Para Birimi",
+    paymentDays: "Ödeme Vadesi (gün)",
+    incoterm: "Incoterm",
+    items: "Kalemler",
+    item: "Kalem",
+    qty: "Miktar",
+    quote: "Teklif",
+    quoting: "Veriyorum",
+    unitPrice: "Birim Fiyat",
+    disc: "İsk.%",
+    vat: "KDV%",
+    lead: "Termin (gün)",
+    lineTotal: "Satır Toplam",
+    brand: "Marka/model (ops.)",
+    freight: "Navlun / Nakliye Tutarı",
+    notes: "Açıklama / Notlar",
+    notesPh: "Teklifinizle ilgili notlar",
+    grand: "Toplam Teklif (KDV + navlun dahil)",
+    saveDraft: "Taslak Kaydet",
+    submit: "Teklifi Gönder",
+    confirmTitle: "Teklifi Onaylayın",
+    confirmBody1: "için toplam",
+    confirmBody2: "tutarında teklifinizi göndermek üzeresiniz. Gönderdikten sonra satınalma ekibi teklifinizi görüntüleyebilecek.",
+    cancel: "Vazgeç",
+    confirm: "Onayla ve Gönder",
+    sending: "Gönderiliyor...",
+    doneTitle: "Teklifiniz alınmıştır",
+    doneBody: "için teklifiniz kaydedildi. Satınalma ekibi bilgilendirildi.",
+    status: "Durum",
+    close: "Bu sayfayı kapatabilirsiniz.",
+  },
+  en: {
+    terms: "Quotation Terms",
+    currency: "Currency",
+    paymentDays: "Payment Term (days)",
+    incoterm: "Incoterm",
+    items: "Items",
+    item: "Item",
+    qty: "Qty",
+    quote: "Quote",
+    quoting: "Quoting",
+    unitPrice: "Unit Price",
+    disc: "Disc.%",
+    vat: "VAT%",
+    lead: "Lead (days)",
+    lineTotal: "Line Total",
+    brand: "Brand/model (opt.)",
+    freight: "Freight / Shipping Amount",
+    notes: "Notes",
+    notesPh: "Notes about your quotation",
+    grand: "Total Quotation (incl. VAT + freight)",
+    saveDraft: "Save Draft",
+    submit: "Submit Quotation",
+    confirmTitle: "Confirm Quotation",
+    confirmBody1: "for a total of",
+    confirmBody2: "you are about to submit your quotation. After submission the procurement team can view it.",
+    cancel: "Cancel",
+    confirm: "Confirm & Submit",
+    sending: "Sending...",
+    doneTitle: "Your quotation has been received",
+    doneBody: "your quotation has been saved. The procurement team has been notified.",
+    status: "Status",
+    close: "You may close this page.",
+  },
+} as const;
+
+interface LineState {
+  willQuote: boolean;
+  unitPrice: string;
+  discountPct: string;
+  taxRate: string;
+  brand: string;
+  leadTimeDays: string;
+  note: string;
+}
+
+export function BidForm({ ctx, token, locale = "tr" }: { ctx: BidContext; token: string; locale?: Locale }) {
+  const s = S[locale];
+  const [currency, setCurrency] = useState(ctx.existingBid?.currency ?? ctx.currencyOptions[0] ?? "TRY");
+  const [note, setNote] = useState(ctx.existingBid?.note ?? "");
+  const [paymentTermDays, setPaymentTermDays] = useState("");
+  const [incoterm, setIncoterm] = useState("");
+  const [freight, setFreight] = useState("0");
+  const [confirming, setConfirming] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState<null | { status: string; total: string }>(null);
+
+  const [lines, setLines] = useState<Record<string, LineState>>(() => {
+    const init: Record<string, LineState> = {};
+    for (const l of ctx.lines) {
+      const ex = ctx.existingBid?.lines[l.id];
+      init[l.id] = {
+        willQuote: ex?.willQuote ?? true,
+        unitPrice: ex?.unitPrice ?? "0",
+        discountPct: ex?.discountPct ?? "0",
+        taxRate: ex?.taxRate ?? "20",
+        brand: ex?.brand ?? "",
+        leadTimeDays: ex?.leadTimeDays ?? "",
+        note: ex?.note ?? "",
+      };
+    }
+    return init;
+  });
+
+  function update(id: string, patch: Partial<LineState>) {
+    setLines((prev) => ({ ...prev, [id]: { ...prev[id]!, ...patch } }));
+  }
+
+  const grandTotal = useMemo(() => {
+    let t = add(0);
+    for (const l of ctx.lines) {
+      const ls = lines[l.id]!;
+      if (!ls.willQuote) continue;
+      const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
+      t = add(t, net, lineTax(net, ls.taxRate));
+    }
+    return add(t, freight || "0");
+  }, [lines, freight, ctx.lines]);
+
+  async function save(submit: boolean) {
+    setError("");
+    setSubmitting(true);
+    const res = await submitBidAction({
+      token,
+      currency,
+      note: note || undefined,
+      paymentTermDays: paymentTermDays ? parseInt(paymentTermDays, 10) : undefined,
+      incoterm: incoterm || undefined,
+      freightAmount: freight || "0",
+      submit,
+      lines: ctx.lines.map((l) => ({
+        rfqLineId: l.id,
+        willQuote: lines[l.id]!.willQuote,
+        unitPrice: lines[l.id]!.unitPrice || "0",
+        discountPct: lines[l.id]!.discountPct || "0",
+        taxRate: lines[l.id]!.taxRate || "0",
+        brand: lines[l.id]!.brand || undefined,
+        leadTimeDays: lines[l.id]!.leadTimeDays || undefined,
+        note: lines[l.id]!.note || undefined,
+      })),
+    });
+    setSubmitting(false);
+    setConfirming(false);
+    if (!res.ok) setError(res.error);
+    else setDone({ status: res.data.status, total: res.data.total });
+  }
+
+  if (done) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-success/15 text-2xl text-success">
+            ✓
+          </div>
+          <h2 className="text-lg font-semibold">{s.doneTitle}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {ctx.rfqNumber} {s.doneBody}
+          </p>
+          <p className="mt-3 text-sm">
+            {s.status}: <span className="font-medium">{done.status}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">{s.close}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{s.terms}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>{s.currency}</Label>
+            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {ctx.currencyOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{s.paymentDays}</Label>
+            <Input value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)} placeholder="60" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{s.incoterm}</Label>
+            <Input value={incoterm} onChange={(e) => setIncoterm(e.target.value)} placeholder="EXW, DAP" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{s.items}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <THead>
+              <TR>
+                <TH>{s.item}</TH>
+                <TH className="text-right">{s.qty}</TH>
+                <TH>{s.quote}</TH>
+                <TH className="text-right">{s.unitPrice}</TH>
+                <TH className="text-right">{s.disc}</TH>
+                <TH className="text-right">{s.vat}</TH>
+                <TH>{s.lead}</TH>
+                <TH className="text-right">{s.lineTotal}</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {ctx.lines.map((l) => {
+                const ls = lines[l.id]!;
+                const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
+                const withTax = add(net, lineTax(net, ls.taxRate));
+                return (
+                  <TR key={l.id}>
+                    <TD>
+                      <div className="font-medium">{l.description}</div>
+                      {l.specs && <div className="text-xs text-muted-foreground">{l.specs}</div>}
+                      <Input
+                        className="mt-1 h-7 text-xs"
+                        placeholder={s.brand}
+                        value={ls.brand}
+                        onChange={(e) => update(l.id, { brand: e.target.value })}
+                      />
+                    </TD>
+                    <TD className="text-right">
+                      {l.quantity} {l.uom ?? ""}
+                    </TD>
+                    <TD>
+                      <label className="flex items-center gap-1 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={ls.willQuote}
+                          onChange={(e) => update(l.id, { willQuote: e.target.checked })}
+                        />
+                        {s.quoting}
+                      </label>
+                    </TD>
+                    <TD>
+                      <Input
+                        className="h-8 w-28 text-right"
+                        disabled={!ls.willQuote}
+                        value={ls.unitPrice}
+                        onChange={(e) => update(l.id, { unitPrice: e.target.value })}
+                      />
+                    </TD>
+                    <TD>
+                      <Input
+                        className="h-8 w-16 text-right"
+                        disabled={!ls.willQuote}
+                        value={ls.discountPct}
+                        onChange={(e) => update(l.id, { discountPct: e.target.value })}
+                      />
+                    </TD>
+                    <TD>
+                      <Input
+                        className="h-8 w-16 text-right"
+                        disabled={!ls.willQuote}
+                        value={ls.taxRate}
+                        onChange={(e) => update(l.id, { taxRate: e.target.value })}
+                      />
+                    </TD>
+                    <TD>
+                      <Input
+                        className="h-8 w-20"
+                        disabled={!ls.willQuote}
+                        value={ls.leadTimeDays}
+                        onChange={(e) => update(l.id, { leadTimeDays: e.target.value })}
+                      />
+                    </TD>
+                    <TD className="text-right font-medium">
+                      {ls.willQuote ? formatMoney(withTax, currency) : "-"}
+                    </TD>
+                  </TR>
+                );
+              })}
+            </TBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>{s.freight}</Label>
+            <Input value={freight} onChange={(e) => setFreight(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{s.notes}</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={s.notesPh} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+
+      <div className="flex items-center justify-between rounded-lg border bg-white p-4 dark:bg-slate-900">
+        <div>
+          <div className="text-xs text-muted-foreground">{s.grand}</div>
+          <div className="text-2xl font-bold">{formatMoney(grandTotal, currency)}</div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => save(false)} disabled={submitting}>
+            {s.saveDraft}
+          </Button>
+          <Button onClick={() => setConfirming(true)} disabled={submitting}>
+            {s.submit}
+          </Button>
+        </div>
+      </div>
+
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>{s.confirmTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm">
+                {ctx.rfqNumber} {s.confirmBody1} <b>{formatMoney(grandTotal, currency)}</b> {s.confirmBody2}
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setConfirming(false)} disabled={submitting}>
+                  {s.cancel}
+                </Button>
+                <Button onClick={() => save(true)} disabled={submitting}>
+                  {submitting ? s.sending : s.confirm}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}

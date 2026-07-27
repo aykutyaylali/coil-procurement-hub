@@ -1,0 +1,118 @@
+/** Türkçe sözlük. en.ts ile AYNI anahtar kümesine sahip olmalıdır (test edilir). */
+export const tr = {
+  "app.name": "Coil Procurement Hub",
+  "app.tagline": "Satınalma ve Tedarikçi Yönetim Platformu",
+
+  // Navigasyon
+  "nav.dashboard": "Kontrol Paneli",
+  "nav.tasks": "Görevlerim",
+  "nav.approvals": "Onaylarım",
+  "nav.requisitions": "Talepler",
+  "nav.rfqs": "Teklif Talepleri",
+  "nav.orders": "Siparişler",
+  "nav.deliveries": "Teslimatlar",
+  "nav.receipts": "Mal Kabul",
+  "nav.quality": "Kalite",
+  "nav.invoices": "Faturalar",
+  "nav.suppliers": "Tedarikçiler",
+  "nav.catalog": "Ürün Kataloğu",
+  "nav.contracts": "Sözleşmeler",
+  "nav.budgets": "Bütçeler",
+  "nav.reports": "Raporlar",
+  "nav.emails": "E-posta Merkezi",
+  "nav.integrations": "Entegrasyonlar",
+  "nav.audit": "Denetim Kayıtları",
+  "nav.users": "Kullanıcılar",
+  "nav.settings": "Ayarlar",
+
+  "group.procurement": "Satınalma",
+  "group.supply": "Tedarik & Kalite",
+  "group.finance": "Finans",
+  "group.master": "Ana Veri & Analiz",
+  "group.admin": "Yönetim",
+
+  // Aksiyonlar
+  "action.new": "Yeni",
+  "action.save": "Kaydet",
+  "action.saveDraft": "Taslak Kaydet",
+  "action.cancel": "İptal",
+  "action.submit": "Gönder",
+  "action.approve": "Onayla",
+  "action.reject": "Reddet",
+  "action.requestChange": "Düzeltme İste",
+  "action.send": "Gönder",
+  "action.logout": "Çıkış Yap",
+  "action.back": "Geri",
+  "action.viewAll": "Tümü",
+  "action.export": "Dışa Aktar",
+  "action.filter": "Filtrele",
+
+  // Genel
+  "common.search": "Ara...",
+  "common.loading": "Yükleniyor...",
+  "common.empty": "Kayıt bulunamadı",
+  "common.status": "Durum",
+  "common.total": "Toplam",
+  "common.subtotal": "Ara Toplam",
+  "common.tax": "KDV",
+  "common.grandTotal": "Genel Toplam",
+  "common.date": "Tarih",
+  "common.amount": "Tutar",
+  "common.currency": "Para Birimi",
+  "common.supplier": "Tedarikçi",
+  "common.company": "Şirket",
+  "common.department": "Departman",
+  "common.quantity": "Miktar",
+  "common.unitPrice": "Birim Fiyat",
+  "common.description": "Açıklama",
+  "common.priority": "Öncelik",
+  "common.all": "Tümü",
+  "common.yes": "Evet",
+  "common.no": "Hayır",
+  "common.language": "Dil",
+  "common.operationType": "Operasyon Türü",
+
+  // Auth
+  "auth.login": "Giriş Yap",
+  "auth.loggingIn": "Giriş yapılıyor...",
+  "auth.email": "E-posta",
+  "auth.password": "Parola",
+  "auth.mfaCode": "Doğrulama Kodu (MFA)",
+  "auth.forgotPassword": "Parolamı unuttum",
+  "auth.invalidCredentials": "E-posta veya parola hatalı.",
+  "auth.demoHint": "Demo giriş bilgileri için README dosyasına bakınız.",
+
+  // Operasyon türleri
+  "operationType.DOMESTIC_PURCHASE": "Yurt İçi Satınalma",
+  "operationType.IMPORT_PURCHASE": "İthalat",
+  "operationType.EXPORT_RELATED_PURCHASE": "İhracat Bağlantılı",
+
+  // Öncelik
+  "priority.LOW": "Düşük",
+  "priority.NORMAL": "Normal",
+  "priority.HIGH": "Yüksek",
+  "priority.URGENT": "Acil",
+
+  // Satınalma türü
+  "purchaseType.GOODS": "Malzeme",
+  "purchaseType.SERVICE": "Hizmet",
+  "purchaseType.EXPENSE": "Masraf",
+
+  // Doğrulama
+  "validation.required": "Bu alan zorunludur.",
+  "validation.email": "Geçerli bir e-posta girin.",
+  "validation.positiveQty": "Miktar 0'dan büyük olmalı.",
+  "validation.minLine": "En az bir kalem ekleyin.",
+  "validation.justificationRequired": "Seçim gerekçesi zorunludur.",
+
+  // Talep
+  "req.title": "Satınalma Talepleri",
+  "req.new": "Yeni Talep",
+  "req.number": "Talep No",
+  "req.estimatedTotal": "Tahmini Tutar",
+  "req.justification": "Gerekçe",
+  "req.internalNote": "İç Not (tedarikçiye gösterilmez)",
+  "req.lines": "Talep Kalemleri",
+  "req.addLine": "Kalem Ekle",
+  "req.submitApproval": "Onaya Gönder",
+} as const;

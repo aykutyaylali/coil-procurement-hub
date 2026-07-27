@@ -25,18 +25,18 @@ export function InvoiceActions({ id, status, canApprove }: { id: string; status:
       {error && <p className="rounded bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       {status === "BLOCKED" && (
         <div className="space-y-2 rounded-md border border-destructive/30 p-3">
-          <p className="text-sm font-medium text-destructive">Bloke fatura â€” istisna onayÄ±</p>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ä°stisna gerekÃ§esi (zorunlu)" className="min-h-[56px]" />
-          <Button size="sm" variant="destructive" disabled={busy} onClick={() => { if (!note.trim()) return setError("GerekÃ§e zorunlu."); return run(() => approveInvoiceException({ id, note })); }}>
-            Ä°stisna Onayla
+          <p className="text-sm font-medium text-destructive">Bloke fatura — istisna onayı</p>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="İstisna gerekçesi (zorunlu)" className="min-h-[56px]" />
+          <Button size="sm" variant="destructive" disabled={busy} onClick={() => { if (!note.trim()) return setError("Gerekçe zorunlu."); return run(() => approveInvoiceException({ id, note })); }}>
+            İstisna Onayla
           </Button>
         </div>
       )}
       {status === "MATCHED" && (
-        <Button className="w-full" variant="success" disabled={busy} onClick={() => run(() => updateInvoiceStatus({ id, action: "APPROVE" }))}>Ã–deme Onayla</Button>
+        <Button className="w-full" variant="success" disabled={busy} onClick={() => run(() => updateInvoiceStatus({ id, action: "APPROVE" }))}>Ödeme Onayla</Button>
       )}
       {status === "APPROVED" && (
-        <Button className="w-full" disabled={busy} onClick={() => run(() => updateInvoiceStatus({ id, action: "PAY" }))}>Ã–dendi Ä°ÅŸaretle</Button>
+        <Button className="w-full" disabled={busy} onClick={() => run(() => updateInvoiceStatus({ id, action: "PAY" }))}>Ödendi İşaretle</Button>
       )}
     </div>
   );

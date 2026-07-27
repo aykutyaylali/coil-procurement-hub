@@ -37,11 +37,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {invoice.supplier.legalName}
-            {invoice.order ? <> Â· SipariÅŸ: <Link href={`/orders/${invoice.orderId}`} className="text-primary hover:underline">{invoice.order.number}</Link></> : null}
-            {" "}Â· {formatDate(invoice.invoiceDate)}
+            {invoice.order ? <> · Sipariş: <Link href={`/orders/${invoice.orderId}`} className="text-primary hover:underline">{invoice.order.number}</Link></> : null}
+            {" "}· {formatDate(invoice.invoiceDate)}
           </p>
         </div>
-        <Link href="/invoices" className="text-sm text-primary hover:underline">â† Listeye dÃ¶n</Link>
+        <Link href="/invoices" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
       </div>
 
       {invoice.status === "BLOCKED" && invoice.blockReason && (
@@ -53,10 +53,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <CardHeader><CardTitle>ÃœÃ§lÃ¼ EÅŸleÅŸtirme (POâ€“Mal Kabulâ€“Fatura)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Üçlü Eşleştirme (PO–Mal Kabul–Fatura)</CardTitle></CardHeader>
             <CardContent className="p-0">
               {!match ? (
-                <p className="p-6 text-sm text-muted-foreground">EÅŸleÅŸtirme verisi yok.</p>
+                <p className="p-6 text-sm text-muted-foreground">Eşleştirme verisi yok.</p>
               ) : (
                 <Table>
                   <THead>
@@ -64,7 +64,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                       <TH>Kalem</TH>
                       <TH className="text-right">Sip. Mik/Fiyat</TH>
                       <TH className="text-right">Teslim</TH>
-                      <TH className="text-right">Ã–nce Fat.</TH>
+                      <TH className="text-right">Önce Fat.</TH>
                       <TH className="text-right">Bu Fatura</TH>
                       <TH className="text-right">Mik. Fark</TH>
                       <TH className="text-right">Fiyat Fark</TH>
@@ -81,7 +81,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                         <TD className="text-right">{l.thisQty} / {formatMoney(l.thisPrice, invoice.currency)}</TD>
                         <TD className={`text-right ${d(l.qtyDiff).greaterThan(0) ? "text-destructive" : ""}`}>{l.qtyDiff}</TD>
                         <TD className={`text-right ${!d(l.priceDiff).isZero() ? "text-warning" : ""}`}>{formatMoney(l.priceDiff, invoice.currency)}</TD>
-                        <TD><Badge tone={l.withinTolerance ? "success" : "danger"}>{l.withinTolerance ? "Uygun" : "Tolerans DÄ±ÅŸÄ±"}</Badge></TD>
+                        <TD><Badge tone={l.withinTolerance ? "success" : "danger"}>{l.withinTolerance ? "Uygun" : "Tolerans Dışı"}</Badge></TD>
                       </TR>
                     ))}
                   </TBody>
@@ -91,7 +91,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 <div className="flex justify-end gap-8"><span className="text-muted-foreground">Net</span><span className="w-32 text-right">{formatMoney(invoice.netAmount, invoice.currency)}</span></div>
                 <div className="flex justify-end gap-8"><span className="text-muted-foreground">KDV</span><span className="w-32 text-right">{formatMoney(invoice.taxAmount, invoice.currency)}</span></div>
                 <div className="flex justify-end gap-8"><span className="text-muted-foreground">Tevkifat</span><span className="w-32 text-right">-{formatMoney(invoice.withholdingAmount, invoice.currency)}</span></div>
-                <div className="flex justify-end gap-8 font-semibold"><span>Ã–denecek</span><span className="w-32 text-right">{formatMoney(invoice.payableAmount, invoice.currency)}</span></div>
+                <div className="flex justify-end gap-8 font-semibold"><span>Ödenecek</span><span className="w-32 text-right">{formatMoney(invoice.payableAmount, invoice.currency)}</span></div>
               </div>
             </CardContent>
           </Card>
@@ -99,11 +99,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Ä°ÅŸlemler</CardTitle></CardHeader>
+            <CardHeader><CardTitle>İşlemler</CardTitle></CardHeader>
             <CardContent><InvoiceActions id={invoice.id} status={invoice.status} canApprove={canApprove} /></CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Ã–zet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               <Row label="Para Birimi" value={invoice.currency} />
               <Row label="Vade" value={invoice.dueDate ? formatDate(invoice.dueDate) : "-"} />

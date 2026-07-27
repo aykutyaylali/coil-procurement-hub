@@ -33,13 +33,13 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
             <StatusBadge status={inspection.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            SipariÅŸ:{" "}
+            Sipariş:{" "}
             <Link href={`/orders/${inspection.receipt.orderId}`} className="text-primary hover:underline">{inspection.receipt.order.number}</Link>
-            {" "}Â· {inspection.receipt.order.supplier.legalName} Â· Mal Kabul:{" "}
+            {" "}· {inspection.receipt.order.supplier.legalName} · Mal Kabul:{" "}
             <Link href={`/receipts/${inspection.receiptId}`} className="text-primary hover:underline">{inspection.receipt.number}</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dÃ¶n</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -54,12 +54,12 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
           <Card>
             <CardHeader><CardTitle>Uygunsuzluklar (NCR)</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {inspection.nonConformances.length === 0 && <p className="text-sm text-muted-foreground">Uygunsuzluk kaydÄ± yok.</p>}
+              {inspection.nonConformances.length === 0 && <p className="text-sm text-muted-foreground">Uygunsuzluk kaydı yok.</p>}
               {inspection.nonConformances.map((n) => (
                 <Link key={n.id} href={`/quality/ncr/${n.id}`} className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-accent">
                   <div>
-                    <div className="font-medium">{n.code} Â· {n.title}</div>
-                    <div className="text-xs text-muted-foreground">{label(n.type)} Â· Hedef: {n.dueDate ? formatDate(n.dueDate) : "-"}</div>
+                    <div className="font-medium">{n.code} · {n.title}</div>
+                    <div className="text-xs text-muted-foreground">{label(n.type)} · Hedef: {n.dueDate ? formatDate(n.dueDate) : "-"}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge tone={n.severity === "CRITICAL" ? "danger" : n.severity === "MAJOR" ? "warning" : "default"}>{label(n.severity)}</Badge>
@@ -73,12 +73,12 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Ã–zet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Numune AdedÄ±" value={inspection.sampleSize ?? "-"} />
+              <Row label="Numune Adedı" value={inspection.sampleSize ?? "-"} />
               <Row label="Kontrol Eden" value={inspection.inspectedBy ? (users.find((u) => u.id === inspection.inspectedBy)?.name ?? "-") : "-"} />
               <Row label="Kontrol Tarihi" value={inspection.inspectedAt ? formatDateTime(inspection.inspectedAt) : "-"} />
-              {inspection.sampleResult && <Row label="SonuÃ§" value={inspection.sampleResult} />}
+              {inspection.sampleResult && <Row label="Sonuç" value={inspection.sampleResult} />}
             </CardContent>
           </Card>
         </div>

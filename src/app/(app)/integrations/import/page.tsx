@@ -11,7 +11,7 @@ import { formatDateTime } from "@/lib/dates";
 import { ImportWizard } from "./wizard";
 import { BatchActions } from "./batch-actions";
 
-export const metadata: Metadata = { title: "GeÃ§miÅŸ Veri Ä°Ã§e Aktarma" };
+export const metadata: Metadata = { title: "Geçmiş Veri İçe Aktarma" };
 
 export default async function ImportPage() {
   const user = await requirePermission(PERMISSIONS.ADMIN_INTEGRATIONS);
@@ -24,8 +24,8 @@ export default async function ImportPage() {
   return (
     <div>
       <PageHeader
-        title="GeÃ§miÅŸ SatÄ±nalma Verisi Ä°Ã§e Aktarma"
-        description="Excel (.xlsx) dosyasÄ±ndan geÃ§miÅŸ sipariÅŸleri gÃ¼venli, idempotent ve geri alÄ±nabilir ÅŸekilde iÃ§e aktarÄ±n."
+        title="Geçmiş Satınalma Verisi İçe Aktarma"
+        description="Excel (.xlsx) dosyasından geçmiş siparişleri güvenli, idempotent ve geri alınabilir şekilde içe aktarın."
       />
       <div className="mb-4">
         <Link href="/integrations" className="text-sm text-primary hover:underline">â† Entegrasyon Merkezi</Link>
@@ -34,13 +34,13 @@ export default async function ImportPage() {
       <ImportWizard />
 
       <Card className="mt-8">
-        <CardHeader><CardTitle>Ä°Ã§e Aktarma GeÃ§miÅŸi (Batch)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>İçe Aktarma Geçmişi (Batch)</CardTitle></CardHeader>
         <CardContent className="p-0">
           {batches.length === 0 ? (
-            <EmptyState title="HenÃ¼z iÃ§e aktarma yok" />
+            <EmptyState title="Henüz içe aktarma yok" />
           ) : (
             <Table>
-              <THead><TR><TH>Dosya</TH><TH>Durum</TH><TH className="text-center">SipariÅŸ</TH><TH className="text-center">Kalem</TH><TH className="text-center">Yeni Ted.</TH><TH>Tarih</TH><TH></TH></TR></THead>
+              <THead><TR><TH>Dosya</TH><TH>Durum</TH><TH className="text-center">Sipariş</TH><TH className="text-center">Kalem</TH><TH className="text-center">Yeni Ted.</TH><TH>Tarih</TH><TH></TH></TR></THead>
               <TBody>
                 {batches.map((b) => (
                   <TR key={b.id}>

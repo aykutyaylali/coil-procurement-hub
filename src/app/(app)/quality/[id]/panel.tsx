@@ -49,7 +49,7 @@ export function InspectionPanel({
   }
 
   async function addNcr() {
-    if (!ncrTitle.trim()) { setError("NCR baÅŸlÄ±ÄŸÄ± zorunlu."); return; }
+    if (!ncrTitle.trim()) { setError("NCR başlığı zorunlu."); return; }
     setBusy(true); setError("");
     const res = await createNonConformance({
       inspectionId, supplierId: supplierId || undefined, title: ncrTitle, type: ncrType, severity: ncrSeverity,
@@ -67,29 +67,29 @@ export function InspectionPanel({
 
       {status === "PENDING" && (
         <Card>
-          <CardHeader><CardTitle>Kalite KontrolÃ¼ Tamamla</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Kalite Kontrolü Tamamla</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label>SonuÃ§</Label>
+                <Label>Sonuç</Label>
                 <Select value={result} onChange={(e) => setResult(e.target.value)}>
                   {QUALITY_RESULTS.map((r) => (<option key={r} value={r}>{label(r)}</option>))}
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Numune AdedÄ±</Label>
-                <Input value={sampleSize} onChange={(e) => setSampleSize(e.target.value)} placeholder="Ã–rn: 8" />
+                <Label>Numune Adedı</Label>
+                <Input value={sampleSize} onChange={(e) => setSampleSize(e.target.value)} placeholder="Örn: 8" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Ã–lÃ§Ã¼m / Numune SonuÃ§larÄ±</Label>
-              <Textarea value={sampleResult} onChange={(e) => setSampleResult(e.target.value)} placeholder="Ã–lÃ§Ã¼m sonuÃ§larÄ±, kontrol planÄ± notlarÄ±..." />
+              <Label>Ölçüm / Numune Sonuçları</Label>
+              <Textarea value={sampleResult} onChange={(e) => setSampleResult(e.target.value)} placeholder="Ölçüm sonuçları, kontrol planı notları..." />
             </div>
             <div className="space-y-1.5">
-              <Label>AÃ§Ä±klama</Label>
+              <Label>Açıklama</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <Button onClick={complete} disabled={busy}>{busy ? "Kaydediliyor..." : "KontrolÃ¼ Tamamla"}</Button>
+            <Button onClick={complete} disabled={busy}>{busy ? "Kaydediliyor..." : "Kontrolü Tamamla"}</Button>
           </CardContent>
         </Card>
       )}
@@ -97,41 +97,41 @@ export function InspectionPanel({
       {(showNcr || status === "FAIL" || status === "CONDITIONAL") && (
         <Card>
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Uygunsuzluk (NCR) OluÅŸtur</CardTitle>
+            <CardTitle>Uygunsuzluk (NCR) Oluştur</CardTitle>
             {!showNcr && <Button size="sm" variant="outline" onClick={() => setShowNcr(true)}>NCR Ekle</Button>}
           </CardHeader>
           {showNcr && (
             <CardContent className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>BaÅŸlÄ±k *</Label>
-                  <Input value={ncrTitle} onChange={(e) => setNcrTitle(e.target.value)} placeholder="UygunsuzluÄŸun kÄ±sa tanÄ±mÄ±" />
+                  <Label>Başlık *</Label>
+                  <Input value={ncrTitle} onChange={(e) => setNcrTitle(e.target.value)} placeholder="Uygunsuzluğun kısa tanımı" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <Label>Åiddet</Label>
+                    <Label>Şiddet</Label>
                     <Select value={ncrSeverity} onChange={(e) => setNcrSeverity(e.target.value)}>
                       {NCR_SEVERITIES.map((s) => (<option key={s} value={s}>{label(s)}</option>))}
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>TÃ¼r</Label>
+                    <Label>Tür</Label>
                     <Select value={ncrType} onChange={(e) => setNcrType(e.target.value)}>
                       <option value="QUALITY">Kalite</option>
-                      <option value="SUPPLIER_COMPLAINT">TedarikÃ§i ÅikÃ¢yeti</option>
-                      <option value="PROCESS">SÃ¼reÃ§</option>
+                      <option value="SUPPLIER_COMPLAINT">Tedarikçi Şikâyeti</option>
+                      <option value="PROCESS">Süreç</option>
                     </Select>
                   </div>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>AÃ§Ä±klama</Label>
+                <Label>Açıklama</Label>
                 <Textarea value={ncrDesc} onChange={(e) => setNcrDesc(e.target.value)} />
               </div>
               <div className="grid gap-3 sm:grid-cols-4">
                 <div className="space-y-1.5">
                   <Label>Disposition</Label>
-                  <Input value={ncrDisp} onChange={(e) => setNcrDisp(e.target.value)} placeholder="iade / hurda / ÅŸartlÄ± kabul" />
+                  <Input value={ncrDisp} onChange={(e) => setNcrDisp(e.target.value)} placeholder="iade / hurda / şartlı kabul" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Maliyet</Label>
@@ -140,7 +140,7 @@ export function InspectionPanel({
                 <div className="space-y-1.5">
                   <Label>Sorumlu</Label>
                   <Select value={ncrResp} onChange={(e) => setNcrResp(e.target.value)}>
-                    <option value="">SeÃ§iniz</option>
+                    <option value="">Seçiniz</option>
                     {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
                   </Select>
                 </div>
@@ -150,8 +150,8 @@ export function InspectionPanel({
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowNcr(false)} disabled={busy}>VazgeÃ§</Button>
-                <Button onClick={addNcr} disabled={busy}>{busy ? "..." : "NCR OluÅŸtur"}</Button>
+                <Button variant="outline" onClick={() => setShowNcr(false)} disabled={busy}>Vazgeç</Button>
+                <Button onClick={addNcr} disabled={busy}>{busy ? "..." : "NCR Oluştur"}</Button>
               </div>
             </CardContent>
           )}

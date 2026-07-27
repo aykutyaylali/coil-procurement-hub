@@ -44,7 +44,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Yeni Fatura" description="SipariÅŸ ve mal kabul Ã¼zerinden fatura girin; Ã¼Ã§lÃ¼ eÅŸleÅŸtirme otomatik Ã§alÄ±ÅŸÄ±r." />
+      <PageHeader title="Yeni Fatura" description="Sipariş ve mal kabul üzerinden fatura girin; üçlü eşleştirme otomatik çalışır." />
       <NewInvoiceForm orders={data} preselectOrderId={sp.orderId ?? ""} />
     </div>
   );

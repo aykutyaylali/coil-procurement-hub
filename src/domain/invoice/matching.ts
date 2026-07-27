@@ -1,8 +1,8 @@
 import { d, add, sub, mul, div, lineNet, lineTax, toStr, gt } from "@/lib/money";
 
 /**
- * ÃœÃ§lÃ¼ eÅŸleÅŸtirme (POâ€“Mal Kabulâ€“Fatura) motoru. Saf ve test edilebilir.
- * Her satÄ±r iÃ§in miktar/fiyat/vergi farkÄ± ve tolerans sonucu hesaplanÄ±r.
+ * Üçlü eşleştirme (PO–Mal Kabul–Fatura) motoru. Saf ve test edilebilir.
+ * Her satır için miktar/fiyat/vergi farkı ve tolerans sonucu hesaplanır.
  */
 export interface MatchInputLine {
   orderLineId: string;
@@ -62,7 +62,7 @@ export function matchInvoice(lines: MatchInputLine[], tol: Tolerances): MatchRes
   for (const l of lines) {
     const reasons: string[] = [];
     const totalInvoiced = add(l.prevInvoicedQty, l.thisQty);
-    const qtyDiff = sub(totalInvoiced, l.receivedQty); // >0 => fazla faturalanmÄ±ÅŸ
+    const qtyDiff = sub(totalInvoiced, l.receivedQty); // >0 => fazla faturalanmış
     const priceDiff = sub(l.thisPrice, l.orderedPrice);
     const net = lineNet(l.thisQty, l.thisPrice);
     const tax = lineTax(net, l.taxRate);
@@ -72,26 +72,26 @@ export function matchInvoice(lines: MatchInputLine[], tol: Tolerances): MatchRes
     let status: MatchLineResult["status"] = "MATCHED";
     let within = true;
 
-    // Mal kabul yok (en yÃ¼ksek Ã¶ncelik)
+    // Mal kabul yok (en yüksek öncelik)
     if (!gt(l.receivedQty, "0")) {
       status = "NOT_RECEIVED";
       within = false;
-      reasons.push("Bu satÄ±r iÃ§in mal kabul yapÄ±lmamÄ±ÅŸ");
+      reasons.push("Bu satır için mal kabul yapılmamış");
     } else {
-      // Fazla faturalama (miktar toleransÄ± aÅŸÄ±mÄ±)
+      // Fazla faturalama (miktar toleransı aşımı)
       const qtyAllowed = mul(l.receivedQty, add(1, div(tol.qtyPct, 100)));
       if (gt(totalInvoiced.toString(), qtyAllowed.toString())) {
         status = "OVER_INVOICED";
         within = false;
-        reasons.push(`Faturalanan miktar mal kabulÃ¼ aÅŸÄ±yor (tolerans %${tol.qtyPct})`);
+        reasons.push(`Faturalanan miktar mal kabulü aşıyor (tolerans %${tol.qtyPct})`);
       }
     }
 
-    // Fiyat sapmasÄ±
+    // Fiyat sapması
     if (pctExceeds(priceDiff.toString(), l.orderedPrice, tol.pricePct)) {
       if (status === "MATCHED") status = "PRICE_VARIANCE";
       within = false;
-      reasons.push(`Birim fiyat sipariÅŸten sapÄ±yor (tolerans %${tol.pricePct})`);
+      reasons.push(`Birim fiyat siparişten sapıyor (tolerans %${tol.pricePct})`);
     }
 
     if (!within) blockedReasons.push(`${l.description}: ${reasons.join(", ")}`);

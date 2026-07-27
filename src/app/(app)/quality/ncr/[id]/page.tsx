@@ -36,11 +36,11 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
             <StatusBadge status={ncr.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {ncr.title} Â· {ncr.supplier?.legalName ?? "-"} Â· Kalite:{" "}
-            <Link href={`/quality/${ncr.inspectionId}`} className="text-primary hover:underline">Kontrol kaydÄ±</Link>
+            {ncr.title} · {ncr.supplier?.legalName ?? "-"} · Kalite:{" "}
+            <Link href={`/quality/${ncr.inspectionId}`} className="text-primary hover:underline">Kontrol kaydı</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dÃ¶n</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -53,14 +53,14 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div>
           <Card>
-            <CardHeader><CardTitle>Ã–zet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="TÃ¼r" value={label(ncr.type)} />
-              <Row label="SipariÅŸ" value={ncr.inspection.receipt.order.number} />
+              <Row label="Tür" value={label(ncr.type)} />
+              <Row label="Sipariş" value={ncr.inspection.receipt.order.number} />
               <Row label="Hedef Tarih" value={ncr.dueDate ? formatDate(ncr.dueDate) : "-"} />
               <Row label="Maliyet" value={ncr.cost ? formatMoney(ncr.cost, "TRY") : "-"} />
-              {ncr.description && <Row label="AÃ§Ä±klama" value={ncr.description} />}
-              {ncr.verifiedAt && <Row label="DoÄŸrulandÄ±" value={formatDate(ncr.verifiedAt)} />}
+              {ncr.description && <Row label="Açıklama" value={ncr.description} />}
+              {ncr.verifiedAt && <Row label="Doğrulandı" value={formatDate(ncr.verifiedAt)} />}
             </CardContent>
           </Card>
         </div>

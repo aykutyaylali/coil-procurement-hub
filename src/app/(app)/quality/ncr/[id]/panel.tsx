@@ -44,7 +44,7 @@ export function NcrPanel({
   }
 
   async function addCapa() {
-    if (!capaTitle.trim()) { setError("CAPA baÅŸlÄ±ÄŸÄ± zorunlu."); return; }
+    if (!capaTitle.trim()) { setError("CAPA başlığı zorunlu."); return; }
     setBusy(true); setError("");
     const res = await createCAPA({ ncrId: ncr.id, title: capaTitle, type: capaType, rootCause, action: capaAction || undefined, responsibleUserId: capaResp || undefined, dueDate: capaDue || undefined });
     setBusy(false);
@@ -64,30 +64,30 @@ export function NcrPanel({
       {msg && <p className="rounded bg-success/10 px-3 py-2 text-sm text-success">{msg}</p>}
 
       <Card>
-        <CardHeader><CardTitle>KÃ¶k Neden ve Faaliyetler (8D)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Kök Neden ve Faaliyetler (8D)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1.5"><Label>KÃ¶k Neden</Label><Textarea value={rootCause} onChange={(e) => setRootCause(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Kök Neden</Label><Textarea value={rootCause} onChange={(e) => setRootCause(e.target.value)} /></div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>DÃ¼zeltici Faaliyet</Label><Textarea value={corrective} onChange={(e) => setCorrective(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Ã–nleyici Faaliyet</Label><Textarea value={preventive} onChange={(e) => setPreventive(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Düzeltici Faaliyet</Label><Textarea value={corrective} onChange={(e) => setCorrective(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Önleyici Faaliyet</Label><Textarea value={preventive} onChange={(e) => setPreventive(e.target.value)} /></div>
           </div>
           <div className="space-y-1.5"><Label>Disposition (iade/yeniden sevk/hurda)</Label><Input value={disposition} onChange={(e) => setDisposition(e.target.value)} /></div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => save()} disabled={busy}>Kaydet</Button>
-            <Button variant="secondary" onClick={() => save("IN_PROGRESS")} disabled={busy}>Ä°ÅŸleme Al</Button>
-            <Button variant="success" onClick={() => save("DONE", true)} disabled={busy}>DoÄŸrula ve Kapat</Button>
+            <Button variant="secondary" onClick={() => save("IN_PROGRESS")} disabled={busy}>İşleme Al</Button>
+            <Button variant="success" onClick={() => save("DONE", true)} disabled={busy}>Doğrula ve Kapat</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>CAPA / DÃ¼zeltici-Ã–nleyici Faaliyet KayÄ±tlarÄ±</CardTitle></CardHeader>
+        <CardHeader><CardTitle>CAPA / Düzeltici-Önleyici Faaliyet Kayıtları</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {capas.map((c) => (
             <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2">
               <div>
-                <div className="font-medium">{c.code} Â· {c.title}</div>
-                <div className="text-xs text-muted-foreground">{label(c.type)} Â· Hedef: {c.dueDate ? formatDate(c.dueDate) : "-"}</div>
+                <div className="font-medium">{c.code} · {c.title}</div>
+                <div className="text-xs text-muted-foreground">{label(c.type)} · Hedef: {c.dueDate ? formatDate(c.dueDate) : "-"}</div>
               </div>
               <div className="flex items-center gap-2">
                 <StatusBadge status={c.status} />
@@ -95,25 +95,25 @@ export function NcrPanel({
               </div>
             </div>
           ))}
-          {capas.length === 0 && <p className="text-sm text-muted-foreground">HenÃ¼z CAPA yok.</p>}
+          {capas.length === 0 && <p className="text-sm text-muted-foreground">Henüz CAPA yok.</p>}
 
           <div className="space-y-2 border-t pt-3">
             <p className="text-sm font-medium">Yeni CAPA</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={capaTitle} onChange={(e) => setCapaTitle(e.target.value)} placeholder="BaÅŸlÄ±k *" />
+              <Input value={capaTitle} onChange={(e) => setCapaTitle(e.target.value)} placeholder="Başlık *" />
               <Select value={capaType} onChange={(e) => setCapaType(e.target.value)}>
                 {CAPA_TYPES.map((t) => (<option key={t} value={t}>{label(t)}</option>))}
               </Select>
             </div>
-            <Textarea value={capaAction} onChange={(e) => setCapaAction(e.target.value)} placeholder="Faaliyet aÃ§Ä±klamasÄ±" />
+            <Textarea value={capaAction} onChange={(e) => setCapaAction(e.target.value)} placeholder="Faaliyet açıklaması" />
             <div className="grid gap-2 sm:grid-cols-2">
               <Select value={capaResp} onChange={(e) => setCapaResp(e.target.value)}>
-                <option value="">Sorumlu seÃ§iniz</option>
+                <option value="">Sorumlu seçiniz</option>
                 {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
               </Select>
               <Input type="date" value={capaDue} onChange={(e) => setCapaDue(e.target.value)} />
             </div>
-            <Button onClick={addCapa} disabled={busy}>CAPA OluÅŸtur</Button>
+            <Button onClick={addCapa} disabled={busy}>CAPA Oluştur</Button>
           </div>
         </CardContent>
       </Card>

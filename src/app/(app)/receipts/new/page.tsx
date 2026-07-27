@@ -26,7 +26,7 @@ export default async function NewReceiptPage({ searchParams }: { searchParams: P
     orderBy: { name: "asc" },
   });
 
-  // AÃ§Ä±k miktarÄ± olan sipariÅŸleri hazÄ±rla
+  // Açık miktarı olan siparişleri hazırla
   const data = orders
     .map((o) => ({
       id: o.id,
@@ -48,7 +48,7 @@ export default async function NewReceiptPage({ searchParams }: { searchParams: P
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Yeni Mal Kabul" description="SipariÅŸ Ã¼zerinden tam veya kÄ±smi mal kabul yapÄ±n." />
+      <PageHeader title="Yeni Mal Kabul" description="Sipariş üzerinden tam veya kısmi mal kabul yapın." />
       <NewReceiptForm
         orders={data}
         warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}

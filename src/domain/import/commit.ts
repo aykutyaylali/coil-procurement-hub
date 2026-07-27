@@ -14,11 +14,11 @@ import {
   type ParsedLine,
 } from "@/domain/import/historical";
 
-/** xlsx buffer'Ä±ndan bir sayfayÄ± satÄ±r nesnelerine Ã§evirir. */
+/** xlsx buffer'ından bir sayfayı satır nesnelerine çevirir. */
 export function readSheetRows(buffer: Buffer, sheetName = KALEM_SHEET): Record<string, unknown>[] {
   const wb = XLSX.read(buffer, { cellDates: true });
   const ws = wb.Sheets[sheetName];
-  if (!ws) throw new Error(`"${sheetName}" sayfasÄ± bulunamadÄ±. Mevcut: ${wb.SheetNames.join(", ")}`);
+  if (!ws) throw new Error(`"${sheetName}" sayfası bulunamadı. Mevcut: ${wb.SheetNames.join(", ")}`);
   return XLSX.utils.sheet_to_json(ws, { defval: null, raw: true }) as Record<string, unknown>[];
 }
 
@@ -40,7 +40,7 @@ export interface DryRunResult {
   errorRows: number;
 }
 
-/** Dry-run: veritabanÄ±na hiÃ§bir ÅŸey yazmadan sonucu Ã¶ngÃ¶rÃ¼r. */
+/** Dry-run: veritabanına hiçbir şey yazmadan sonucu öngörür. */
 export async function dryRun(tenantId: string, parsed: ParsedLine[]): Promise<DryRunResult> {
   const existingSuppliers = await prisma.supplier.findMany({
     where: { tenantId },
@@ -90,8 +90,8 @@ export async function dryRun(tenantId: string, parsed: ParsedLine[]): Promise<Dr
 }
 
 /**
- * GerÃ§ek iÃ§e aktarma (transaction iÃ§inde Ã§aÄŸrÄ±lÄ±r). Ä°dempotent: mevcut sipariÅŸ
- * numaralarÄ± atlanÄ±r. Yeni tedarikÃ§i/kategori import batch'i ile iÅŸaretlenir.
+ * Gerçek içe aktarma (transaction içinde çağrılır). İdempotent: mevcut sipariş
+ * numaraları atlanır. Yeni tedarikçi/kategori import batch'i ile işaretlenir.
  */
 export async function commitImport(
   tx: Tx,
@@ -99,12 +99,12 @@ export async function commitImport(
 ): Promise<{ ordersCreated: number; linesCreated: number; suppliersCreated: number; categoriesCreated: number; skippedOrders: number; importedTotalTry: string }> {
   const { tenantId, userId, companyId, batchId, parsed } = params;
 
-  // TedarikÃ§i eÅŸleme haritasÄ±
+  // Tedarikçi eşleme haritası
   const existingSuppliers = await tx.supplier.findMany({ where: { tenantId }, select: { id: true, legalName: true } });
   const supMap = new Map<string, string>();
   for (const s of existingSuppliers) supMap.set(normalizeSupplier(s.legalName), s.id);
 
-  // Kategori eÅŸleme haritasÄ±
+  // Kategori eşleme haritası
   const existingCats = await tx.category.findMany({ where: { tenantId }, select: { id: true, name: true } });
   const catMap = new Map<string, string>();
   for (const c of existingCats) catMap.set(normalizeSupplier(c.name), c.id);
@@ -136,7 +136,7 @@ export async function commitImport(
     const key = normalizeSupplier(name);
     const existing = catMap.get(key);
     if (existing) return existing;
-    // Benzersiz kod Ã¼ret
+    // Benzersiz kod üret
     const code = `IMP-${key.replace(/[^a-z0-9]/g, "").slice(0, 8)}-${categoriesCreated + 1}`;
     const created = await tx.category.create({
       data: { tenantId, code, name, isImported: true, importBatchId: batchId },
@@ -161,7 +161,7 @@ export async function commitImport(
 
     const first = lines[0]!;
     const supplierId = await resolveSupplier(first);
-    // SipariÅŸ para birimi: satÄ±rlar tutarlÄ± deÄŸilse TRY (raporlama) kullan
+    // Sipariş para birimi: satırlar tutarlı değilse TRY (raporlama) kullan
     const distinctCur = Array.from(new Set(lines.map((l) => l.currency)));
     const orderTotal = orderTotalTry(lines); // tarihsel TL
 
@@ -182,7 +182,7 @@ export async function commitImport(
         currency: l.currency,
         unitPrice: l.unitPrice, // null kalabilir (0 ile doldurulmaz)
         taxRate: l.taxRate,
-        lineTotal: l.historicalTryTotal, // raporlama TL tutarÄ±
+        lineTotal: l.historicalTryTotal, // raporlama TL tutarı
         originalLineTotal: l.originalLineTotal,
         historicalTryTotal: l.historicalTryTotal,
         note: l.note,
@@ -199,12 +199,12 @@ export async function commitImport(
         status: first.status,
         operationType: first.currency === "TRY" ? "DOMESTIC_PURCHASE" : "IMPORT_PURCHASE",
         orderDate: first.orderDate ?? new Date(),
-        currency: "TRY", // raporlama TL (satÄ±rlarda orijinal PB saklÄ±)
+        currency: "TRY", // raporlama TL (satırlarda orijinal PB saklı)
         subtotal: orderTotal, taxTotal: "0", grandTotal: orderTotal,
         requesterName: first.requesterName,
         requisitionNumber: first.requisitionNumber,
         isImported: true, importBatchId: batchId, sourceRowNo: first.sourceRowNo,
-        notes: distinctCur.length > 1 ? `Ã‡oklu PB: ${distinctCur.join(", ")}` : null,
+        notes: distinctCur.length > 1 ? `Çoklu PB: ${distinctCur.join(", ")}` : null,
         createdById: userId,
         lines: { create: lineData },
       },
@@ -218,7 +218,7 @@ export async function commitImport(
         tenantId, userId, action: "IMPORT",
         entityType: "PurchaseOrder", entityId: po.id,
         after: { number: orderNumber, batchId, historicalTry: orderTotal, isImported: true },
-        reason: `GeÃ§miÅŸ veri iÃ§e aktarma (batch ${batchId})`,
+        reason: `Geçmiş veri içe aktarma (batch ${batchId})`,
       },
       tx,
     );
@@ -230,7 +230,7 @@ export async function commitImport(
   };
 }
 
-/** Batch geri alma: yalnÄ±zca bu batch'in oluÅŸturduÄŸu ve baÅŸka iÅŸleme baÄŸlanmamÄ±ÅŸ kayÄ±tlar. */
+/** Batch geri alma: yalnızca bu batch'in oluşturduğu ve başka işleme bağlanmamış kayıtlar. */
 export async function rollbackImport(
   tx: Tx,
   params: { tenantId: string; userId: string; batchId: string },
@@ -241,13 +241,13 @@ export async function rollbackImport(
     where: { tenantId, importBatchId: batchId },
     select: { id: true, invoices: { select: { id: true }, take: 1 }, goodsReceipts: { select: { id: true }, take: 1 } },
   });
-  // BaÅŸka iÅŸleme baÄŸlanmamÄ±ÅŸ olanlar
+  // Başka işleme bağlanmamış olanlar
   const deletableOrderIds = orders.filter((o) => o.invoices.length === 0 && o.goodsReceipts.length === 0).map((o) => o.id);
 
-  // SatÄ±rlar cascade ile silinir (onDelete: Cascade)
+  // Satırlar cascade ile silinir (onDelete: Cascade)
   await tx.purchaseOrder.deleteMany({ where: { id: { in: deletableOrderIds } } });
 
-  // Bu batch'in oluÅŸturduÄŸu, artÄ±k sipariÅŸi olmayan tedarikÃ§iler
+  // Bu batch'in oluşturduğu, artık siparişi olmayan tedarikçiler
   const impSuppliers = await tx.supplier.findMany({
     where: { tenantId, importBatchId: batchId },
     select: { id: true, purchaseOrders: { select: { id: true }, take: 1 } },
@@ -255,7 +255,7 @@ export async function rollbackImport(
   const delSupIds = impSuppliers.filter((s) => s.purchaseOrders.length === 0).map((s) => s.id);
   await tx.supplier.deleteMany({ where: { id: { in: delSupIds } } });
 
-  // Bu batch'in oluÅŸturduÄŸu, kullanÄ±lmayan kategoriler
+  // Bu batch'in oluşturduğu, kullanılmayan kategoriler
   const impCats = await tx.category.findMany({
     where: { tenantId, importBatchId: batchId },
     select: { id: true, items: { select: { id: true }, take: 1 } },

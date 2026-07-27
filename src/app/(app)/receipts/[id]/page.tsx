@@ -35,12 +35,13 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
             <StatusBadge status={receipt.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            SipariÅŸ:{" "}
+            Sipariş:{" "}
             <Link href={`/orders/${receipt.orderId}`} className="text-primary hover:underline">{receipt.order.number}</Link>
-            {" "}Â· {receipt.order.supplier.legalName} Â· {receipt.warehouse?.name ?? "-"}
+            {" "}· {receipt.order.supplier.legalName} · {receipt.warehouse?.name ?? "-"}
           </p>
         </div>
-        <Link href="/receipts" className="text-sm text-primary hover:underline">â† Listeye dÃ¶n</Link>
+        <a href={`/receipts/${receipt.id}/pdf`} target="_blank" rel="noopener" className="mr-3 rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF</a>
+        <Link href="/receipts" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -74,10 +75,10 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
               <CardContent className="space-y-2">
                 {receipt.inspections.map((q) => (
                   <div key={q.id} className="flex items-center justify-between">
-                    <span className="text-sm">Kalite kontrolÃ¼</span>
+                    <span className="text-sm">Kalite kontrolü</span>
                     <span className="flex items-center gap-2">
                       <StatusBadge status={q.status} />
-                      <Link href={`/quality/${q.id}`} className="text-sm text-primary hover:underline">Ä°ncele â†’</Link>
+                      <Link href={`/quality/${q.id}`} className="text-sm text-primary hover:underline">İncele →</Link>
                     </span>
                   </div>
                 ))}
@@ -88,12 +89,12 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Ã–zet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Ä°rsaliye No" value={receipt.waybillNo ?? "-"} />
+              <Row label="İrsaliye No" value={receipt.waybillNo ?? "-"} />
               <Row label="Teslim Alan" value={receivedBy?.name ?? "-"} />
               <Row label="Tarih" value={formatDateTime(receipt.receivedAt)} />
-              {receipt.note && <Row label="AÃ§Ä±klama" value={receipt.note} />}
+              {receipt.note && <Row label="Açıklama" value={receipt.note} />}
             </CardContent>
           </Card>
         </div>

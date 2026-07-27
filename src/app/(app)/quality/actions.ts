@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit";
 import { toStr } from "@/lib/money";
 import { ok, fail, type Result, NotFoundError } from "@/lib/errors";
 
-/** Kalite kontrolÃ¼nÃ¼ tamamlar (uygun / ÅŸartlÄ± uygun / ret). */
+/** Kalite kontrolünü tamamlar (uygun / şartlı uygun / ret). */
 export async function completeInspection(input: unknown): Promise<Result<{ status: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
@@ -26,7 +26,7 @@ export async function completeInspection(input: unknown): Promise<Result<{ statu
     const inspection = await prisma.qualityInspection.findFirst({
       where: { id: data.inspectionId, receipt: { order: { tenantId: user.tenantId } } },
     });
-    if (!inspection) throw new NotFoundError("Kalite kaydÄ± bulunamadÄ±.");
+    if (!inspection) throw new NotFoundError("Kalite kaydı bulunamadı.");
 
     await prisma.qualityInspection.update({
       where: { id: inspection.id },
@@ -55,7 +55,7 @@ export async function completeInspection(input: unknown): Promise<Result<{ statu
   }
 }
 
-/** Uygunsuzluk (NCR) oluÅŸturur. TedarikÃ§iye baÄŸlanabilir; performans puanÄ±na etki eder. */
+/** Uygunsuzluk (NCR) oluşturur. Tedarikçiye bağlanabilir; performans puanına etki eder. */
 export async function createNonConformance(input: unknown): Promise<Result<{ id: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
@@ -63,7 +63,7 @@ export async function createNonConformance(input: unknown): Promise<Result<{ id:
       .object({
         inspectionId: z.string(),
         supplierId: z.string().optional(),
-        title: z.string().min(1, "BaÅŸlÄ±k zorunlu."),
+        title: z.string().min(1, "Başlık zorunlu."),
         type: z.enum(["QUALITY", "SUPPLIER_COMPLAINT", "PROCESS"]).default("QUALITY"),
         severity: z.enum(["MINOR", "MAJOR", "CRITICAL"]).default("MINOR"),
         description: z.string().optional(),
@@ -78,7 +78,7 @@ export async function createNonConformance(input: unknown): Promise<Result<{ id:
       where: { id: data.inspectionId, receipt: { order: { tenantId: user.tenantId } } },
       include: { receipt: { include: { order: true } } },
     });
-    if (!inspection) throw new NotFoundError("Kalite kaydÄ± bulunamadÄ±.");
+    if (!inspection) throw new NotFoundError("Kalite kaydı bulunamadı.");
     const supplierId = data.supplierId || inspection.receipt.order.supplierId;
 
     const created = await prisma.$transaction(async (tx) => {
@@ -100,7 +100,7 @@ export async function createNonConformance(input: unknown): Promise<Result<{ id:
         },
       });
 
-      // TedarikÃ§i performans puanÄ±na etki: aÃ§Ä±k NCR ÅŸiddetine gÃ¶re kalite puanÄ± dÃ¼ÅŸÃ¼ÅŸÃ¼ (bilgilendirici kayÄ±t)
+      // Tedarikçi performans puanına etki: açık NCR şiddetine göre kalite puanı düşüşü (bilgilendirici kayıt)
       if (supplierId) {
         const penalty = data.severity === "CRITICAL" ? "10" : data.severity === "MAJOR" ? "5" : "2";
         await tx.supplierRisk.create({
@@ -108,7 +108,7 @@ export async function createNonConformance(input: unknown): Promise<Result<{ id:
             supplierId,
             category: "OPERATIONAL",
             level: data.severity === "CRITICAL" ? "HIGH" : data.severity === "MAJOR" ? "MEDIUM" : "LOW",
-            note: `Kalite uygunsuzluÄŸu (${code}): kalite puanÄ±na -${penalty} etki`,
+            note: `Kalite uygunsuzluğu (${code}): kalite puanına -${penalty} etki`,
           },
         });
       }
@@ -134,7 +134,7 @@ export async function createNonConformance(input: unknown): Promise<Result<{ id:
   }
 }
 
-/** NCR gÃ¼ncelle: kÃ¶k neden, dÃ¼zeltici/Ã¶nleyici faaliyet, doÄŸrulama, kapanÄ±ÅŸ. */
+/** NCR güncelle: kök neden, düzeltici/önleyici faaliyet, doğrulama, kapanış. */
 export async function updateNonConformance(input: unknown): Promise<Result<{ status: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
@@ -153,7 +153,7 @@ export async function updateNonConformance(input: unknown): Promise<Result<{ sta
     const ncr = await prisma.nonConformance.findFirst({
       where: { id: data.id, inspection: { receipt: { order: { tenantId: user.tenantId } } } },
     });
-    if (!ncr) throw new NotFoundError("Uygunsuzluk bulunamadÄ±.");
+    if (!ncr) throw new NotFoundError("Uygunsuzluk bulunamadı.");
 
     const closing = data.status === "DONE";
     await prisma.nonConformance.update({
@@ -184,14 +184,14 @@ export async function updateNonConformance(input: unknown): Promise<Result<{ sta
   }
 }
 
-/** CAPA (dÃ¼zeltici/Ã¶nleyici faaliyet / 8D) oluÅŸturur. */
+/** CAPA (düzeltici/önleyici faaliyet / 8D) oluşturur. */
 export async function createCAPA(input: unknown): Promise<Result<{ id: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
     const data = z
       .object({
         ncrId: z.string(),
-        title: z.string().min(1, "BaÅŸlÄ±k zorunlu."),
+        title: z.string().min(1, "Başlık zorunlu."),
         type: z.enum(["CORRECTIVE", "PREVENTIVE", "8D"]).default("CORRECTIVE"),
         rootCause: z.string().optional(),
         action: z.string().optional(),
@@ -203,7 +203,7 @@ export async function createCAPA(input: unknown): Promise<Result<{ id: string }>
     const ncr = await prisma.nonConformance.findFirst({
       where: { id: data.ncrId, inspection: { receipt: { order: { tenantId: user.tenantId } } } },
     });
-    if (!ncr || !ncr.supplierId) throw new NotFoundError("Uygunsuzluk veya tedarikÃ§i bulunamadÄ±.");
+    if (!ncr || !ncr.supplierId) throw new NotFoundError("Uygunsuzluk veya tedarikçi bulunamadı.");
 
     const created = await prisma.$transaction(async (tx) => {
       const code = await nextNumber(tx, user.tenantId, "CAPA").catch(() => `CAPA-${Date.now()}`);
@@ -234,7 +234,7 @@ export async function createCAPA(input: unknown): Promise<Result<{ id: string }>
   }
 }
 
-/** CAPA durum/kapanÄ±ÅŸ gÃ¼ncellemesi. */
+/** CAPA durum/kapanış güncellemesi. */
 export async function updateCAPA(input: unknown): Promise<Result<{ status: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
@@ -242,7 +242,7 @@ export async function updateCAPA(input: unknown): Promise<Result<{ status: strin
       .object({ id: z.string(), status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]), verify: z.boolean().optional() })
       .parse(input);
     const capa = await prisma.cAPA.findFirst({ where: { id: data.id, supplier: { tenantId: user.tenantId } } });
-    if (!capa) throw new NotFoundError("CAPA bulunamadÄ±.");
+    if (!capa) throw new NotFoundError("CAPA bulunamadı.");
     await prisma.cAPA.update({
       where: { id: capa.id },
       data: {

@@ -29,13 +29,13 @@ const createSchema = z.object({
   waybillNo: z.string().optional(),
   note: z.string().optional(),
   qualityRequired: z.boolean().default(false),
-  lines: z.array(lineSchema).min(1, "En az bir satÄ±r girin."),
+  lines: z.array(lineSchema).min(1, "En az bir satır girin."),
 });
 
 /**
- * Mal kabul oluÅŸturur. KÄ±smi/Ã§oklu kabul destekler. Kabul+ret miktarÄ±nÄ±n
- * sipariÅŸin aÃ§Ä±k miktarÄ±nÄ± (fazla teslimat toleransÄ± dÄ±ÅŸÄ±nda) geÃ§mesini
- * BACKEND'de engeller. Kalite gerekiyorsa kalite kuyruÄŸuna dÃ¼ÅŸer.
+ * Mal kabul oluşturur. Kısmi/çoklu kabul destekler. Kabul+ret miktarının
+ * siparişin açık miktarını (fazla teslimat toleransı dışında) geçmesini
+ * BACKEND'de engeller. Kalite gerekiyorsa kalite kuyruğuna düşer.
  */
 export async function createGoodsReceipt(input: unknown): Promise<Result<{ id: string }>> {
   try {
@@ -48,27 +48,27 @@ export async function createGoodsReceipt(input: unknown): Promise<Result<{ id: s
         where: { id: data.orderId, tenantId: user.tenantId },
         include: { lines: true },
       });
-      if (!po) throw new NotFoundError("SipariÅŸ bulunamadÄ±.");
+      if (!po) throw new NotFoundError("Sipariş bulunamadı.");
       if (["DRAFT", "PENDING_APPROVAL", "CANCELLED"].includes(po.status)) {
-        throw new AppError("Bu sipariÅŸ durumunda mal kabul yapÄ±lamaz.");
+        throw new AppError("Bu sipariş durumunda mal kabul yapılamaz.");
       }
 
       const activeLines = data.lines.filter(
         (l) => gt(l.acceptedQty || "0", "0") || gt(l.rejectedQty || "0", "0"),
       );
-      if (activeLines.length === 0) throw new ValidationError("En az bir satÄ±rda miktar girin.");
+      if (activeLines.length === 0) throw new ValidationError("En az bir satırda miktar girin.");
 
-      // Backend miktar doÄŸrulamasÄ±
+      // Backend miktar doğrulaması
       for (const l of activeLines) {
         const poLine = po.lines.find((pl) => pl.id === l.orderLineId);
-        if (!poLine) throw new ValidationError("GeÃ§ersiz sipariÅŸ satÄ±rÄ±.");
+        if (!poLine) throw new ValidationError("Geçersiz sipariş satırı.");
         const alreadyHandled = add(poLine.receivedQty, poLine.rejectedQty);
         const openQty = sub(poLine.quantity, alreadyHandled);
         const thisQty = add(l.acceptedQty || "0", l.rejectedQty || "0");
         const allowed = d(openQty).plus(d(poLine.quantity).times(d(tol.overReceiptPct).dividedBy(100)));
         if (gt(thisQty.toString(), allowed.toString())) {
           throw new ValidationError(
-            `SatÄ±r kabul miktarÄ± aÃ§Ä±k miktarÄ± aÅŸÄ±yor. AÃ§Ä±k: ${toStr(openQty, 2)}, izin verilen (tolerans dahil): ${allowed.toFixed(2)}.`,
+            `Satır kabul miktarı açık miktarı aşıyor. Açık: ${toStr(openQty, 2)}, izin verilen (tolerans dahil): ${allowed.toFixed(2)}.`,
           );
         }
       }
@@ -98,7 +98,7 @@ export async function createGoodsReceipt(input: unknown): Promise<Result<{ id: s
         },
       });
 
-      // PO satÄ±r miktarlarÄ±nÄ± gÃ¼ncelle
+      // PO satır miktarlarını güncelle
       for (const l of activeLines) {
         const poLine = po.lines.find((pl) => pl.id === l.orderLineId)!;
         await tx.purchaseOrderLine.update({
@@ -122,7 +122,7 @@ export async function createGoodsReceipt(input: unknown): Promise<Result<{ id: s
         await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: newStatus } });
       }
 
-      // Kalite kuyruÄŸu
+      // Kalite kuyruğu
       if (data.qualityRequired) {
         await tx.qualityInspection.create({
           data: { receiptId: receipt.id, status: "PENDING" },

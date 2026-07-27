@@ -718,7 +718,7 @@ model CAPA {
   type       String   @default("CORRECTIVE") // CORRECTIVE | PREVENTIVE | 8D
   status     String   @default("OPEN") // OPEN | IN_PROGRESS | DONE
   rootCause  String?
-  action     String?  // dÃ¼zeltici/Ã¶nleyici faaliyet
+  action     String?  // düzeltici/önleyici faaliyet
   responsibleUserId String?
   dueDate    DateTime?
   verifiedBy String?
@@ -1293,9 +1293,9 @@ model QualityInspection {
   receiptId   String
   receipt     GoodsReceipt @relation(fields: [receiptId], references: [id])
   status      String   @default("PENDING") // PENDING | PASS | CONDITIONAL | FAIL
-  planRef     String?  // kontrol planÄ± referansÄ±
+  planRef     String?  // kontrol planı referansı
   sampleSize  String?
-  sampleResult String? // numune/Ã¶lÃ§Ã¼m sonuÃ§larÄ± (JSON veya metin)
+  sampleResult String? // numune/ölçüm sonuçları (JSON veya metin)
   inspectedBy String?
   inspectedAt DateTime?
   note        String?
@@ -1316,12 +1316,12 @@ model NonConformance {
   title        String?
   type         String   @default("QUALITY") // QUALITY | SUPPLIER_COMPLAINT | PROCESS
   severity     String   @default("MINOR") // MINOR | MAJOR | CRITICAL
-  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE (kapandÄ±)
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE (kapandı)
   description  String?
   rootCause    String?
   correctiveAction String?
   preventiveAction String?
-  disposition  String?  // iade | yeniden sevk | hurda | ÅŸartlÄ± kabul
+  disposition  String?  // iade | yeniden sevk | hurda | şartlı kabul
   responsibleUserId String?
   dueDate      DateTime?
   verifiedBy   String?
@@ -1594,22 +1594,22 @@ model IntegrationJob {
 }
 
 // ---------------------------------------------------------------------------
-// GEÃMÄ°Å VERÄ° Ä°Ã‡E AKTARMA (IMPORT)
+// GEÇMİŞ VERİ İÇE AKTARMA (IMPORT)
 // ---------------------------------------------------------------------------
 
 model ImportBatch {
   id          String   @id @default(cuid())
   tenantId    String
   fileName    String
-  sheetName   String   @default("Kalem DetaylarÄ±")
+  sheetName   String   @default("Kalem Detayları")
   status      String   @default("DRY_RUN") // DRY_RUN | COMMITTED | ROLLED_BACK
   totalRows   Int      @default(0)
   ordersCreated   Int  @default(0)
   linesCreated    Int  @default(0)
   suppliersCreated Int @default(0)
   categoriesCreated Int @default(0)
-  stats       String   @default("{}") // JSON: mutabakat ve Ã¶zet
-  fileKey     String?  // depolanan kaynak dosya anahtarÄ±
+  stats       String   @default("{}") // JSON: mutabakat ve özet
+  fileKey     String?  // depolanan kaynak dosya anahtarı
   createdById String
   createdAt   DateTime @default(now())
   committedAt DateTime?

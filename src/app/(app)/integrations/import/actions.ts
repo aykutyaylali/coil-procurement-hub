@@ -22,14 +22,14 @@ export interface AnalyzeResult {
   warningCounts: Record<string, number>;
 }
 
-/** Dosya yÃ¼kle + analiz + dry-run (yazma yok). */
+/** Dosya yükle + analiz + dry-run (yazma yok). */
 export async function analyzeImport(formData: FormData): Promise<Result<AnalyzeResult>> {
   try {
     const user = await requirePermission(PERMISSIONS.ADMIN_INTEGRATIONS);
     const file = formData.get("file") as File | null;
     const sheetName = String(formData.get("sheet") ?? KALEM_SHEET) || KALEM_SHEET;
-    if (!file) throw new AppError("Dosya seÃ§ilmedi.");
-    if (!file.name.toLowerCase().endsWith(".xlsx")) throw new AppError("YalnÄ±zca .xlsx dosyasÄ± kabul edilir.");
+    if (!file) throw new AppError("Dosya seçilmedi.");
+    if (!file.name.toLowerCase().endsWith(".xlsx")) throw new AppError("Yalnızca .xlsx dosyası kabul edilir.");
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const sheets = listSheets(buffer);
@@ -38,7 +38,7 @@ export async function analyzeImport(formData: FormData): Promise<Result<AnalyzeR
     const summary = buildSummary(parsed);
     const dry = await dryRun(user.tenantId, parsed);
 
-    // Kaynak dosyayÄ± depola (gerÃ§ek import iÃ§in tekrar okunur)
+    // Kaynak dosyayı depola (gerçek import için tekrar okunur)
     const storage = getStorage();
     const fileKey = generateStorageKey(user.tenantId, file.name);
     await storage.put(fileKey, buffer, file.type);
@@ -61,7 +61,7 @@ export async function analyzeImport(formData: FormData): Promise<Result<AnalyzeR
 }
 
 async function backupSqlite(): Promise<string | null> {
-  // GeliÅŸtirmede SQLite yedeÄŸi (Ã¼retim PostgreSQL yedeÄŸi docs/backup-restore.md)
+  // Geliştirmede SQLite yedeği (üretim PostgreSQL yedeği docs/backup-restore.md)
   const dbUrl = process.env.DATABASE_URL ?? "";
   if (!dbUrl.startsWith("file:")) return null;
   try {
@@ -77,7 +77,7 @@ async function backupSqlite(): Promise<string | null> {
   }
 }
 
-/** GerÃ§ek iÃ§e aktarma: yedek al -> transaction -> ImportBatch(COMMITTED) -> mutabakat. */
+/** Gerçek içe aktarma: yedek al -> transaction -> ImportBatch(COMMITTED) -> mutabakat. */
 export async function runImport(input: { fileKey: string; fileName: string; sheet?: string }): Promise<Result<{ batchId: string; result: Awaited<ReturnType<typeof commitImport>>; reconcile: { sourceTry: string; importedTry: string; diff: string; ok: boolean } }>> {
   try {
     const user = await requirePermission(PERMISSIONS.ADMIN_INTEGRATIONS);
@@ -90,11 +90,11 @@ export async function runImport(input: { fileKey: string; fileName: string; shee
     const summary = buildSummary(parsed);
 
     const company = await prisma.company.findFirst({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "asc" } });
-    if (!company) throw new AppError("Åirket bulunamadÄ±. Ã–nce ÅŸirket tanÄ±mlayÄ±n.");
+    if (!company) throw new AppError("Şirket bulunamadı. Önce şirket tanımlayın.");
 
     await backupSqlite();
 
-    // Batch oluÅŸtur (COMMITTED sonrasÄ± gÃ¼ncellenir)
+    // Batch oluştur (COMMITTED sonrası güncellenir)
     const batch = await prisma.importBatch.create({
       data: {
         tenantId: user.tenantId, fileName: input.fileName, sheetName, status: "DRY_RUN",
@@ -110,7 +110,7 @@ export async function runImport(input: { fileKey: string; fileName: string; shee
       { timeout: 120_000, maxWait: 30_000 },
     );
 
-    // Mutabakat: kaynak TL vs iÃ§e aktarÄ±lan TL (mÃ¼kerrer atlananlar hariÃ§)
+    // Mutabakat: kaynak TL vs içe aktarılan TL (mükerrer atlananlar hariç)
     const diff = d(summary.sourceTotalTry).minus(result.importedTotalTry);
     const reconcileOk = diff.abs().lessThanOrEqualTo("0.01") || result.skippedOrders > 0;
 
@@ -145,13 +145,13 @@ export async function runImport(input: { fileKey: string; fileName: string; shee
   }
 }
 
-/** Batch geri alma (kontrollÃ¼). */
+/** Batch geri alma (kontrollü). */
 export async function rollbackBatch(batchId: string): Promise<Result<{ ordersDeleted: number; suppliersDeleted: number; categoriesDeleted: number }>> {
   try {
     const user = await requirePermission(PERMISSIONS.ADMIN_INTEGRATIONS);
     const batch = await prisma.importBatch.findFirst({ where: { id: batchId, tenantId: user.tenantId } });
-    if (!batch) throw new NotFoundError("Import batch bulunamadÄ±.");
-    if (batch.status !== "COMMITTED") throw new AppError("YalnÄ±zca tamamlanmÄ±ÅŸ batch geri alÄ±nabilir.");
+    if (!batch) throw new NotFoundError("Import batch bulunamadı.");
+    if (batch.status !== "COMMITTED") throw new AppError("Yalnızca tamamlanmış batch geri alınabilir.");
 
     const res = await prisma.$transaction(async (tx) => rollbackImport(tx, { tenantId: user.tenantId, userId: user.id, batchId }), { timeout: 120_000 });
     revalidatePath("/integrations/import");

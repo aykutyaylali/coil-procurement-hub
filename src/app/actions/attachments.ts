@@ -6,8 +6,8 @@ import { writeAudit } from "@/lib/audit";
 import { ok, fail, type Result } from "@/lib/errors";
 
 /**
- * Genel dosya yÃ¼kleme. Yetki kontrolÃ¼, tÃ¼r/boyut doÄŸrulama ve virÃ¼s tarama
- * kancasÄ± uygulanÄ±r. Ä°Ã§ notlar (isInternal) tedarikÃ§iye kapalÄ±dÄ±r.
+ * Genel dosya yükleme. Yetki kontrolü, tür/boyut doğrulama ve virüs tarama
+ * kancası uygulanır. İç notlar (isInternal) tedarikçiye kapalıdır.
  */
 export async function uploadAttachment(formData: FormData): Promise<Result<{ id: string; fileName: string }>> {
   try {
@@ -17,7 +17,7 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
     const entityId = String(formData.get("entityId") ?? "");
     const isInternal = String(formData.get("isInternal") ?? "false") === "true";
     if (!file || !entityType || !entityId) {
-      return fail(new Error("Dosya ve baÄŸlam bilgisi zorunludur."));
+      return fail(new Error("Dosya ve bağlam bilgisi zorunludur."));
     }
 
     const validationError = validateUpload(file.type, file.size);
@@ -25,7 +25,7 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const scanStatus = await scanBuffer(buffer);
-    if (scanStatus === "INFECTED") return fail(new Error("Dosya gÃ¼venlik taramasÄ±ndan geÃ§emedi."));
+    if (scanStatus === "INFECTED") return fail(new Error("Dosya güvenlik taramasından geçemedi."));
 
     const storage = getStorage();
     const key = generateStorageKey(user.tenantId, file.name);
@@ -61,13 +61,13 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
   }
 }
 
-/** Yetki kontrollÃ¼ dosya indirme (base64 data URL dÃ¶ner). */
+/** Yetki kontrollü dosya indirme (base64 data URL döner). */
 export async function getAttachmentData(id: string): Promise<Result<{ fileName: string; mimeType: string; dataUrl: string }>> {
   try {
     const user = await requireUser();
     const att = await prisma.attachment.findFirst({ where: { id, tenantId: user.tenantId } });
-    if (!att) return fail(new Error("Dosya bulunamadÄ±."));
-    if (att.scanStatus === "INFECTED") return fail(new Error("Bu dosyaya eriÅŸilemez."));
+    if (!att) return fail(new Error("Dosya bulunamadı."));
+    if (att.scanStatus === "INFECTED") return fail(new Error("Bu dosyaya erişilemez."));
     const storage = getStorage();
     const buffer = await storage.get(att.storageKey);
     const dataUrl = `data:${att.mimeType};base64,${buffer.toString("base64")}`;

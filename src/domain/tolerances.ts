@@ -2,18 +2,18 @@ import { prisma } from "@/lib/db";
 import { d, gt } from "@/lib/money";
 
 /**
- * Tolerans ayarlarÄ± (mal kabul fazla teslimat + fatura miktar/fiyat toleransÄ±).
- * Tenant.settings JSON iÃ§inde saklanÄ±r; yÃ¶netim panelinden deÄŸiÅŸtirilebilir.
- * VarsayÄ±lanlar makul kurumsal deÄŸerlerdir.
+ * Tolerans ayarları (mal kabul fazla teslimat + fatura miktar/fiyat toleransı).
+ * Tenant.settings JSON içinde saklanır; yönetim panelinden değiştirilebilir.
+ * Varsayılanlar makul kurumsal değerlerdir.
  */
 export interface Tolerances {
-  /** Mal kabulde sipariÅŸ miktarÄ±nÄ±n Ã¼zerine izin verilen fazla teslimat yÃ¼zdesi */
+  /** Mal kabulde sipariş miktarının üzerine izin verilen fazla teslimat yüzdesi */
   overReceiptPct: string;
-  /** Fatura miktarÄ± tolerans yÃ¼zdesi (Ã¼Ã§lÃ¼ eÅŸleÅŸtirme) */
+  /** Fatura miktarı tolerans yüzdesi (üçlü eşleştirme) */
   invoiceQtyPct: string;
-  /** Fatura birim fiyat tolerans yÃ¼zdesi */
+  /** Fatura birim fiyat tolerans yüzdesi */
   invoicePricePct: string;
-  /** Fatura toplam tutar mutlak tolerans (para birimi bazÄ±nda) */
+  /** Fatura toplam tutar mutlak tolerans (para birimi bazında) */
   invoiceAmountAbs: string;
 }
 
@@ -54,7 +54,7 @@ export async function saveTolerances(tenantId: string, next: Partial<Tolerances>
   await prisma.tenant.update({ where: { id: tenantId }, data: { settings: JSON.stringify(settings) } });
 }
 
-/** value, limit + tolerans% iÃ§inde mi? (true => tolerans dÄ±ÅŸÄ±) */
+/** value, limit + tolerans% içinde mi? (true => tolerans dışı) */
 export function exceedsByPct(value: string, limit: string, tolerancePct: string): boolean {
   const allowed = d(limit).plus(d(limit).times(d(tolerancePct).dividedBy(100)));
   return gt(value, allowed.toString());

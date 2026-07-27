@@ -1,45 +1,45 @@
 import type { Locale } from "@/lib/i18n";
 
 /**
- * ModÃ¼llere Ã¶zel enum deÄŸerleri iÃ§in merkezÃ® Ã§ift dilli etiketler.
- * (Durum kodlarÄ± iÃ§in src/lib/enums.ts, operasyon/landed iÃ§in operations.ts.)
- * HiÃ§bir modÃ¼l bu deÄŸerleri hard-coded yazmaz; label(code, locale) kullanÄ±r.
+ * Modüllere özel enum değerleri için merkezî çift dilli etiketler.
+ * (Durum kodları için src/lib/enums.ts, operasyon/landed için operations.ts.)
+ * Hiçbir modül bu değerleri hard-coded yazmaz; label(code, locale) kullanır.
  */
 const L: Record<string, { tr: string; en: string }> = {
   // Mal kabul disposition
   ACCEPTED: { tr: "Kabul", en: "Accepted" },
-  PARTIAL: { tr: "KÄ±smi", en: "Partial" },
-  DAMAGED: { tr: "HasarlÄ±", en: "Damaged" },
-  WRONG_ITEM: { tr: "YanlÄ±ÅŸ ÃœrÃ¼n", en: "Wrong Item" },
+  PARTIAL: { tr: "Kısmi", en: "Partial" },
+  DAMAGED: { tr: "Hasarlı", en: "Damaged" },
+  WRONG_ITEM: { tr: "Yanlış Ürün", en: "Wrong Item" },
   REJECTED_DISP: { tr: "Ret", en: "Rejected" },
   QUARANTINE: { tr: "Karantina", en: "Quarantine" },
-  RETURNED: { tr: "Ä°ade", en: "Returned" },
-  // Kalite sonuÃ§
+  RETURNED: { tr: "İade", en: "Returned" },
+  // Kalite sonuç
   PASS: { tr: "Uygun", en: "Pass" },
-  CONDITIONAL: { tr: "ÅartlÄ± Uygun", en: "Conditional" },
+  CONDITIONAL: { tr: "Şartlı Uygun", en: "Conditional" },
   FAIL: { tr: "Ret", en: "Fail" },
   // Kalite / NCR / CAPA
-  MINOR: { tr: "KÃ¼Ã§Ã¼k", en: "Minor" },
-  MAJOR: { tr: "BÃ¼yÃ¼k", en: "Major" },
+  MINOR: { tr: "Küçük", en: "Minor" },
+  MAJOR: { tr: "Büyük", en: "Major" },
   CRITICAL: { tr: "Kritik", en: "Critical" },
-  CORRECTIVE: { tr: "DÃ¼zeltici", en: "Corrective" },
-  PREVENTIVE: { tr: "Ã–nleyici", en: "Preventive" },
+  CORRECTIVE: { tr: "Düzeltici", en: "Corrective" },
+  PREVENTIVE: { tr: "Önleyici", en: "Preventive" },
   "8D": { tr: "8D", en: "8D" },
-  OPEN: { tr: "AÃ§Ä±k", en: "Open" },
+  OPEN: { tr: "Açık", en: "Open" },
   IN_PROGRESS: { tr: "Devam Ediyor", en: "In Progress" },
-  DONE: { tr: "TamamlandÄ±", en: "Done" },
+  DONE: { tr: "Tamamlandı", en: "Done" },
   // Fatura kaynak
   MANUAL: { tr: "Manuel", en: "Manual" },
-  UPLOAD: { tr: "YÃ¼kleme", en: "Upload" },
+  UPLOAD: { tr: "Yükleme", en: "Upload" },
   EMAIL: { tr: "E-posta", en: "Email" },
   EINVOICE: { tr: "e-Fatura", en: "e-Invoice" },
   ERP: { tr: "ERP", en: "ERP" },
-  // Ã–deme durumu
-  UNPAID: { tr: "Ã–denmedi", en: "Unpaid" },
-  PAID_PARTIAL: { tr: "KÄ±smi Ã–dendi", en: "Partially Paid" },
+  // Ödeme durumu
+  UNPAID: { tr: "Ödenmedi", en: "Unpaid" },
+  PAID_PARTIAL: { tr: "Kısmi Ödendi", en: "Partially Paid" },
   // Genel
   YES: { tr: "Evet", en: "Yes" },
-  NO: { tr: "HayÄ±r", en: "No" },
+  NO: { tr: "Hayır", en: "No" },
 };
 
 export function label(code: string, locale: Locale = "tr"): string {
@@ -53,8 +53,8 @@ export const CAPA_TYPES = ["CORRECTIVE", "PREVENTIVE", "8D"] as const;
 export const CAPA_STATUSES = ["OPEN", "IN_PROGRESS", "DONE"] as const;
 
 /**
- * disposition kodu -> GoodsReceiptLine.disposition ÅŸema deÄŸeri eÅŸlemesi.
- * (Åemada REJECTED kullanÄ±lÄ±yor; UI'da REJECTED_DISP ile Ã§akÄ±ÅŸmayÄ± Ã¶nlemek iÃ§in.)
+ * disposition kodu -> GoodsReceiptLine.disposition şema değeri eşlemesi.
+ * (Şemada REJECTED kullanılıyor; UI'da REJECTED_DISP ile çakışmayı önlemek için.)
  */
 export function dispositionToSchema(code: string): string {
   return code === "REJECTED_DISP" ? "REJECTED" : code;

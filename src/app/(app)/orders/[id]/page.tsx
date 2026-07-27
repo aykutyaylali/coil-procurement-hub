@@ -51,9 +51,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {po.supplier.legalName} · {po.company.name} · {formatDate(po.orderDate)}
           </p>
         </div>
-        <Link href="/orders" className="text-sm text-primary hover:underline">
-          ← Listeye dön
-        </Link>
+        <div className="flex items-center gap-3">
+          <a href={`/orders/${po.id}/pdf`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF (TR)</a>
+          <a href={`/orders/${po.id}/pdf?lang=en`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF (EN)</a>
+          <Link href="/orders" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

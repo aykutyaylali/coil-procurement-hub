@@ -3,6 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
+  // pdfkit'i webpack ile paketleme; runtime'da node_modules'tan yÃ¼kle
+  serverExternalPackages: ["pdfkit"],
   eslint: {
     // Lint is run explicitly in CI via `npm run lint`; do not block production builds on it.
     ignoreDuringBuilds: true,

@@ -71,7 +71,7 @@ export function NewReceiptForm({
   if (orders.length === 0) {
     return (
       <Card>
-        <EmptyState title="AÃ§Ä±k sipariÅŸ yok" hint="Mal kabul iÃ§in aÃ§Ä±k miktarÄ± olan onaylÄ±/gÃ¶nderilmiÅŸ sipariÅŸ gerekir." />
+        <EmptyState title="Açık sipariş yok" hint="Mal kabul için açık miktarı olan onaylı/gönderilmiş sipariş gerekir." />
       </Card>
     );
   }
@@ -79,29 +79,29 @@ export function NewReceiptForm({
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>SipariÅŸ ve Teslimat Bilgileri</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Sipariş ve Teslimat Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <Label>SipariÅŸ *</Label>
+            <Label>Sipariş *</Label>
             <Select value={orderId} onChange={(e) => { setOrderId(e.target.value); setLines({}); }}>
-              {orders.map((o) => (<option key={o.id} value={o.id}>{o.number} Â· {o.supplier}</option>))}
+              {orders.map((o) => (<option key={o.id} value={o.id}>{o.number} · {o.supplier}</option>))}
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Ambar</Label>
             <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              <option value="">SeÃ§iniz</option>
+              <option value="">Seçiniz</option>
               {warehouses.map((w) => (<option key={w.id} value={w.id}>{w.name}</option>))}
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Ä°rsaliye No</Label>
-            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Ã–rn: A-123456" />
+            <Label>İrsaliye No</Label>
+            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Örn: A-123456" />
           </div>
           <div className="flex items-end">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={qualityRequired} onChange={(e) => setQualityRequired(e.target.checked)} />
-              Kalite kontrolÃ¼ gerekli
+              Kalite kontrolü gerekli
             </label>
           </div>
         </CardContent>
@@ -115,7 +115,7 @@ export function NewReceiptForm({
               <TR>
                 <TH>Kalem</TH>
                 <TH className="text-right">Sip. Miktar</TH>
-                <TH className="text-right">AÃ§Ä±k</TH>
+                <TH className="text-right">Açık</TH>
                 <TH className="text-right">Kabul</TH>
                 <TH className="text-right">Ret</TH>
                 <TH>Durum</TH>
@@ -150,15 +150,15 @@ export function NewReceiptForm({
 
       <Card>
         <CardContent className="pt-6">
-          <Label>AÃ§Ä±klama</Label>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Mal kabul aÃ§Ä±klamasÄ±" />
+          <Label>Açıklama</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Mal kabul açıklaması" />
         </CardContent>
       </Card>
 
       {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()} disabled={busy}>Ä°ptal</Button>
-        <Button onClick={submit} disabled={busy}>{busy ? "Kaydediliyor..." : "Mal KabulÃ¼ Kaydet"}</Button>
+        <Button variant="outline" onClick={() => router.back()} disabled={busy}>İptal</Button>
+        <Button onClick={submit} disabled={busy}>{busy ? "Kaydediliyor..." : "Mal Kabulü Kaydet"}</Button>
       </div>
     </div>
   );

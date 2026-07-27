@@ -12,9 +12,9 @@ import { add, sub, toStr, gt } from "@/lib/money";
 import { ok, fail, type Result, NotFoundError, ConflictError, AppError } from "@/lib/errors";
 
 const createSchema = z.object({
-  supplierId: z.string().min(1, "TedarikÃ§i seÃ§in."),
-  orderId: z.string().min(1, "SipariÅŸ seÃ§in."),
-  number: z.string().min(1, "Fatura numarasÄ± zorunlu."),
+  supplierId: z.string().min(1, "Tedarikçi seçin."),
+  orderId: z.string().min(1, "Sipariş seçin."),
+  number: z.string().min(1, "Fatura numarası zorunlu."),
   invoiceDate: z.string().min(1, "Fatura tarihi zorunlu."),
   dueDate: z.string().optional(),
   currency: z.string().default("TRY"),
@@ -30,7 +30,7 @@ const createSchema = z.object({
         taxRate: z.string().default("20"),
       }),
     )
-    .min(1, "En az bir satÄ±r girin."),
+    .min(1, "En az bir satır girin."),
 });
 
 export async function createInvoice(input: unknown): Promise<Result<{ id: string; status: string }>> {
@@ -44,15 +44,15 @@ export async function createInvoice(input: unknown): Promise<Result<{ id: string
         where: { id: data.orderId, tenantId: user.tenantId },
         include: { lines: true },
       });
-      if (!po) throw new NotFoundError("SipariÅŸ bulunamadÄ±.");
+      if (!po) throw new NotFoundError("Sipariş bulunamadı.");
 
-      // MÃ¼kerrer fatura kontrolÃ¼ (aynÄ± tedarikÃ§i + numara)
+      // Mükerrer fatura kontrolü (aynı tedarikçi + numara)
       const dup = await tx.invoice.findFirst({
         where: { tenantId: user.tenantId, supplierId: data.supplierId, number: data.number },
       });
-      if (dup) throw new ConflictError("Bu tedarikÃ§i ve fatura numarasÄ±yla zaten bir fatura mevcut (mÃ¼kerrer).");
+      if (dup) throw new ConflictError("Bu tedarikçi ve fatura numarasıyla zaten bir fatura mevcut (mükerrer).");
 
-      // Daha Ã¶nce faturalanan miktarlar (PO satÄ±rÄ± bazÄ±nda)
+      // Daha önce faturalanan miktarlar (PO satırı bazında)
       const prevLines = await tx.invoiceLine.findMany({
         where: { orderLineId: { in: data.lines.map((l) => l.orderLineId) }, invoice: { status: { not: "CANCELLED" } } },
         select: { orderLineId: true, quantity: true },
@@ -118,7 +118,7 @@ export async function createInvoice(input: unknown): Promise<Result<{ id: string
         },
       });
 
-      // PO satÄ±r faturalanan miktarlarÄ±nÄ± gÃ¼ncelle
+      // PO satır faturalanan miktarlarını güncelle
       for (const l of data.lines) {
         const poLine = po.lines.find((p) => p.id === l.orderLineId);
         if (poLine) {
@@ -129,7 +129,7 @@ export async function createInvoice(input: unknown): Promise<Result<{ id: string
         }
       }
 
-      // TÃ¼m satÄ±rlar tam faturalandÄ±ysa PO -> INVOICED
+      // Tüm satırlar tam faturalandıysa PO -> INVOICED
       const refreshed = await tx.purchaseOrderLine.findMany({ where: { orderId: po.id } });
       const allInvoiced = refreshed.every((p) => !gt(p.receivedQty, add(p.invoicedQty, "0").toString()) || !gt(p.quantity ?? "0", p.invoicedQty));
       if (allInvoiced && canTransition(ORDER_TRANSITIONS, po.status, "INVOICED")) {
@@ -156,14 +156,14 @@ export async function createInvoice(input: unknown): Promise<Result<{ id: string
   }
 }
 
-/** Tolerans dÄ±ÅŸÄ± (BLOCKED) faturayÄ± istisna onayÄ±yla serbest bÄ±rakÄ±r. */
+/** Tolerans dışı (BLOCKED) faturayı istisna onayıyla serbest bırakır. */
 export async function approveInvoiceException(input: { id: string; note: string }): Promise<Result<{ status: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.INVOICE_APPROVE);
-    if (!input.note?.trim()) throw new AppError("Ä°stisna onayÄ± iÃ§in gerekÃ§e zorunludur.");
+    if (!input.note?.trim()) throw new AppError("İstisna onayı için gerekçe zorunludur.");
     const inv = await prisma.invoice.findFirst({ where: { id: input.id, tenantId: user.tenantId } });
-    if (!inv) throw new NotFoundError("Fatura bulunamadÄ±.");
-    if (inv.status !== "BLOCKED") throw new AppError("YalnÄ±zca bloke fatura istisna onayÄ± gerektirir.");
+    if (!inv) throw new NotFoundError("Fatura bulunamadı.");
+    if (inv.status !== "BLOCKED") throw new AppError("Yalnızca bloke fatura istisna onayı gerektirir.");
 
     await prisma.invoice.update({ where: { id: inv.id }, data: { status: "APPROVED" } });
     await writeAudit({
@@ -178,12 +178,12 @@ export async function approveInvoiceException(input: { id: string; note: string 
   }
 }
 
-/** MatchedÂ faturayÄ± onayla / Ã¶dendi iÅŸaretle. */
+/** Matched faturayı onayla / ödendi işaretle. */
 export async function updateInvoiceStatus(input: { id: string; action: "APPROVE" | "PAY" }): Promise<Result<{ status: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.INVOICE_APPROVE);
     const inv = await prisma.invoice.findFirst({ where: { id: input.id, tenantId: user.tenantId } });
-    if (!inv) throw new NotFoundError("Fatura bulunamadÄ±.");
+    if (!inv) throw new NotFoundError("Fatura bulunamadı.");
     const newStatus = input.action === "APPROVE" ? "APPROVED" : "PAID";
     await prisma.invoice.update({
       where: { id: inv.id },

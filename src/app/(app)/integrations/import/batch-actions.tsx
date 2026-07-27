@@ -22,7 +22,7 @@ export function BatchActions({ batchId }: { batchId: string }) {
     return (
       <span className="inline-flex gap-1">
         <Button size="sm" variant="destructive" onClick={doRollback} disabled={busy}>{busy ? "..." : "Onayla"}</Button>
-        <Button size="sm" variant="outline" onClick={() => setConfirm(false)} disabled={busy}>VazgeÃ§</Button>
+        <Button size="sm" variant="outline" onClick={() => setConfirm(false)} disabled={busy}>Vazgeç</Button>
       </span>
     );
   }

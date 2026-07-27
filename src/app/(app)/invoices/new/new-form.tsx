@@ -39,7 +39,7 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
 
   async function submit() {
     if (!order) return;
-    if (!number.trim()) { setError("Fatura numarasÄ± zorunlu."); return; }
+    if (!number.trim()) { setError("Fatura numarası zorunlu."); return; }
     setBusy(true); setError("");
     const res = await createInvoice({
       supplierId: order.supplierId,
@@ -57,7 +57,7 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
   }
 
   if (orders.length === 0) {
-    return <Card><EmptyState title="Faturalanabilir sipariÅŸ yok" hint="Mal kabul yapÄ±lmÄ±ÅŸ sipariÅŸler burada listelenir." /></Card>;
+    return <Card><EmptyState title="Faturalanabilir sipariş yok" hint="Mal kabul yapılmış siparişler burada listelenir." /></Card>;
   }
 
   return (
@@ -66,14 +66,14 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
         <CardHeader><CardTitle>Fatura Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <Label>SipariÅŸ *</Label>
+            <Label>Sipariş *</Label>
             <Select value={orderId} onChange={(e) => { setOrderId(e.target.value); setLines({}); }}>
-              {orders.map((o) => (<option key={o.id} value={o.id}>{o.number} Â· {o.supplier}</option>))}
+              {orders.map((o) => (<option key={o.id} value={o.id}>{o.number} · {o.supplier}</option>))}
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Fatura No *</Label>
-            <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ã–rn: FT2026000123" />
+            <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Örn: FT2026000123" />
           </div>
           <div className="space-y-1.5">
             <Label>Fatura Tarihi *</Label>
@@ -87,7 +87,7 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Fatura Kalemleri (mal kabulden Ã¶nden dolu)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Fatura Kalemleri (mal kabulden önden dolu)</CardTitle></CardHeader>
         <CardContent className="p-0">
           <Table>
             <THead>
@@ -117,7 +117,7 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
       <Card>
         <CardContent className="flex flex-wrap items-end justify-between gap-4 pt-6">
           <div className="space-y-1.5">
-            <Label>Tevkifat TutarÄ±</Label>
+            <Label>Tevkifat Tutarı</Label>
             <Input value={withholding} onChange={(e) => setWithholding(e.target.value)} className="w-40" />
           </div>
           <div className="text-right text-sm">
@@ -130,8 +130,8 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
 
       {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()} disabled={busy}>Ä°ptal</Button>
-        <Button onClick={submit} disabled={busy}>{busy ? "Kaydediliyor..." : "FaturayÄ± Kaydet ve EÅŸleÅŸtir"}</Button>
+        <Button variant="outline" onClick={() => router.back()} disabled={busy}>İptal</Button>
+        <Button onClick={submit} disabled={busy}>{busy ? "Kaydediliyor..." : "Faturayı Kaydet ve Eşleştir"}</Button>
       </div>
     </div>
   );

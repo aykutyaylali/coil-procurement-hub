@@ -39,7 +39,7 @@ export default async function NewReceiptPage({ searchParams }: { searchParams: P
           lineNo: l.lineNo,
           description: l.description,
           uom: l.uom,
-          quantity: l.quantity,
+          quantity: l.quantity ?? "0",
           openQty: sub(l.quantity, add(l.receivedQty, l.rejectedQty)).toString(),
         }))
         .filter((l) => Number(l.openQty) > 0),

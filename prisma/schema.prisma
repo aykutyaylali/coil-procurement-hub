@@ -430,6 +430,8 @@ model Category {
   children  Category[] @relation("CategoryTree")
   managerId String?
   isActive  Boolean  @default(true)
+  isImported Boolean @default(false)
+  importBatchId String?
 
   items        Item[]
   requisitions RequisitionLine[]
@@ -572,6 +574,8 @@ model Supplier {
   performanceScore String? // decimal-as-string
   esgInfo        String?  // JSON
   sanctionsChecked Boolean @default(false)
+  isImported     Boolean  @default(false)
+  importBatchId  String?
   onboardingToken String? @unique
   onboardingTokenExpiresAt DateTime?
   createdAt      DateTime @default(now())
@@ -1121,6 +1125,11 @@ model PurchaseOrder {
   // Uzun kuyruk ithalat/gümrük bilgileri (esneklik için JSON)
   importInfo      String?  // JSON: {grossWeight, netWeight, packages, hsCode, blNo, ...}
   landedCostTotal String   @default("0")
+  isImported      Boolean  @default(false)
+  importBatchId   String?
+  sourceRowNo     Int?
+  requesterName   String?
+  requisitionNumber String?
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -1144,14 +1153,23 @@ model PurchaseOrderLine {
   order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   lineNo      Int
   itemId      String?
+  categoryId  String?
   description String
-  quantity    String   // decimal-as-string
+  quantity    String?  // decimal-as-string (import'ta bos ise null)
   uom         String?
-  unitPrice   String   // decimal-as-string
+  currency    String?  // satir bazli orijinal para birimi (import)
+  unitPrice   String?  // decimal-as-string; import'ta bos ise null (0 ile doldurulmaz)
   discountPct String   @default("0")
-  taxRate     String   @default("20")
+  taxRate     String?  // import'ta bos ise null
   withholdingRatio String?
-  lineTotal   String   @default("0")
+  lineTotal   String?  // decimal-as-string
+  // Tarihsel/import degerleri
+  originalLineTotal  String? // Kalem Tutari (PB) - orijinal para birimi
+  historicalTryTotal String? // Kalem Tutari (TL) - tarihsel TL (yeniden hesaplanmaz)
+  note        String?
+  dataQualityFlags String? // JSON: eksik alanlar
+  importBatchId String?
+  sourceRowNo Int?
   // Landed cost dağıtımı (ithalat toplam maliyeti bu satıra düşen pay)
   allocatedLandedCost String @default("0")
   // Ağırlık/hacim (landed cost dağıtımı için)
@@ -1571,6 +1589,31 @@ model IntegrationJob {
   attempts    Int      @default(0)
   createdAt   DateTime @default(now())
   finishedAt  DateTime?
+
+  @@index([tenantId, status])
+}
+
+// ---------------------------------------------------------------------------
+// GEÃMÄ°Å VERÄ° Ä°Ã‡E AKTARMA (IMPORT)
+// ---------------------------------------------------------------------------
+
+model ImportBatch {
+  id          String   @id @default(cuid())
+  tenantId    String
+  fileName    String
+  sheetName   String   @default("Kalem DetaylarÄ±")
+  status      String   @default("DRY_RUN") // DRY_RUN | COMMITTED | ROLLED_BACK
+  totalRows   Int      @default(0)
+  ordersCreated   Int  @default(0)
+  linesCreated    Int  @default(0)
+  suppliersCreated Int @default(0)
+  categoriesCreated Int @default(0)
+  stats       String   @default("{}") // JSON: mutabakat ve Ã¶zet
+  fileKey     String?  // depolanan kaynak dosya anahtarÄ±
+  createdById String
+  createdAt   DateTime @default(now())
+  committedAt DateTime?
+  rolledBackAt DateTime?
 
   @@index([tenantId, status])
 }

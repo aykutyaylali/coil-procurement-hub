@@ -19,5 +19,9 @@ coverage
 /blob-report
 /playwright/.cache
 uploads
+storage
+prisma/backups
+# Kaynak veri dosyalari (repoya girmez; kullanici makinesinde kalir)
+/*.xlsx
 .turbo
 next-env.d.ts

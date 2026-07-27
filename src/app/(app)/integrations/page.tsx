@@ -30,7 +30,11 @@ export default async function IntegrationsPage() {
 
   return (
     <div>
-      <PageHeader title="Entegrasyon Merkezi" description="Adapter tabanlı entegrasyonlar. İşlemler idempotent çalışır; hata/yeniden deneme burada izlenir." />
+      <PageHeader
+        title="Entegrasyon Merkezi"
+        description="Adapter tabanlı entegrasyonlar. İşlemler idempotent çalışır; hata/yeniden deneme burada izlenir."
+        action={{ label: "Geçmiş Veri İçe Aktar (Excel)", href: "/integrations/import" }}
+      />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {CONNECTORS.map((c) => (
           <Card key={c.key}>

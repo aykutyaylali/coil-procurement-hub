@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requirePermission } from "@/lib/auth/context";
+import Link from "next/link";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -13,6 +14,7 @@ export const metadata: Metadata = { title: "Faturalar" };
 
 export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const user = await requirePermission(PERMISSIONS.INVOICE_VIEW);
+  const canCreate = userCan(user, PERMISSIONS.INVOICE_CREATE);
   const sp = await searchParams;
   const invoices = await prisma.invoice.findMany({
     where: { tenantId: user.tenantId, ...(sp.status ? { status: sp.status } : {}) },
@@ -23,7 +25,11 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <PageHeader title="Faturalar" description="Üçlü eşleştirme (PO–Mal Kabul–Fatura) ve ödeme takibi." />
+      <PageHeader
+        title="Faturalar"
+        description="Üçlü eşleştirme (PO–Mal Kabul–Fatura) ve ödeme takibi."
+        action={canCreate ? { label: "Yeni Fatura", href: "/invoices/new" } : undefined}
+      />
       <Card>
         {invoices.length === 0 ? (
           <EmptyState title="Fatura yok" hint="Fatura girişi veya e-Fatura entegrasyonu ile faturalar burada görünür." />
@@ -43,7 +49,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
             <TBody>
               {invoices.map((i) => (
                 <TR key={i.id}>
-                  <TD className="font-medium">{i.number}</TD>
+                  <TD><Link href={`/invoices/${i.id}`} className="font-medium text-primary hover:underline">{i.number}</Link></TD>
                   <TD>{i.supplier.legalName}</TD>
                   <TD className="text-sm text-muted-foreground">{i.order?.number ?? "-"}</TD>
                   <TD className="text-right font-medium">{formatMoney(i.grandTotal, i.currency)}</TD>

@@ -119,6 +119,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   Mal Kabul Yap
                 </Link>
               )}
+              {["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED", "SHIPPED", "INVOICED"].includes(po.status) && (
+                <Link href={`/invoices/new?orderId=${po.id}`} className="block rounded-md border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-accent">
+                  Fatura Oluştur
+                </Link>
+              )}
             </CardContent>
           </Card>
           <Card>

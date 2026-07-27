@@ -112,8 +112,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <CardHeader>
               <CardTitle>İşlemler</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <OrderActionsPanel id={po.id} status={po.status} canDecide={canDecide} canSend={canSend} />
+              {["SENT", "ACKNOWLEDGED", "PARTIALLY_CONFIRMED", "CONFIRMED", "PARTIALLY_SHIPPED", "SHIPPED", "PARTIALLY_RECEIVED"].includes(po.status) && (
+                <Link href={`/receipts/new?orderId=${po.id}`} className="block rounded-md border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-accent">
+                  Mal Kabul Yap
+                </Link>
+              )}
             </CardContent>
           </Card>
           <Card>

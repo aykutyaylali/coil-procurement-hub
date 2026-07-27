@@ -85,6 +85,24 @@ export async function nextNumber(
       lastNumber = last?.code ?? "";
       break;
     }
+    case "NONCONFORMANCE": {
+      const last = await tx.nonConformance.findFirst({
+        where: { code: { startsWith: pattern }, inspection: { receipt: { order: { tenantId } } } },
+        orderBy: { code: "desc" },
+        select: { code: true },
+      });
+      lastNumber = last?.code ?? "";
+      break;
+    }
+    case "CAPA": {
+      const last = await tx.cAPA.findFirst({
+        where: { code: { startsWith: pattern }, supplier: { tenantId } },
+        orderBy: { code: "desc" },
+        select: { code: true },
+      });
+      lastNumber = last?.code ?? "";
+      break;
+    }
     default:
       lastNumber = "";
   }

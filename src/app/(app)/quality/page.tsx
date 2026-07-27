@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
@@ -30,7 +31,7 @@ export default async function QualityPage() {
             <TBody>
               {inspections.map((q) => (
                 <TR key={q.id}>
-                  <TD className="font-medium">{q.receipt.order.number}</TD>
+                  <TD><Link href={`/quality/${q.id}`} className="font-medium text-primary hover:underline">{q.receipt.order.number}</Link></TD>
                   <TD className="text-sm">{q.receipt.order.supplier.legalName}</TD>
                   <TD className="text-center">{q._count.nonConformances}</TD>
                   <TD><StatusBadge status={q.status} /></TD>

@@ -586,6 +586,7 @@ model Supplier {
   risks        SupplierRisk[]
   audits       SupplierAudit[]
   capas        CAPA[]
+  nonConformances NonConformance[]
   contracts    Contract[]
   rfqInvites   RFQSupplier[]
   bids         Bid[]
@@ -706,15 +707,25 @@ model CAPA {
   id         String   @id @default(cuid())
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id])
+  ncrId      String?
+  ncr        NonConformance? @relation(fields: [ncrId], references: [id])
   code       String
   title      String
   type       String   @default("CORRECTIVE") // CORRECTIVE | PREVENTIVE | 8D
-  status     String   @default("OPEN") // OPEN | IN_PROGRESS | CLOSED
+  status     String   @default("OPEN") // OPEN | IN_PROGRESS | DONE
+  rootCause  String?
+  action     String?  // dÃ¼zeltici/Ã¶nleyici faaliyet
+  responsibleUserId String?
   dueDate    DateTime?
+  verifiedBy String?
+  verifiedAt DateTime?
+  closedAt   DateTime?
   description String?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([supplierId])
+  @@index([ncrId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1264,9 +1275,11 @@ model QualityInspection {
   receiptId   String
   receipt     GoodsReceipt @relation(fields: [receiptId], references: [id])
   status      String   @default("PENDING") // PENDING | PASS | CONDITIONAL | FAIL
-  planRef     String?
-  sampleResult String?
+  planRef     String?  // kontrol planÄ± referansÄ±
+  sampleSize  String?
+  sampleResult String? // numune/Ã¶lÃ§Ã¼m sonuÃ§larÄ± (JSON veya metin)
   inspectedBy String?
+  inspectedAt DateTime?
   note        String?
   createdAt   DateTime @default(now())
 
@@ -1279,14 +1292,31 @@ model NonConformance {
   id           String   @id @default(cuid())
   inspectionId String
   inspection   QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
   code         String
-  type         String   @default("QUALITY")
+  title        String?
+  type         String   @default("QUALITY") // QUALITY | SUPPLIER_COMPLAINT | PROCESS
   severity     String   @default("MINOR") // MINOR | MAJOR | CRITICAL
-  status       String   @default("OPEN")
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE (kapandÄ±)
   description  String?
+  rootCause    String?
+  correctiveAction String?
+  preventiveAction String?
+  disposition  String?  // iade | yeniden sevk | hurda | ÅŸartlÄ± kabul
+  responsibleUserId String?
+  dueDate      DateTime?
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  closedAt     DateTime?
+  cost         String?  // uygunsuzluk maliyeti (decimal-as-string)
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  capas        CAPA[]
 
   @@index([inspectionId])
+  @@index([supplierId])
 }
 
 // ---------------------------------------------------------------------------

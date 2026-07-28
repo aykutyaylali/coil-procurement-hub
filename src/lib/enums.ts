@@ -132,12 +132,57 @@ export const STATUS_LABELS_TR: Record<string, string> = {
   URGENT: "Acil",
 };
 
+// --- İngilizce etiketler (TR ile aynı anahtar kümesi; test edilir) ---
+export const STATUS_LABELS_EN: Record<string, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending Approval",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  ASSIGNED: "Assigned",
+  IN_RFQ: "In RFQ",
+  ORDERED: "Ordered",
+  CLOSED: "Closed",
+  CANCELLED: "Cancelled",
+  SENT: "Sent",
+  OPEN: "Open",
+  CLARIFICATION: "Clarification",
+  EVALUATION: "Evaluation",
+  NEGOTIATION: "Negotiation",
+  AWARDED: "Awarded",
+  ACKNOWLEDGED: "Acknowledged",
+  PARTIALLY_CONFIRMED: "Partially Confirmed",
+  CONFIRMED: "Confirmed",
+  PARTIALLY_SHIPPED: "Partially Shipped",
+  SHIPPED: "Shipped",
+  PARTIALLY_RECEIVED: "Partially Received",
+  RECEIVED: "Received",
+  INVOICED: "Invoiced",
+  SUBMITTED: "Submitted",
+  REVISED: "Revised",
+  SHORTLISTED: "Shortlisted",
+  ONBOARDING: "Onboarding",
+  ACTIVE: "Active",
+  BLACKLISTED: "Blacklisted",
+  INACTIVE: "Inactive",
+  MATCHING: "Matching",
+  MATCHED: "Matched",
+  BLOCKED: "Blocked",
+  PAID: "Paid",
+  LOW: "Low",
+  NORMAL: "Normal",
+  HIGH: "High",
+  URGENT: "Urgent",
+};
+
 export function statusLabel(status: string, locale = "tr"): string {
   if (locale === "tr") return STATUS_LABELS_TR[status] ?? status;
-  return status
-    .split("_")
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-    .join(" ");
+  return (
+    STATUS_LABELS_EN[status] ??
+    status
+      .split("_")
+      .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+      .join(" ")
+  );
 }
 
 /** Durum rozeti renk sınıfı (Tailwind) */

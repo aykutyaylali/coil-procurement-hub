@@ -12,6 +12,33 @@ import { poSentTemplate } from "@/lib/email/templates";
 import { formatMoney } from "@/lib/money";
 import { ok, fail, type Result, NotFoundError, AppError } from "@/lib/errors";
 
+/**
+ * Siparişi YÖNETİM ONAYINA GÖNDERMEDEN doğrudan onaylar (satınalma yetkisiyle).
+ * Yönetim onayı opsiyoneldir: satınalma teklif topladıktan sonra istersE
+ * `submitOrderForApproval` ile onaya gönderir; istemezse burada doğrudan onaylar
+ * ve tedarikçiye gönderebilir.
+ */
+export async function confirmOrderDirect(id: string): Promise<Result<{ status: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.ORDER_APPROVE);
+    const result = await prisma.$transaction(async (tx) => {
+      const po = await tx.purchaseOrder.findFirst({ where: { id, tenantId: user.tenantId } });
+      if (!po) throw new NotFoundError("Sipariş bulunamadı.");
+      assertTransition(ORDER_TRANSITIONS, po.status, "APPROVED", "Sipariş");
+      await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: "APPROVED" } });
+      await writeAudit(
+        { tenantId: user.tenantId, userId: user.id, action: "STATUS_CHANGE", entityType: "PurchaseOrder", entityId: po.id, before: { status: po.status }, after: { status: "APPROVED" }, reason: "Yönetim onayı olmadan satınalma tarafından onaylandı" },
+        tx,
+      );
+      return { status: "APPROVED" };
+    });
+    revalidatePath(`/orders/${id}`);
+    return ok(result);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Siparişi onaya gönderir (tutar eşiğine göre onay akışı). */
 export async function submitOrderForApproval(id: string): Promise<Result<{ status: string }>> {
   try {

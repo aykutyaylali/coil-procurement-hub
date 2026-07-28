@@ -38,6 +38,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     }
   }
   const canSend = userCan(user, PERMISSIONS.ORDER_SEND);
+  const canApprove = userCan(user, PERMISSIONS.ORDER_APPROVE);
 
   return (
     <div>
@@ -115,7 +116,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <CardTitle>İşlemler</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <OrderActionsPanel id={po.id} status={po.status} canDecide={canDecide} canSend={canSend} />
+              <OrderActionsPanel id={po.id} status={po.status} canDecide={canDecide} canSend={canSend} canApprove={canApprove} />
               {["SENT", "ACKNOWLEDGED", "PARTIALLY_CONFIRMED", "CONFIRMED", "PARTIALLY_SHIPPED", "SHIPPED", "PARTIALLY_RECEIVED"].includes(po.status) && (
                 <Link href={`/receipts/new?orderId=${po.id}`} className="block rounded-md border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-accent">
                   Mal Kabul Yap

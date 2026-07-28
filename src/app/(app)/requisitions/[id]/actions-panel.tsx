@@ -37,10 +37,10 @@ export function RequisitionActionsPanel({
       setBusy(false);
       setError(res.error);
       setFields(res.fields ?? {});
-      toast({ type: "error", title: res.fields ? "Talep onaya gönderilemedi." : "İşlem başarısız.", description: res.error });
+      toast({ type: "error", title: res.fields ? "Talep gönderilemedi." : "İşlem başarısız.", description: res.error });
       return;
     }
-    toast({ type: "success", title: "Talep onaya gönderildi." });
+    toast({ type: "success", title: res.data.status === "PENDING_APPROVAL" ? "Talep onaya gönderildi." : "Talep gönderildi." });
     router.refresh();
   }
 
@@ -78,7 +78,7 @@ export function RequisitionActionsPanel({
       {canSubmit && status === "DRAFT" && (
         <Button onClick={doSubmit} disabled={busy} className="w-full">
           {busy && <Loader2 className="size-4 animate-spin" />}
-          {busy ? "Gönderiliyor…" : "Onaya Gönder"}
+          {busy ? "Gönderiliyor…" : "Gönder"}
         </Button>
       )}
 

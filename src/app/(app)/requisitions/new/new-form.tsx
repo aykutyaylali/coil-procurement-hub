@@ -29,7 +29,8 @@ const emptyLine: Line = { description: "", quantity: "1", uom: "", estUnitPrice:
 const TXT = {
   tr: {
     draftSaved: "Taslak başarıyla kaydedildi.",
-    submitted: "Talep onaya gönderildi.",
+    submitted: "Talep gönderildi.",
+    submittedApproval: "Talep onaya gönderildi.",
     saveFailed: "Talep kaydedilemedi. Lütfen işaretli alanları kontrol edin.",
     unexpected: "İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
     summaryTitle: "Lütfen aşağıdaki alanları düzeltin:",
@@ -38,7 +39,8 @@ const TXT = {
   },
   en: {
     draftSaved: "Draft saved successfully.",
-    submitted: "Requisition submitted for approval.",
+    submitted: "Requisition submitted.",
+    submittedApproval: "Requisition submitted for approval.",
     saveFailed: "The requisition could not be saved. Please check the highlighted fields.",
     unexpected: "An unexpected error occurred. Please try again.",
     summaryTitle: "Please fix the following fields:",
@@ -205,7 +207,7 @@ export function NewRequisitionForm({
       return;
     }
     requestIdRef.current = null;
-    toast({ type: "success", title: t.submitted });
+    toast({ type: "success", title: res.data.status === "PENDING_APPROVAL" ? t.submittedApproval : t.submitted });
     router.push(`/requisitions/${res.data.id}`);
   }
 
@@ -436,7 +438,7 @@ export function NewRequisitionForm({
         </Button>
         <Button onClick={onSubmitApproval} disabled={!!busy}>
           {busy === "submit" && <Loader2 className="size-4 animate-spin" />}
-          {busy === "submit" ? t.sending : "Kaydet ve Onaya Gönder"}
+          {busy === "submit" ? t.sending : "Kaydet ve Gönder"}
         </Button>
       </div>
     </div>

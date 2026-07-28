@@ -8,6 +8,8 @@ import { PrismaClient } from "@prisma/client";
  */
 const PW = "Coil2026!";
 const prisma = new PrismaClient();
+// Varsayılan (NEVER) politika: talep gönderince onaya gitmez, doğrudan APPROVED olur.
+test.beforeAll(async () => { await prisma.company.updateMany({ data: { settings: "{}" } }); });
 test.afterAll(async () => { await prisma.$disconnect(); });
 
 async function login(page: Page, email: string) {
@@ -41,7 +43,7 @@ test("3-4-9-10) eksik açıklamayla ONAYA GÖNDERİLEMEZ; dostça TR hata; form 
   // Miktar + gerekçe doldur ama açıklamayı boş bırak
   await page.locator('label:has-text("Miktar") + input').first().fill("7");
   await page.getByPlaceholder("Talebin gerekçesi").fill("Acil üretim ihtiyacı");
-  await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
+  await page.getByRole("button", { name: /Kaydet ve Gönder/ }).click();
   await page.waitForTimeout(1500);
 
   // Gönderilmedi (sayfada kaldı)
@@ -56,21 +58,20 @@ test("3-4-9-10) eksik açıklamayla ONAYA GÖNDERİLEMEZ; dostça TR hata; form 
   await expect(page.locator('label:has-text("Miktar") + input').first()).toHaveValue("7");
 });
 
-test("6-7) açıklama dolunca ONAYA GÖNDERİLİR ve tek approval instance oluşur", async ({ page, context }) => {
+test("6) açıklama dolunca GÖNDERİLİR; varsayılan NEVER ile onaysız APPROVED (approval instance yok)", async ({ page, context }) => {
   test.setTimeout(120000);
   await login(page, "talep@coilpartners.com");
   await page.goto("/requisitions/new");
-  await page.locator('select').nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   await page.locator('label:has-text("Açıklama") + input').first().fill("Rulman 6204");
   await page.locator('label:has-text("Miktar") + input').first().fill("20");
-  await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
+  await page.getByRole("button", { name: /Kaydet ve Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const id = page.url().split("/requisitions/")[1]!.split("?")[0]!;
 
-  await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id } }))?.status, { timeout: 15000 }).toMatch(/PENDING_APPROVAL|APPROVED/);
-  // Tek approval instance
+  // Varsayılan politika NEVER → doğrudan APPROVED, onay süreci başlamaz
+  await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id } }))?.status, { timeout: 15000 }).toBe("APPROVED");
   const instances = await prisma.approvalInstance.count({ where: { documentType: "REQUISITION", documentId: id } });
-  expect(instances).toBe(1);
+  expect(instances).toBe(0);
   void context;
 });
 

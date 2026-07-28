@@ -10,7 +10,10 @@ import { PrismaClient } from "@prisma/client";
  */
 const PW = "Coil2026!";
 const prisma = new PrismaClient();
-test.afterAll(async () => { await prisma.$disconnect(); });
+const ALWAYS = JSON.stringify({ reqApproval: { mode: "ALWAYS", threshold: "0" } });
+// Bu test onay zincirini doğrular → politikayı ALWAYS yap; sonra varsayılana (NEVER/"{}") döndür.
+test.beforeAll(async () => { await prisma.company.updateMany({ data: { settings: ALWAYS } }); });
+test.afterAll(async () => { await prisma.company.updateMany({ data: { settings: "{}" } }); await prisma.$disconnect(); });
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -31,7 +34,7 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   await page.locator("select").nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   await page.getByPlaceholder("Malzeme / hizmet açıklaması").first().fill(`E2E kalem ${stamp}`);
   await page.locator('label:has-text("Miktar") + input').first().fill("100").catch(() => {});
-  await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
+  await page.getByRole("button", { name: /Kaydet ve Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const reqId = page.url().split("/requisitions/")[1]!.split("?")[0]!;
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toBe("PENDING_APPROVAL");

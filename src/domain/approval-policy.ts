@@ -15,8 +15,12 @@ export interface ReqApprovalPolicy {
   threshold: string;
 }
 
-/** Varsayılan: mevcut davranış korunur (her talep onay akışına girer). */
-export const DEFAULT_REQ_APPROVAL_POLICY: ReqApprovalPolicy = { mode: "ALWAYS", threshold: "0" };
+/**
+ * Varsayılan: talep aşamasında onay YOK (NEVER). Talep açılınca doğrudan işleme
+ * girer; satınalma teklif topladıktan sonra istersE sipariş (PO) aşamasında
+ * yönetim onayına gönderir. Satınalma dilerse politikayı THRESHOLD/ALWAYS yapabilir.
+ */
+export const DEFAULT_REQ_APPROVAL_POLICY: ReqApprovalPolicy = { mode: "NEVER", threshold: "0" };
 
 export const REQ_APPROVAL_MODE_LABELS: Record<ReqApprovalMode, { tr: string; en: string }> = {
   ALWAYS: { tr: "Her talep onaya gider", en: "Every requisition needs approval" },

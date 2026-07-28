@@ -8,6 +8,8 @@ import { PrismaClient } from "@prisma/client";
  */
 const PW = "Coil2026!";
 const prisma = new PrismaClient();
+// Varsayılan (NEVER) politika: talep onaya gitmeden APPROVED olur → tek kullanıcıyla test.
+test.beforeAll(async () => { await prisma.company.updateMany({ data: { settings: "{}" } }); });
 test.afterAll(async () => { await prisma.$disconnect(); });
 
 async function login(page: Page, email: string) {
@@ -19,39 +21,24 @@ async function login(page: Page, email: string) {
 }
 
 test("bir talebin farklı kalemlerinden ayrı RFQ'lar oluşturulur", async ({ page, context }) => {
-  test.setTimeout(180000);
+  test.setTimeout(150000);
 
-  // 1) Talep Sahibi: 2 kalemli talep (Üretim departmanı → amir onaycı) + onaya gönder
+  // 1) Talep Sahibi: 2 kalemli talep + gönder → varsayılan NEVER ile doğrudan APPROVED
   await login(page, "talep@coilpartners.com");
   await page.goto("/requisitions/new");
-  await page.locator("select").nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   const desc = page.locator('label:has-text("Açıklama") + input');
   await desc.first().fill("Hırdavat: Civata M8 x100");
   await page.locator('label:has-text("Miktar") + input').first().fill("100");
   await page.getByRole("button", { name: /Kalem Ekle/ }).click();
   await desc.nth(1).fill("Bakır tel emaye 2.5mm");
   await page.locator('label:has-text("Miktar") + input').nth(1).fill("50");
-  await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
+  await page.getByRole("button", { name: /Kaydet ve Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const reqId = page.url().split("/requisitions/")[1]!.split("?")[0]!;
-  await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toBe("PENDING_APPROVAL");
-  await context.clearCookies();
-
-  // 2) Amir onayı
-  await login(page, "amir@coilpartners.com");
-  await page.goto(`/requisitions/${reqId}`);
-  await page.getByRole("button", { name: "Onayla" }).first().click();
-  await page.waitForTimeout(1200);
-  await context.clearCookies();
-
-  // 3) Satınalma müdürü onayı → APPROVED
-  await login(page, "satinalma.md@coilpartners.com");
-  await page.goto(`/requisitions/${reqId}`);
-  await page.getByRole("button", { name: "Onayla" }).first().click().catch(() => {});
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toBe("APPROVED");
   await context.clearCookies();
 
-  // 4) Satınalma uzmanı: 1. kalemden RFQ
+  // 2) Satınalma uzmanı: 1. kalemden RFQ
   await login(page, "satinalma@coilpartners.com");
   await page.goto(`/requisitions/${reqId}`);
   await page.locator('input[aria-label="Kalem 1 seç"]').check();

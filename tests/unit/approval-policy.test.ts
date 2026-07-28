@@ -7,9 +7,10 @@ import {
 } from "@/domain/approval-policy";
 
 describe("talep onay politikası (satınalma belirler)", () => {
-  it("ayar yoksa varsayılan: her talep onaya gider (ALWAYS)", () => {
+  it("ayar yoksa varsayılan: talep onaya gitmez (NEVER)", () => {
     expect(parseReqApprovalPolicy(null)).toEqual(DEFAULT_REQ_APPROVAL_POLICY);
-    expect(requiresApproval("50000", parseReqApprovalPolicy("{}"))).toBe(true);
+    expect(DEFAULT_REQ_APPROVAL_POLICY.mode).toBe("NEVER");
+    expect(requiresApproval("50000", parseReqApprovalPolicy("{}"))).toBe(false);
   });
 
   it("NEVER: hiçbir talep onaya gitmez", () => {

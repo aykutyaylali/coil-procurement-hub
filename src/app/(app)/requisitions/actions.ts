@@ -6,6 +6,7 @@ import { requireUser, requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { nextNumber } from "@/domain/numbering";
 import { actOnApproval, buildApprovalInstance, type ApprovalActionType } from "@/domain/approval";
+import { reserveBudget, releaseBudget } from "@/domain/budget";
 import { REQUISITION_TRANSITIONS, assertTransition } from "@/domain/state-machines";
 import { writeAudit } from "@/lib/audit";
 import { add, lineNet, toStr } from "@/lib/money";
@@ -146,6 +147,29 @@ export async function submitRequisition(id: string): Promise<Result<{ status: st
         },
       });
 
+      // Gerçek bütçe kontrolü + rezervasyonu (uygun bütçe varsa)
+      const budgetRes = await reserveBudget(tx, {
+        tenantId: user.tenantId,
+        companyId: req.companyId,
+        costCenterId: req.costCenterId,
+        projectId: req.projectId,
+        amount: req.estimatedTotal,
+        refType: "REQUISITION",
+        refId: req.id,
+        note: `${req.number} talep rezervi`,
+      });
+      if (budgetRes?.wouldExceed) {
+        await writeAudit(
+          {
+            tenantId: user.tenantId, userId: user.id, action: "UPDATE",
+            entityType: "PurchaseRequisition", entityId: req.id,
+            after: { budgetWarning: "AŞIM", budgetId: budgetRes.budgetId, remaining: budgetRes.remaining },
+            reason: "Bütçe aşımı — ek onay gerektirir",
+          },
+          tx,
+        );
+      }
+
       // Onay kuralı yoksa doğrudan onaylı sayılır
       const newStatus = instance ? "PENDING_APPROVAL" : "APPROVED";
       await tx.purchaseRequisition.update({
@@ -219,6 +243,10 @@ export async function decideRequisition(input: unknown): Promise<Result<{ status
           where: { id: req.id },
           data: { status: newStatus },
         });
+        // Ret veya düzeltme talebinde bütçe rezervini serbest bırak
+        if (newStatus === "REJECTED" || newStatus === "DRAFT") {
+          await releaseBudget(tx, "REQUISITION", req.id);
+        }
       }
       await writeAudit(
         {

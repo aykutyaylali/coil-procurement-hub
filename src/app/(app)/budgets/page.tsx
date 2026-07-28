@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requirePermission } from "@/lib/auth/context";
+import Link from "next/link";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Bütçeler" };
 
 export default async function BudgetsPage() {
   const user = await requirePermission(PERMISSIONS.BUDGET_VIEW);
+  const canManage = userCan(user, PERMISSIONS.BUDGET_MANAGE);
   const budgets = await prisma.budget.findMany({
     where: { tenantId: user.tenantId },
     orderBy: [{ fiscalYear: "desc" }],
@@ -20,7 +22,7 @@ export default async function BudgetsPage() {
 
   return (
     <div>
-      <PageHeader title="Bütçeler" description="Planlanan, taahhüt, faturalanan ve kalan bütçe takibi." />
+      <PageHeader title="Bütçeler" description="Planlanan, taahhüt, faturalanan ve kalan bütçe takibi." action={canManage ? { label: "Yeni Bütçe", href: "/budgets/new" } : undefined} />
       <Card>
         {budgets.length === 0 ? (
           <EmptyState title="Bütçe tanımı yok" hint="Şirket/maliyet merkezi/proje bazında bütçe tanımlayın." />
@@ -33,7 +35,7 @@ export default async function BudgetsPage() {
                 const remaining = sub(b.plannedAmount, spent);
                 return (
                   <TR key={b.id}>
-                    <TD>{b.fiscalYear}</TD>
+                    <TD><Link href={`/budgets/${b.id}`} className="font-medium text-primary hover:underline">{b.fiscalYear}</Link></TD>
                     <TD className="text-sm">{b.company.name}</TD>
                     <TD className="text-sm">{b.costCenter?.name ?? b.project?.name ?? "-"}</TD>
                     <TD className="text-right">{formatMoney(b.plannedAmount, b.currency)}</TD>

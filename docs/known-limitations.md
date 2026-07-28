@@ -15,17 +15,19 @@ Bu proje, kurumsal bir satınalma platformunun **çalışan, üretim mimarisine 
 - Güvenli decimal finans, durum makineleri, değişmez audit log.
 - Tüm ana modüller için gerçek veri okuyan liste/detay ekranları (ölü bağlantı yok).
 - Dashboard (rol bazlı KPI), raporlar (harcama/operasyon/tedarikçi kırılımı), global arama, denetim, entegrasyon merkezi, yönetim ekranları.
+- **Mal kabul:** oluşturma/detay, kısmi/çoklu kabul, disposition, lot-seri-raf, irsaliye, backend miktar validasyonu.
+- **Kalite + NCR / CAPA / 8D:** kontrol tamamlama (`completeInspection`), uygunsuzluk (`createNonConformance`/`updateNonConformance`), CAPA/8D (`createCAPA`/`updateCAPA`), tedarikçi performansına etki.
+- **Fatura girişi + üçlü eşleştirme:** `createInvoice` + tolerans içi otomatik kabul / tolerans dışı bloke + istisna onayı (`approveInvoiceException`), ödeme durumu.
+- **PDF üretimi (pdfkit, Türkçe DejaVu font):** sipariş, RFQ, RFQ karşılaştırma, mal kabul, NCR, rapor, tedarikçi — gerçek route'lar (`.../pdf`).
+- **Sözleşme / Bütçe / Katalog / Tedarikçi / Kullanıcı CRUD:** create/edit/detay formları çalışır; gerçek bütçe rezervasyonu/kontrolü (`reserveBudget`/`releaseBudget`) talep yaşam döngüsüne bağlıdır.
+- **Operasyonel metrikler:** OTIF, req→sipariş çevrim süresi, onay bekleme, tasarruf — gerçek DB'den hesaplanır; zaman damgası yetersizse "veri yetersiz" gösterir.
 
-## Veri modeli + arayüz hazır, genişletilecek
+## Gerçekten kalan (uygulama içi eksik)
 
 | Alan | Durum |
 |---|---|
-| Mal kabul / kalite giriş formları | Liste ekranları çalışır; ayrıntılı kabul/NCR/8D/CAPA giriş formları eklenecek. Veri modeli tam. |
-| Fatura girişi + üçlü eşleştirme ekranı | Liste + veri modeli (`InvoiceMatch`, tolerans) hazır; giriş/istisna onay ekranı eklenecek. |
-| PDF üretimi (sipariş/RFQ, TR/EN) | Servis arayüzü tasarlandı; markalı PDF render'ı eklenecek. Logo: `public/brand/coil-logo.pdf` (web için PNG/SVG önerilir). |
-| Tedarikçi onboarding sihirbazı | `Supplier.onboardingToken` + durumlar hazır; self-servis form akışı eklenecek. |
-| Sözleşme/bütçe düzenleme formları | Liste + model hazır; CRUD formları eklenecek. |
-| Bütçe rezervasyon/iptal otomasyonu | `BudgetTransaction` modeli hazır; talep/sipariş yaşam döngüsüne bağlanacak. |
+| **İngilizce arayüz — kısmi** | Paylaşılan yüzeyler (menü/aksiyon/ortak etiket/kimlik/doğrulama/durum/operasyon türü/tedarikçi portalı/e-posta) iki dilli ve **tr/en parite testli**. Uygulama Türkçe-önceliklidir; bazı iç ekranların gövde metinleri hâlâ Türkçedir. **Tam İngilizce arayüz henüz tamamlanmamıştır.** |
+| **Tedarikçi self-servis onboarding sihirbazı** | Admin tarafı tedarikçi CRUD tamam; `Supplier.onboardingToken` + durumlar hazır ancak tedarikçinin token ile kendi kartını doldurduğu self-servis akış henüz yok. |
 
 ## Entegrasyon arayüzü hazır (anahtar girilince aktif)
 

@@ -207,12 +207,28 @@ Yedekleme/geri yükleme: [`docs/backup-restore.md`](docs/backup-restore.md).
 
 ## Bilinen sınırlamalar ve sonraki adımlar
 
-Bu, kurumsal bir platformun **çalışan çekirdeğidir**. Uçtan uca ana akış, kimlik/yetki, onay motoru, tedarikçi portalı, e-posta altyapısı, i18n ve operasyon türü ayrımı tam çalışır. Aşağıdakiler veri modeli/altyapı düzeyinde hazırdır ve genişletilmeye açıktır:
+Uygulama içi tüm modüller **create/edit/detay ile tam çalışır**: talep, onay, RFQ, tedarikçi teklifi,
+karşılaştırma/karar, sipariş, **mal kabul** (kısmi/çoklu, miktar validasyonu), **kalite + NCR/CAPA/8D**,
+**fatura girişi + üçlü eşleştirme** (tolerans içi kabul / dışı bloke + istisna onayı), **PDF üretimi**
+(sipariş, RFQ, RFQ karşılaştırma, mal kabul, NCR, rapor, tedarikçi — pdfkit, Türkçe font), **raporlar**
+(harcama/operasyon/tedarikçi kırılımı + OTIF/çevrim süresi/onay bekleme/tasarruf — veri yetersizse
+"veri yetersiz" gösterir), **sözleşme / bütçe / katalog / tedarikçi / kullanıcı CRUD**, gerçek bütçe
+rezervasyonu/kontrolü. Liste-only modül, ölü bağlantı veya placeholder **yoktur**.
 
-- **Mal kabul / kalite / fatura girişi UI'ları** liste düzeyinde çalışır; ayrıntılı giriş formları (üçlü eşleştirme tolerans ekranı, NCR/8D/CAPA formları) genişletilebilir. Üçlü eşleştirme ve tolerans kuralları veri modelinde mevcuttur.
-- **PDF üretimi** (sipariş/RFQ belgeleri TR/EN) için servis arayüzü tasarlanmıştır; markalı PDF render'ı eklenecektir. Şirket logosu `public/brand/coil-logo.pdf` altındadır (web için PNG/SVG'ye çevrilmesi önerilir).
-- **ERP/e-Fatura/SSO/AI/virüs tarama** entegrasyonları adapter arayüzleriyle hazırdır; sağlayıcı anahtarları girildiğinde etkinleşir (mock/local modda çalışmaya devam eder).
-- **i18n retrofit:** Mimari tamamdır ve kabuk, tedarikçi portalı, e-postalar, durumlar, operasyon türleri, doğrulama ve para/tarih biçimleri iki dillidir. Bazı yönetim ekranlarındaki metinlerin merkezi sözlüğe taşınması sürmektedir.
-- **Gelişmiş raporlar** (OTIF, tasarruf, çevrim süresi) veri biriktikçe genişletilebilir; temel harcama/operasyon/tedarikçi kırılımları çalışır.
+Gerçekten kalan maddeler yalnızca **harici sistem/hesap** veya **üretim operasyonu** gerektirir:
+
+- **Harici entegrasyonlar** (adapter + mock/local mod hazır; sağlayıcı anahtarı girilince etkinleşir):
+  ERP (SAP/Logo/Netsis), e-Fatura/e-Arşiv, SSO (Entra ID/Google/OIDC/SAML), TCMB kur, AI öneri/özet,
+  ClamAV virüs tarama, S3 uyumlu depolama.
+- **İngilizce arayüz — kısmi.** Paylaşılan yüzeyler (menü, aksiyonlar, ortak etiketler, kimlik doğrulama,
+  doğrulama mesajları, durum etiketleri, operasyon türleri, **tedarikçi portalı**, e-postalar) iki dillidir
+  ve **tr/en parite testiyle** korunur. Uygulama Türkçe-önceliklidir; bazı iç ekranların **gövde metinleri
+  hâlâ Türkçedir** ve merkezî sözlüğe taşınmamıştır. Yani tam İngilizce arayüz henüz tamamlanmamıştır.
+- **Tedarikçi self-servis onboarding sihirbazı.** Admin tarafı tedarikçi CRUD tamamdır;
+  `Supplier.onboardingToken` altyapısı hazırdır ancak tedarikçinin kendi kartını token ile doldurduğu
+  self-servis form akışı henüz yoktur.
+- **Üretim sertleştirmesi:** sıkı CSP (nonce), HSTS (reverse proxy), webhook imza doğrulaması,
+  Redis tabanlı hız sınırı + kalıcı e-posta kuyruğu worker'ı, hassas alan (banka) şifreleme + secret
+  yöneticisi, KVKK/GDPR anonimleştirme/saklama akışları.
 
 Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md).

@@ -107,8 +107,14 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 
 | `b562ccc` | **Son doğrulama**: ESLint temiz + RAPOR/deployment güncellendi (doğrulanmış PostgreSQL komutları) |
 
-> Not: Yukarıdaki tablo 2. oturum snapshot'ıdır (o gün 62 test / 5 E2E). Güncel durum
-> **80 test / 8 E2E** — bkz. sayfa başı "Genel durum" ve "Son tamamlama fazı".
+### Sürüm tarihçesi — test/E2E snapshot (geçmiş; güncel değil)
+
+Aşağıdaki sayılar ilgili oturumun sonundaki durumdur; **güncel değer 80 test / 8 E2E** (sayfa başı).
+
+| Oturum | Birim+entegrasyon test | E2E (tarayıcı) | Not |
+|---|---|---|---|
+| 2. oturum sonu | 62 (10 dosya) | 5 | PostgreSQL doğrulaması + güvenlik/iş kuralı testleri |
+| **3. oturum sonu (güncel)** | **80 (13 dosya)** | **8** | Sözleşme/Bütçe/Katalog/Tedarikçi/Kullanıcı CRUD + metrik motorları + i18n parite |
 
 ### Test kapsamı (güncel: 80 test / 13 dosya)
 - **Birim:** para (decimal, floating-point yok), durum makineleri (geçersiz geçiş engelleme), RBAC yetki matrisi,
@@ -116,9 +122,13 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
   üçlü eşleştirme tolerans, **OTIF/çevrim/tasarruf metrik motorları**, güvenlik primitifleri (token hash/TOTP/parola).
 - **Entegrasyon (gerçek DB, rollback tx):** görevler ayrılığı, başka yetkilinin onayı, **vekâlet**,
   yetkisiz reddi, **mükerrer fatura (unique)**, **tenant izolasyonu**, award→PO hesabı, üçlü eşleştirme, magic-link teklif.
-- **E2E (tarayıcı):** talep→onay→onay→RFQ zinciri, **tedarikçi & kullanıcı oluşturma** (gerçek server action + DB),
-  korumalı sayfa yönlendirme, giriş→dashboard, hatalı parola reddi, magic-link token reddi,
-  tedarikçi portalı EN dil değiştirme — **SQLite ve PostgreSQL production build üzerinde 8/8**.
+- **E2E — tarayıcıda yürütülen adımlar (Playwright, 8):** talep→amir onayı→müdür onayı→RFQ oluşturma zinciri,
+  **tedarikçi & kullanıcı oluşturma** (gerçek server action + DB doğrulama), korumalı sayfa yönlendirme,
+  giriş→dashboard, hatalı parola reddi, magic-link token reddi, tedarikçi portalı EN dil —
+  **SQLite ve PostgreSQL production build üzerinde 8/8**.
+- **E2E — backend/entegrasyon ile doğrulanan adımlar (tarayıcıda değil):** teklif karşılaştırma→split award→
+  otomatik PO→kısmi mal kabul→fatura→**üçlü eşleştirme (tolerans içi kabul / dışı bloke)**;
+  `full-chain.test.ts` + `invoice-matching.test.ts` içinde gerçek kayıt/hesapla doğrulanır. Ayrıntı: [`docs/test-report.md`](docs/test-report.md).
 
 ## Kalan işler (yalnızca harici hesap/altyapı gerektirenler)
 

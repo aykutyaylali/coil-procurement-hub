@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requirePermission } from "@/lib/auth/context";
+import Link from "next/link";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -13,6 +14,7 @@ export const metadata: Metadata = { title: "Sözleşmeler" };
 
 export default async function ContractsPage() {
   const user = await requirePermission(PERMISSIONS.CONTRACT_VIEW);
+  const canManage = userCan(user, PERMISSIONS.CONTRACT_MANAGE);
   const contracts = await prisma.contract.findMany({
     where: { tenantId: user.tenantId },
     orderBy: { createdAt: "desc" },
@@ -21,7 +23,7 @@ export default async function ContractsPage() {
   });
   return (
     <div>
-      <PageHeader title="Sözleşmeler" description="Çerçeve sözleşmeler, fiyat listeleri, limit ve yenileme takibi." />
+      <PageHeader title="Sözleşmeler" description="Çerçeve sözleşmeler, fiyat listeleri, limit ve yenileme takibi." action={canManage ? { label: "Yeni Sözleşme", href: "/contracts/new" } : undefined} />
       <Card>
         {contracts.length === 0 ? (
           <EmptyState title="Sözleşme yok" hint="Yeni sözleşme ekleyerek başlayın." />
@@ -31,7 +33,7 @@ export default async function ContractsPage() {
             <TBody>
               {contracts.map((c) => (
                 <TR key={c.id}>
-                  <TD className="font-medium">{c.code}</TD>
+                  <TD><Link href={`/contracts/${c.id}`} className="font-medium text-primary hover:underline">{c.code}</Link></TD>
                   <TD>{c.title}</TD>
                   <TD className="text-sm">{c.supplier.legalName}</TD>
                   <TD className="text-right">{c.totalLimit ? formatMoney(c.totalLimit, c.currency) : "-"}</TD>

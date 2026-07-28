@@ -15,6 +15,50 @@ import { rfqInviteTemplate, rfqReminderTemplate } from "@/lib/email/templates";
 import { formatDateTime } from "@/lib/dates";
 import { ok, fail, type Result, NotFoundError, AppError } from "@/lib/errors";
 
+/**
+ * Taslak/açık bir RFQ'yu İPTAL eder ve bağlı talep kalemlerini yeniden AÇAR
+ * (status OPEN). Böylece tedarikçi seçmeden bırakılan RFQ'lar kalemleri kilitlemez;
+ * satınalma aynı kalemler için yeniden RFQ oluşturabilir. Teklif alınmış RFQ iptal edilmez.
+ */
+export async function cancelRfq(rfqId: string): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_CREATE);
+    await prisma.$transaction(async (tx) => {
+      const rfq = await tx.rFQ.findFirst({
+        where: { id: rfqId, tenantId: user.tenantId },
+        include: { lines: { select: { requisitionLineId: true } }, _count: { select: { bids: true } } },
+      });
+      if (!rfq) throw new NotFoundError("RFQ bulunamadı.");
+      if (rfq.status === "AWARDED" || rfq.status === "CLOSED") throw new AppError("Karara bağlanmış RFQ iptal edilemez.");
+      if (rfq._count.bids > 0) throw new AppError("Teklif alınmış RFQ iptal edilemez; değerlendirmeye devam edin.");
+
+      // Bağlı talep kalemlerini yeniden aç
+      const reqLineIds = rfq.lines.map((l) => l.requisitionLineId).filter((x): x is string => !!x);
+      if (reqLineIds.length) {
+        await tx.requisitionLine.updateMany({ where: { id: { in: reqLineIds } }, data: { status: "OPEN" } });
+      }
+      // İlgili taleplerin durumunu, açık kalemi olanları IN_RFQ'dan APPROVED'a çek
+      const reqIds = await tx.requisitionLine.findMany({ where: { id: { in: reqLineIds } }, select: { requisitionId: true } });
+      const uniqReqIds = [...new Set(reqIds.map((r) => r.requisitionId))];
+      for (const rid of uniqReqIds) {
+        const req = await tx.purchaseRequisition.findUnique({ where: { id: rid }, select: { status: true } });
+        if (req?.status === "IN_RFQ") {
+          await tx.purchaseRequisition.update({ where: { id: rid }, data: { status: "APPROVED" } });
+        }
+      }
+      // Davetli tedarikçileri ve RFQ'yu temizle
+      await tx.rFQSupplier.deleteMany({ where: { rfqId: rfq.id } });
+      await tx.rFQLine.deleteMany({ where: { rfqId: rfq.id } });
+      await tx.rFQ.delete({ where: { id: rfq.id } });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "RFQ", entityId: rfq.id, before: { number: rfq.number, status: rfq.status }, reason: "RFQ iptal edildi; kalemler yeniden açıldı" }, tx);
+    });
+    revalidatePath("/rfqs");
+    return ok({ id: rfqId });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Onaylı talepten RFQ oluşturur (satırları kopyalar). */
 /**
  * Talepten RFQ oluşturur. Kalem seçimi ile KISMİ RFQ desteklenir: satınalma,

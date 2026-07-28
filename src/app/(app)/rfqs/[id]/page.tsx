@@ -30,8 +30,10 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   });
   if (!rfq) notFound();
 
+  // Kara liste/pasif ve silinmiş dışındaki TÜM tedarikçiler davet edilebilir
+  // (yeni eklenen DRAFT/ONBOARDING tedarikçiler de listede görünür).
   const allSuppliers = await prisma.supplier.findMany({
-    where: { tenantId: user.tenantId, status: "ACTIVE" },
+    where: { tenantId: user.tenantId, deletedAt: null, status: { notIn: ["BLACKLISTED", "INACTIVE", "REJECTED"] } },
     orderBy: { legalName: "asc" },
     select: { id: true, legalName: true, code: true },
   });

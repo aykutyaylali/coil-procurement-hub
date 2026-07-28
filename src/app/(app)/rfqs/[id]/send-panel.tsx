@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
-import { sendRfqToSuppliers, sendRfqReminders } from "../actions";
+import { sendRfqToSuppliers, sendRfqReminders, cancelRfq } from "../actions";
 
 export function SendPanel({
   rfqId,
@@ -27,9 +27,13 @@ export function SendPanel({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
   const invitedIds = new Set(invited.map((i) => i.id));
-  const available = suppliers.filter((s) => !invitedIds.has(s.id));
+  const q = query.trim().toLocaleLowerCase("tr-TR");
+  const available = suppliers
+    .filter((s) => !invitedIds.has(s.id))
+    .filter((s) => !q || s.name.toLocaleLowerCase("tr-TR").includes(q));
 
   function toggle(id: string) {
     setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -70,6 +74,16 @@ export function SendPanel({
     }
   }
 
+  async function cancel() {
+    if (!confirm("Bu RFQ iptal edilecek ve kalemler yeniden açılacak. Onaylıyor musunuz?")) return;
+    setBusy(true);
+    setError("");
+    const res = await cancelRfq(rfqId);
+    setBusy(false);
+    if (!res.ok) { setError(res.error); return; }
+    router.push("/rfqs");
+  }
+
   const canSend = ["DRAFT", "APPROVED", "SENT", "OPEN"].includes(status);
 
   return (
@@ -88,9 +102,16 @@ export function SendPanel({
               <input type="checkbox" checked={sealed} onChange={(e) => setSealed(e.target.checked)} />
               Kapalı teklif usulü (fiyatlar son tarihe kadar gizli)
             </label>
+            <Input
+              placeholder="Tedarikçi ara… (isimle)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
             <div className="max-h-48 space-y-1 overflow-y-auto rounded border p-2">
               {available.length === 0 && (
-                <p className="py-2 text-center text-xs text-muted-foreground">Davet edilebilecek tedarikçi yok.</p>
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  {query ? "Aramayla eşleşen tedarikçi yok." : "Davet edilebilecek tedarikçi yok."}
+                </p>
               )}
               {available.map((s) => (
                 <label key={s.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
@@ -110,6 +131,12 @@ export function SendPanel({
         {invited.some((i) => ["INVITED", "VIEWED"].includes(i.status)) && (
           <Button variant="outline" onClick={remind} disabled={busy} className="w-full">
             Yanıt vermeyenlere hatırlat
+          </Button>
+        )}
+
+        {["DRAFT", "OPEN"].includes(status) && invited.length === 0 && (
+          <Button variant="ghost" onClick={cancel} disabled={busy} className="w-full text-destructive hover:bg-destructive/10">
+            RFQ&apos;yu İptal Et (kalemleri yeniden aç)
           </Button>
         )}
 

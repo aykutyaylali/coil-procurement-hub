@@ -66,9 +66,22 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   expect(rfq).toBeTruthy();
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 10000 }).toBe("IN_RFQ");
 
-  // SendPanel görünür (tedarikçi daveti UI'ı hazır). Gönderim + teklif akışı
-  // tests/integration/full-chain.test.ts içinde deterministik olarak doğrulanır.
+  // SendPanel görünür (tedarikçi daveti UI'ı hazır).
   await expect(page.getByText("Tedarikçilere Gönder")).toBeVisible({ timeout: 15000 });
+
+  // Tedarikçiye GÖNDER (SQLite transaction+queueEmail kilidi regresyonu): listeden ilk tedarikçiyi seç + gönder
+  const supplierCb = page.locator("div.max-h-48 input[type='checkbox']").first();
+  await supplierCb.scrollIntoViewIfNeeded();
+  await supplierCb.check();
+  await expect(supplierCb).toBeChecked();
+  await page.getByRole("button", { name: /Seçili \d+ tedarikçiye gönder/ }).click();
+  await page.waitForTimeout(2500);
+  // DB hatası ("Veritabanı işlemi tamamlanamadı") gösterilmemeli
+  const errs = await page.locator(".text-destructive, .text-success").allInnerTexts();
+  console.log("SEND PANEL MESAJ:", JSON.stringify(errs));
+  expect(errs.join(" ")).not.toMatch(/Veritabanı işlemi tamamlanamadı|database is locked/i);
+  // Davet oluşmalı
+  await expect.poll(async () => prisma.rFQSupplier.count({ where: { rfqId } }), { timeout: 15000 }).toBeGreaterThan(0);
   void context;
-  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→amir onayı→müdür onayı→RFQ oluşturma zinciri doğrulandı.`);
+  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→tedarikçiye gönder zinciri doğrulandı.`);
 });

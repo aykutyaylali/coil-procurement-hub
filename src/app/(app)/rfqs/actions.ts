@@ -183,6 +183,9 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
       .map((l) => `• ${l.description} (${l.quantity} ${l.uom ?? ""})`)
       .join("<br/>");
 
+    // E-postalar transaction DIŞINDA kuyruğa alınır (SQLite'ta iç içe yazma kilidi olmasın)
+    const emailsToQueue: Parameters<typeof queueEmail>[0][] = [];
+
     await prisma.$transaction(async (tx) => {
       for (const supplier of suppliers) {
         const existing = await tx.rFQSupplier.findUnique({
@@ -231,7 +234,7 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
 
         // Reply-To benzersiz token içerir => gelen yanıt doğru RFQ'ya bağlanır
         const replyTo = `rfq+${replyToken}@${env.EMAIL_INBOUND_DOMAIN}`;
-        await queueEmail({
+        emailsToQueue.push({
           tenantId: user.tenantId,
           to: contact?.email ?? `${supplier.code}@tedarikci.example`,
           subject: `[${rfq.number}] ${tmpl.subject}`,
@@ -272,6 +275,11 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
         tx,
       );
     });
+
+    // E-postaları transaction'dan SONRA kuyruğa al (SQLite iç içe yazma kilidi olmaz)
+    for (const e of emailsToQueue) {
+      await queueEmail(e);
+    }
 
     // Kuyruğu işle (gerçek gönderim; mock modda konsola loglar)
     const result = await processQueue();

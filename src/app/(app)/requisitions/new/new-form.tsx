@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { createRequisition, createAndSubmitRequisition } from "../actions";
-import { lineNet, formatMoney, add } from "@/lib/money";
 
 interface Opt {
   id: string;
@@ -78,7 +77,8 @@ export function NewRequisitionForm({
   const [operationType, setOperationType] = useState("DOMESTIC_PURCHASE");
   const [exportProjectNo, setExportProjectNo] = useState("");
   const [targetCountry, setTargetCountry] = useState("");
-  const [currency, setCurrency] = useState(currencies[0] ?? "TRY");
+  // Para birimi talebi açan tarafından girilmez; kayıt için şirket varsayılanı (TRY) kullanılır.
+  const currency = currencies[0] ?? "TRY";
   const [neededBy, setNeededBy] = useState("");
   const [justification, setJustification] = useState("");
   const [internalNote, setInternalNote] = useState("");
@@ -94,11 +94,6 @@ export function NewRequisitionForm({
   const filteredDepts = departments.filter((d) => d.companyId === companyId);
   const filteredProjects = projects.filter((p) => p.companyId === companyId);
   const filteredCC = costCenters.filter((c) => c.companyId === companyId);
-
-  const total = useMemo(
-    () => add(...lines.map((l) => lineNet(l.quantity || "0", l.estUnitPrice || "0"))),
-    [lines],
-  );
 
   function updateLine(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -315,16 +310,6 @@ export function NewRequisitionForm({
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Para Birimi</Label>
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {currencies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <Label>İstenen Teslim Tarihi</Label>
             <Input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
           </div>
@@ -341,7 +326,7 @@ export function NewRequisitionForm({
         <CardContent className="space-y-3">
           {lines.map((l, i) => (
             <div key={i} className="grid gap-2 rounded-md border p-3 sm:grid-cols-12">
-              <div className="sm:col-span-4">
+              <div className="sm:col-span-5">
                 <Label className="text-xs">Açıklama *</Label>
                 <Input
                   id={fieldId(`lines.${i}.description`)}
@@ -353,7 +338,7 @@ export function NewRequisitionForm({
                 />
                 {err(`lines.${i}.description`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.description`)}</p>}
               </div>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-3">
                 <Label className="text-xs">Kategori</Label>
                 <Select value={l.categoryId} onChange={(e) => updateLine(i, { categoryId: e.target.value })}>
                   <option value="">-</option>
@@ -375,7 +360,7 @@ export function NewRequisitionForm({
                 />
                 {err(`lines.${i}.quantity`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.quantity`)}</p>}
               </div>
-              <div className="sm:col-span-1">
+              <div className="sm:col-span-2">
                 <Label className="text-xs">Birim</Label>
                 <Select value={l.uom} onChange={(e) => updateLine(i, { uom: e.target.value })}>
                   <option value="">-</option>
@@ -386,21 +371,6 @@ export function NewRequisitionForm({
                   ))}
                 </Select>
               </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs">Tah. Birim Fiyat</Label>
-                <Input
-                  id={fieldId(`lines.${i}.estUnitPrice`)}
-                  value={l.estUnitPrice}
-                  onChange={(e) => updateLine(i, { estUnitPrice: e.target.value })}
-                  className={errClass(`lines.${i}.estUnitPrice`)}
-                  aria-invalid={!!err(`lines.${i}.estUnitPrice`)}
-                />
-                {err(`lines.${i}.estUnitPrice`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.estUnitPrice`)}</p>}
-              </div>
-              <div className="sm:col-span-1">
-                <Label className="text-xs">KDV %</Label>
-                <Input value={l.taxRate} onChange={(e) => updateLine(i, { taxRate: e.target.value })} />
-              </div>
               <div className="flex items-end sm:col-span-1">
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(i)}>
                   <Trash2 className="size-4 text-destructive" />
@@ -408,10 +378,9 @@ export function NewRequisitionForm({
               </div>
             </div>
           ))}
-          <div className="flex justify-end border-t pt-3 text-sm">
-            <span className="text-muted-foreground">Tahmini Net Toplam:&nbsp;</span>
-            <span className="font-semibold">{formatMoney(total, currency)}</span>
-          </div>
+          <p className="border-t pt-3 text-xs text-muted-foreground">
+            Fiyat, para birimi ve KDV talebi açan tarafından girilmez; bu bilgiler satınalma tarafından teklif/sipariş aşamasında belirlenir.
+          </p>
         </CardContent>
       </Card>
 

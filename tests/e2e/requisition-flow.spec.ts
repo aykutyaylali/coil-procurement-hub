@@ -63,7 +63,6 @@ test("6-7) açıklama dolunca ONAYA GÖNDERİLİR ve tek approval instance oluş
   await page.locator('select').nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   await page.locator('label:has-text("Açıklama") + input').first().fill("Rulman 6204");
   await page.locator('label:has-text("Miktar") + input').first().fill("20");
-  await page.locator('label:has-text("Tah. Birim Fiyat") + input').first().fill("150");
   await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const id = page.url().split("/requisitions/")[1]!.split("?")[0]!;

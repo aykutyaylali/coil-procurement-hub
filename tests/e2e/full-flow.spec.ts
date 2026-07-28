@@ -30,8 +30,7 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   // Departman = Üretim (seed'de amir bu departmanın amiri → step-0 onaycı)
   await page.locator("select").nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   await page.getByPlaceholder("Malzeme / hizmet açıklaması").first().fill(`E2E kalem ${stamp}`);
-  await page.locator('input[value="1"]').first().fill("100").catch(() => {});
-  await page.locator('input[value="0"]').first().fill("300").catch(() => {});
+  await page.locator('label:has-text("Miktar") + input').first().fill("100").catch(() => {});
   await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const reqId = page.url().split("/requisitions/")[1]!.split("?")[0]!;

@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney, d } from "@/lib/money";
 import { opLabel } from "@/domain/operations";
 import { computeReports, type ReportFilters } from "@/domain/reports";
+import { computeOperationalMetrics } from "@/domain/metrics-data";
+import type { MetricResult } from "@/domain/metrics";
 
 export const metadata: Metadata = { title: "Raporlar" };
 
@@ -34,6 +36,15 @@ function BarList({ items, currency = "TRY", max, hrefBase }: { items: { key: str
   );
 }
 
+function MetricCard({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <div className={`text-lg font-semibold ${ok ? "" : "text-muted-foreground"}`}>{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
 function Stat({ label, value, href }: { label: string; value: string | number; href?: string }) {
   const inner = (
     <Card className={href ? "transition-shadow hover:shadow-md" : ""}>
@@ -54,11 +65,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     supplierId: sp.supplierId, operationType: sp.operationType, currency: sp.currency, status: sp.status,
   };
 
-  const [data, categories, suppliers] = await Promise.all([
+  const [data, metrics, categories, suppliers] = await Promise.all([
     computeReports(user.tenantId, f),
+    computeOperationalMetrics(user.tenantId),
     prisma.category.findMany({ where: { tenantId: user.tenantId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.supplier.findMany({ where: { tenantId: user.tenantId }, select: { id: true, legalName: true }, orderBy: { legalName: "asc" }, take: 300 }),
   ]);
+
+  const metricDisplay = (m: MetricResult, suffix = "") =>
+    m.sufficient ? (m.unit === "amount" ? formatMoney(m.value, "TRY") : `${m.value}${m.unit === "percent" ? "%" : m.unit === "days" ? " gün" : ""}${suffix}`) : `Veri yetersiz (${m.count})`;
 
   const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString();
 
@@ -110,6 +125,24 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <Stat label="Açık Sipariş" value={data.openOrders} />
         <Stat label="Geciken" value={data.lateOrders} />
       </div>
+
+      {/* Operasyonel metrikler (canlı veriden; yetersizse "veri yetersiz") */}
+      <Card className="mb-6">
+        <CardHeader><CardTitle>Operasyonel Performans Metrikleri</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <MetricCard label="OTIF (Zamanında & Tam)" value={metricDisplay(metrics.otif)} ok={metrics.otif.sufficient} />
+            <MetricCard label="Onay Bekleme Süresi" value={metricDisplay(metrics.approvalWaiting)} ok={metrics.approvalWaiting.sufficient} />
+            <MetricCard label="Talep→Sipariş Çevrim" value={metricDisplay(metrics.reqCycleTime)} ok={metrics.reqCycleTime.sufficient} />
+            <MetricCard label="Tasarruf" value={metricDisplay(metrics.savings)} ok={metrics.savings.sufficient} />
+            <MetricCard label="Tasarruf %" value={metricDisplay(metrics.savingsPct)} ok={metrics.savingsPct.sufficient} />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Bu metrikler canlı işlem verisinden (mal kabul/onay/award zaman damgaları) hesaplanır. Geçmiş içe aktarımda bu adımlar bulunmadığından
+            yeterli veri yoksa &quot;veri yetersiz&quot; gösterilir; yeni canlı akışlar biriktikçe otomatik hesaplanır.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

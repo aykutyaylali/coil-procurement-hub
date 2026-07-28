@@ -1,13 +1,14 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { createRequisition, createAndSubmitRequisition } from "../actions";
+import { suggestCategory } from "../ai-actions";
 
 interface Opt {
   id: string;
@@ -86,6 +87,22 @@ export function NewRequisitionForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState<null | "draft" | "submit">(null);
+  const [suggesting, setSuggesting] = useState<number | null>(null);
+
+  async function onSuggestCategory(i: number) {
+    const desc = lines[i]?.description ?? "";
+    if (desc.trim().length < 3) {
+      toast({ type: "info", title: "Önce kalem açıklamasını yazın.", description: "Kategori önerisi açıklamaya göre yapılır." });
+      return;
+    }
+    setSuggesting(i);
+    const res = await suggestCategory(desc);
+    setSuggesting(null);
+    if (!res.ok) { toast({ type: "error", title: "Öneri alınamadı.", description: res.error }); return; }
+    if (!res.data) { toast({ type: "info", title: "Uygun kategori bulunamadı.", description: "Lütfen listeden seçin." }); return; }
+    updateLine(i, { categoryId: res.data.categoryId });
+    toast({ type: "success", title: `Önerilen kategori: ${res.data.categoryName}`, description: "Dilerseniz değiştirebilirsiniz." });
+  }
 
   // Idempotency: bir istek anahtarı; başarıda sıfırlanır (çift tıklama tek talep üretir)
   const requestIdRef = useRef<string | null>(null);
@@ -339,7 +356,19 @@ export function NewRequisitionForm({
                 {err(`lines.${i}.description`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.description`)}</p>}
               </div>
               <div className="sm:col-span-3">
-                <Label className="text-xs">Kategori</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Kategori</Label>
+                  <button
+                    type="button"
+                    onClick={() => onSuggestCategory(i)}
+                    disabled={suggesting === i}
+                    className="flex items-center gap-1 text-[11px] text-primary hover:underline disabled:opacity-50"
+                    title="Açıklamaya göre kategori öner (ücretsiz, yerel)"
+                  >
+                    {suggesting === i ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                    Öner
+                  </button>
+                </div>
                 <Select value={l.categoryId} onChange={(e) => updateLine(i, { categoryId: e.target.value })}>
                   <option value="">-</option>
                   {categories.map((c) => (

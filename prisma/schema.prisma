@@ -213,6 +213,9 @@ model User {
 
   isActive      Boolean  @default(true)
   isSystemAdmin Boolean  @default(false)
+  // Geçmiş veriden içe aktarılan talep sahipleri (giriş yapamaz; passwordHash null)
+  isImported    Boolean  @default(false)
+  importBatchId String?
 
   // MFA
   mfaEnabled    Boolean  @default(false)
@@ -822,6 +825,9 @@ model PurchaseRequisition {
   assignedBuyerId String?
   // Çift gönderim/çift tıklama koruması (idempotency): aynı istek anahtarı tek talep üretir
   clientRequestId String?
+  // Geçmiş veriden içe aktarma
+  isImported    Boolean  @default(false)
+  importBatchId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

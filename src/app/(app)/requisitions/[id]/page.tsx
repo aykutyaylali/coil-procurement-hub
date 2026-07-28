@@ -4,12 +4,11 @@ import { requireUser, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
-import { formatMoney, lineNet } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
 import { RequisitionActionsPanel } from "./actions-panel";
+import { RequisitionLinesPanel } from "./lines-panel";
 
 export default async function RequisitionDetailPage({
   params,
@@ -87,45 +86,20 @@ export default async function RequisitionDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Kalemler</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>#</TH>
-                    <TH>Açıklama</TH>
-                    <TH>Kategori</TH>
-                    <TH className="text-right">Miktar</TH>
-                    <TH className="text-right">Birim Fiyat</TH>
-                    <TH className="text-right">Net Tutar</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {req.lines.map((l) => (
-                    <TR key={l.id}>
-                      <TD>{l.lineNo}</TD>
-                      <TD className="font-medium">{l.description}</TD>
-                      <TD className="text-sm text-muted-foreground">{l.category?.name ?? "-"}</TD>
-                      <TD className="text-right">
-                        {l.quantity} {l.uom ?? ""}
-                      </TD>
-                      <TD className="text-right">{formatMoney(l.estUnitPrice, req.currency)}</TD>
-                      <TD className="text-right font-medium">
-                        {formatMoney(lineNet(l.quantity, l.estUnitPrice), req.currency)}
-                      </TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-              <div className="flex justify-end border-t p-4 text-sm">
-                <span className="text-muted-foreground">Tahmini Toplam:&nbsp;</span>
-                <span className="font-semibold">{formatMoney(req.estimatedTotal, req.currency)}</span>
-              </div>
-            </CardContent>
-          </Card>
+          <RequisitionLinesPanel
+            requisitionId={req.id}
+            canCreateRfq={canCreateRfq}
+            reqStatus={req.status}
+            lines={req.lines.map((l) => ({
+              id: l.id,
+              lineNo: l.lineNo,
+              description: l.description,
+              categoryName: l.category?.name ?? null,
+              quantity: l.quantity,
+              uom: l.uom,
+              status: l.status,
+            }))}
+          />
 
           {req.justification && (
             <Card>

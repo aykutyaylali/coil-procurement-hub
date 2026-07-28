@@ -16,7 +16,16 @@ import { formatDateTime } from "@/lib/dates";
 import { ok, fail, type Result, NotFoundError, AppError } from "@/lib/errors";
 
 /** Onaylı talepten RFQ oluşturur (satırları kopyalar). */
-export async function createRfqFromRequisition(requisitionId: string): Promise<Result<{ id: string }>> {
+/**
+ * Talepten RFQ oluşturur. Kalem seçimi ile KISMİ RFQ desteklenir: satınalma,
+ * farklı tedarikçilere gidecek kalemleri ayrı ayrı seçip birden fazla RFQ
+ * oluşturabilir (örn. hırdavat ile bakır teli aynı talepte ama ayrı RFQ'larda).
+ *
+ * @param lineIds Boş/verilmemişse talebin AÇIK (OPEN) tüm kalemleri; verilirse
+ *   yalnızca seçilen açık kalemler RFQ'ya alınır. Kalan açık kalemlerden yeni
+ *   RFQ oluşturmaya devam edilebilir.
+ */
+export async function createRfqFromRequisition(requisitionId: string, lineIds?: string[]): Promise<Result<{ id: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.RFQ_CREATE);
     const created = await prisma.$transaction(async (tx) => {
@@ -25,8 +34,15 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
         include: { lines: { orderBy: { lineNo: "asc" } } },
       });
       if (!req) throw new NotFoundError("Talep bulunamadı.");
-      if (req.status !== "APPROVED" && req.status !== "ASSIGNED") {
+      // Onaylı/atanmış talepten; kısmi RFQ için IN_RFQ durumunda da devam edilebilir
+      if (!["APPROVED", "ASSIGNED", "IN_RFQ"].includes(req.status)) {
         throw new AppError("Yalnızca onaylanmış talepten RFQ oluşturulabilir.");
+      }
+
+      const openLines = req.lines.filter((l) => l.status === "OPEN");
+      const selected = lineIds && lineIds.length > 0 ? openLines.filter((l) => lineIds.includes(l.id)) : openLines;
+      if (selected.length === 0) {
+        throw new AppError("RFQ'ya alınacak uygun (açık) kalem yok. Lütfen en az bir açık kalem seçin.");
       }
 
       const number = await nextNumber(tx, user.tenantId, "RFQ");
@@ -42,7 +58,7 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
           dueAt: addDays(new Date(), 7),
           createdById: user.id,
           lines: {
-            create: req.lines.map((l, i) => ({
+            create: selected.map((l, i) => ({
               lineNo: i + 1,
               requisitionId: req.id,
               requisitionLineId: l.id,
@@ -55,6 +71,12 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
             })),
           },
         },
+      });
+
+      // Seçili kalemleri IN_RFQ olarak işaretle (kalan açık kalemler yeni RFQ'ya alınabilir)
+      await tx.requisitionLine.updateMany({
+        where: { id: { in: selected.map((l) => l.id) } },
+        data: { status: "IN_RFQ" },
       });
 
       await tx.purchaseRequisition.update({

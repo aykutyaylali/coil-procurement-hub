@@ -51,10 +51,10 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toMatch(/APPROVED|IN_RFQ/);
   await context.clearCookies();
 
-  // 4) Satınalma uzmanı: RFQ oluştur
+  // 4) Satınalma uzmanı: kalemlerden RFQ oluştur (yeni akış: kalem seçimi)
   await login(page, "satinalma@coilpartners.com");
   await page.goto(`/requisitions/${reqId}`);
-  await page.getByRole("button", { name: /Teklif Talebi \(RFQ\) Oluştur/ }).click();
+  await page.getByRole("button", { name: /Tüm açık kalemlerden tek RFQ/ }).click();
   await expect(page).toHaveURL(/\/rfqs\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const rfqId = page.url().split("/rfqs/")[1]!.split("?")[0]!;
 

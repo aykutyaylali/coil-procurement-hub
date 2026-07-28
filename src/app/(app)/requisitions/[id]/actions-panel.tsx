@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { submitRequisition, decideRequisition } from "../actions";
-import { createRfqFromRequisition } from "@/app/(app)/rfqs/actions";
 
 export function RequisitionActionsPanel({
   id,
@@ -61,15 +60,6 @@ export function RequisitionActionsPanel({
     }
   }
 
-  async function doCreateRfq() {
-    setBusy(true);
-    setError("");
-    const res = await createRfqFromRequisition(id);
-    setBusy(false);
-    if (!res.ok) setError(res.error);
-    else router.push(`/rfqs/${res.data.id}`);
-  }
-
   return (
     <div className="space-y-3">
       {error && (
@@ -115,10 +105,11 @@ export function RequisitionActionsPanel({
         </div>
       )}
 
-      {canCreateRfq && status === "APPROVED" && (
-        <Button onClick={doCreateRfq} disabled={busy} variant="secondary" className="w-full">
-          Teklif Talebi (RFQ) Oluştur
-        </Button>
+      {canCreateRfq && (status === "APPROVED" || status === "IN_RFQ") && (
+        <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Teklif talebi (RFQ) oluşturmak için soldaki <b>Talep Kalemleri</b> bölümünden kalemleri seçin.
+          Farklı tedarikçiler için kalemleri ayrı ayrı seçip birden fazla RFQ oluşturabilirsiniz.
+        </p>
       )}
     </div>
   );

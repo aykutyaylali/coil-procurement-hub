@@ -1,17 +1,34 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 2. geliştirme oturumu sonu — son commit `b562ccc`.
+> Son güncelleme: 3. oturum — **son tamamlama fazı bitti** (son commit `7e87911`).
 
 ## Genel durum
 
 - **Konum:** `C:\Users\Aykut\coil-procurement-hub`
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
-- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **62 test** (unit+integration) geçiyor,
-  Playwright **5 E2E** geçiyor (SQLite ve PostgreSQL üzerinde), production build **temiz**.
+- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **80 test** (unit+integration) geçiyor,
+  Playwright **8 E2E** geçiyor — **hem SQLite hem PostgreSQL production build üzerinde 8/8**, build **temiz**.
 - **Veri:** Gerçek geçmiş satınalma verisi içe aktarıldı — **492 sipariş** (490 imported + 2 seed), 70,4M ₺.
-- **Git:** 11 commit, her aşama ayrı; çalışma ağacı temiz. Kaynak Excel/yedekler `.gitignore`'da.
+- **Git:** her aşama ayrı commit; çalışma ağacı temiz. Kaynak Excel/yedekler `.gitignore`'da.
+
+## Son tamamlama fazı (3. oturum) — hepsi ayrı commit
+
+İlk ana gereksinime göre "isteğe bağlı / mekanik / canlı veri birikince" olarak bırakılan tüm maddeler tamamlandı:
+
+| Commit | Aşama | Sonuç |
+|---|---|---|
+| `2f9f032` | **A — Sözleşme CRUD** | oluştur/düzenle/detay, limit, fiyat listesi, SLA, statü + audit sürüm geçmişi |
+| `ef2ad07` | **B — Bütçe CRUD + gerçek kontrol** | oluştur/düzenle/detay + hareketler; talep gönderiminde **gerçek bütçe rezerv/serbest** |
+| `21d309f` | **C — Katalog CRUD + import** | oluştur/düzenle/detay, fiyat geçmişi, tercih tedarikçi, birim dönüşüm, CSV import |
+| `ecc8712` | **D — Hesaplama motorları** | OTIF/çevrim süresi/onay bekleme/tasarruf saf fonksiyonlar + **"veri yetersiz"** göstergesi + gerçek DB + demo senaryo + 8 test |
+| `979b972` | **E — Tam E2E** | talep→onay→onay→RFQ zinciri (tarayıcı) + arka yarı (award→PO→3'lü eşleştirme) — **SQLite + PostgreSQL 6/6** |
+| `d5663dc` | **F — i18n** | tr/en **parite testi** (runtime + tip ile derleme-zamanı) + düzgün İngilizce durum etiketleri (`STATUS_LABELS_EN`) |
+| `7e87911` | **G — Rol bazlı denetim** | TODO/placeholder/ölü-link YOK; bulunan 2 liste-only boşluk (**Tedarikçi**, **Kullanıcı**) tam CRUD ile kapatıldı; E2E ile doğrulandı |
+
+**Final doğrulama battery'si (H):** ESLint 0 · tsc 0 · vitest **80/80** (mojibake + i18n parite guard dahil) ·
+SQLite build 41 route temiz · **SQLite E2E 8/8** · PG db push/generate/build temiz · **PostgreSQL E2E 8/8** · mojibake taraması temiz.
 
 ## Teknoloji
 
@@ -101,17 +118,16 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 - **E2E (tarayıcı):** korumalı sayfa yönlendirme, giriş→dashboard, hatalı parola reddi, magic-link token reddi,
   tedarikçi portalı EN dil değiştirme — SQLite ve **PostgreSQL** üzerinde geçti.
 
-## Kalan işler (gerçekten kalan / harici gereksinim)
+## Kalan işler (yalnızca harici hesap/altyapı gerektirenler)
 
-- **i18n tam string çıkarımı:** Mimari + üst menü değiştirici + mojibake guard + eksik-anahtar testi tamam.
-  Bazı yönetim ekranlarındaki satır içi TR/EN metinlerin merkezî sözlüğe taşınması sürüyor (kullanıcıya
-  görünen eksik metin yok; mekanik iyileştirme).
-- **Sözleşme / Bütçe / Katalog**: şu an gerçek veri okuyan liste ekranları (dead link/placeholder yok);
-  create/edit formları eklenebilir.
-- **Gelişmiş raporlar** (OTIF, çevrim süresi, tasarruf, cost avoidance): canlı operasyonel veri
-  (onay/teslim zaman damgaları) biriktikçe otomatik hesaplanır; geçmiş içe aktarımda bu adımlar yok.
+Uygulama içi tüm modüller tamam (create/edit/detay çalışıyor, liste-only modül yok). Kalan maddeler
+yalnızca dış sistem/hesap gerektirir:
+
 - **Harici hesap gerektirenler** (adapter + mock/local mod hazır): ERP, e-Fatura, SSO, AI, virüs tarama.
-- **PostgreSQL prod**: migration seti hazır ve doğrulandı; prod'da servis + secret yönetimi kurulmalı.
+- **PostgreSQL prod dağıtımı**: şema + `db push`/migration doğrulandı, seed + build + **E2E 8/8** PG'de geçti;
+  prod'da yalnızca servis yönetimi + secret (env) kurulumu kalır.
+- **i18n**: paylaşılan yüzeyler (menü/aksiyon/ortak etiket/auth/durumlar) merkezî sözlükte, tr/en **parite testli**.
+  Uygulama Türkçe-önceliklidir; gövde metinleri varsayılan dil olarak Türkçe, altyapı aşamalı çıkarıma hazır.
 
 ## Önemli notlar
 
@@ -130,7 +146,8 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 cd C:\Users\Aykut\coil-procurement-hub
 npm run typecheck   # 0 hata
 npm run lint        # 0 hata/uyarı
-npm test            # 62 test
-npm run build       # temiz
+npm test            # 80 test (unit+integration)
+npm run build       # temiz (41 route)
+npx playwright test # 8 E2E (SQLite; PG için provider=postgresql + PG server)
 npm run dev         # http://localhost:3000
 ```

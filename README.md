@@ -146,13 +146,13 @@ Ayrıntı: [`docs/architecture.md`](docs/architecture.md) · Süreç akışı: [
 ## Testler
 
 ```bash
-npm test          # Vitest birim/entegrasyon testleri (31 test)
-npm run test:e2e  # Playwright E2E (giriş akışı, RBAC, magic-link, i18n)
-npm run typecheck # TypeScript tip kontrolü
-npm run lint      # ESLint
+npm test          # Vitest birim/entegrasyon testleri (80 test)
+npm run test:e2e  # Playwright E2E (8 test) — SQLite ve PostgreSQL üzerinde 8/8
+npm run typecheck # TypeScript tip kontrolü (0 hata)
+npm run lint      # ESLint (0 hata/uyarı)
 ```
 
-Kapsam: güvenli para aritmetiği, durum makineleri, RBAC yetki matrisi, landed cost dağıtımı, **i18n eksik çeviri anahtarı denetimi** ve Türkçe sıralama/arama; E2E'de gerçek giriş→dashboard, hatalı parola reddi, magic-link token reddi, portal dil değiştirme. Test raporu: [`docs/test-report.md`](docs/test-report.md).
+Kapsam: güvenli para aritmetiği, durum makineleri, RBAC yetki matrisi, landed cost dağıtımı, **i18n tr/en parite denetimi** (+ mojibake regresyon guard), OTIF/çevrim/tasarruf metrik motorları, üçlü eşleştirme toleransı; E2E'de talep→onay→onay→RFQ zinciri, tedarikçi & kullanıcı oluşturma (gerçek server action + DB doğrulama), giriş→dashboard, hatalı parola reddi, magic-link token reddi, portal dil değiştirme. **Aynı E2E paketi hem SQLite hem PostgreSQL production build üzerinde 8/8 geçer.** Test raporu: [`docs/test-report.md`](docs/test-report.md).
 
 ---
 

@@ -97,6 +97,12 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   await page.getByRole("button", { name: /Teklifi Gönder/ }).click();
   await page.getByRole("button", { name: /Onayla ve Gönder/ }).click();
   await expect.poll(async () => prisma.bid.count({ where: { rfqSupplierId: rs!.id } }), { timeout: 15000 }).toBeGreaterThan(0);
+
+  // Yanıtlanan RFQ, "Teklif Geldi" filtresinde bulunabilmeli (keşfedilebilirlik)
+  await expect.poll(async () => (await prisma.rFQSupplier.findUnique({ where: { id: rs!.id } }))?.status, { timeout: 10000 }).toBe("RESPONDED");
+  await page.goto("/rfqs?filter=responded");
+  await expect(page.locator(`a:has-text("${rfq!.number}")`).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/yanıtladı/).first()).toBeVisible();
   void context;
-  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→gönder→önizle→tedarikçi adına teklif zinciri doğrulandı.`);
+  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→gönder→önizle→tedarikçi adına teklif→"Teklif Geldi" listesi doğrulandı.`);
 });

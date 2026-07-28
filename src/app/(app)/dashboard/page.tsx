@@ -58,6 +58,7 @@ export default async function DashboardPage() {
     pendingReqs,
     openRfqs,
     awaitingSuppliers,
+    rfqsToEvaluate,
     openOrders,
     lateOrders,
     openInvoices,
@@ -69,6 +70,8 @@ export default async function DashboardPage() {
     prisma.purchaseRequisition.count({ where: { tenantId, status: "PENDING_APPROVAL" } }),
     prisma.rFQ.count({ where: { tenantId, status: { in: ["SENT", "OPEN", "EVALUATION"] } } }),
     prisma.rFQSupplier.count({ where: { rfq: { tenantId }, status: { in: ["INVITED", "VIEWED"] } } }),
+    // Teklif gelmiş, değerlendirilmeyi bekleyen RFQ'lar
+    prisma.rFQ.count({ where: { tenantId, status: { in: ["SENT", "OPEN", "EVALUATION", "CLARIFICATION", "NEGOTIATION"] }, suppliers: { some: { status: "RESPONDED" } } } }),
     prisma.purchaseOrder.count({
       where: { tenantId, status: { in: ["SENT", "ACKNOWLEDGED", "CONFIRMED", "PARTIALLY_RECEIVED"] } },
     }),
@@ -114,6 +117,7 @@ export default async function DashboardPage() {
         <Stat label="Bekleyen Onaylarım" value={pendingApprovals.length} icon="Stamp" href="/approvals" tone="warning" />
         <Stat label="Onay Bekleyen Talep" value={pendingReqs} icon="FileText" href="/requisitions?status=PENDING_APPROVAL" />
         <Stat label="Açık Teklif Talebi" value={openRfqs} icon="Send" href="/rfqs" />
+        <Stat label="Değerlendirilecek Teklif" value={rfqsToEvaluate} icon="ClipboardCheck" href="/rfqs?filter=responded" tone={rfqsToEvaluate ? "success" : "default"} />
         <Stat label="Yanıt Bekleyen Tedarikçi" value={awaitingSuppliers} icon="Clock" href="/rfqs" tone="warning" />
         <Stat label="Açık Sipariş" value={openOrders} icon="ShoppingCart" href="/orders" />
         <Stat label="Geciken Sipariş Satırı" value={lateOrders} icon="AlertTriangle" href="/orders" tone="danger" />

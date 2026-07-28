@@ -1,7 +1,7 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 3. oturum — **son tamamlama fazı bitti** (son commit `7e87911`).
+> Son güncelleme: 3. oturum — **son tamamlama fazı (A–H) bitti ve doğrulandı**; final doğrulama commit'i `2f94d16`.
 
 ## Genel durum
 
@@ -107,16 +107,18 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 
 | `b562ccc` | **Son doğrulama**: ESLint temiz + RAPOR/deployment güncellendi (doğrulanmış PostgreSQL komutları) |
 
-**Son doğrulama:** ESLint 0 hata, TypeScript 0 hata, **62 test** (unit+integration), 5 Playwright E2E, production build temiz.
+> Not: Yukarıdaki tablo 2. oturum snapshot'ıdır (o gün 62 test / 5 E2E). Güncel durum
+> **80 test / 8 E2E** — bkz. sayfa başı "Genel durum" ve "Son tamamlama fazı".
 
-### Test kapsamı (62 test / 10 dosya)
+### Test kapsamı (güncel: 80 test / 13 dosya)
 - **Birim:** para (decimal, floating-point yok), durum makineleri (geçersiz geçiş engelleme), RBAC yetki matrisi,
-  landed cost dağıtımı, i18n eksik-anahtar + Türkçe sıralama, **mojibake regresyon**, import ayrıştırma,
-  üçlü eşleştirme tolerans, güvenlik primitifleri (token hash/TOTP/parola).
+  landed cost dağıtımı, **i18n tr/en parite** + eksik-anahtar + Türkçe sıralama, **mojibake regresyon**, import ayrıştırma,
+  üçlü eşleştirme tolerans, **OTIF/çevrim/tasarruf metrik motorları**, güvenlik primitifleri (token hash/TOTP/parola).
 - **Entegrasyon (gerçek DB, rollback tx):** görevler ayrılığı, başka yetkilinin onayı, **vekâlet**,
-  yetkisiz reddi, **mükerrer fatura (unique)**, **tenant izolasyonu**.
-- **E2E (tarayıcı):** korumalı sayfa yönlendirme, giriş→dashboard, hatalı parola reddi, magic-link token reddi,
-  tedarikçi portalı EN dil değiştirme — SQLite ve **PostgreSQL** üzerinde geçti.
+  yetkisiz reddi, **mükerrer fatura (unique)**, **tenant izolasyonu**, award→PO hesabı, üçlü eşleştirme, magic-link teklif.
+- **E2E (tarayıcı):** talep→onay→onay→RFQ zinciri, **tedarikçi & kullanıcı oluşturma** (gerçek server action + DB),
+  korumalı sayfa yönlendirme, giriş→dashboard, hatalı parola reddi, magic-link token reddi,
+  tedarikçi portalı EN dil değiştirme — **SQLite ve PostgreSQL production build üzerinde 8/8**.
 
 ## Kalan işler (yalnızca harici hesap/altyapı gerektirenler)
 

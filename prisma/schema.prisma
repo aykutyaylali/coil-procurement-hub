@@ -818,6 +818,8 @@ model PurchaseRequisition {
   internalNote  String?  // tedarikçiye gösterilmez
   estimatedTotal String  @default("0") // decimal-as-string
   assignedBuyerId String?
+  // Çift gönderim/çift tıklama koruması (idempotency): aynı istek anahtarı tek talep üretir
+  clientRequestId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -825,7 +827,9 @@ model PurchaseRequisition {
   rfqLines  RFQLine[]
 
   @@unique([tenantId, number])
+  @@unique([tenantId, clientRequestId])
   @@index([tenantId, status])
+  @@index([tenantId, status, createdAt])
   @@index([companyId])
   @@index([requesterId])
 }

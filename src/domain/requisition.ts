@@ -73,7 +73,7 @@ export const draftSchema = z.object({
 export type DraftInput = z.infer<typeof draftSchema>;
 
 /** Taslakta yalnızca içeriği olan (açıklaması dolu) kalemleri sakla; gerisini at. */
-export function meaningfulLines(lines: DraftInput["lines"]): DraftInput["lines"] {
+export function meaningfulLines<T extends { description?: string | null }>(lines: T[] | undefined): T[] {
   return (lines ?? []).filter((l) => (l.description ?? "").trim().length > 0);
 }
 

@@ -1,17 +1,48 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 3. oturum — **son tamamlama fazı (A–H) bitti ve doğrulandı**; final doğrulama commit'i `2f94d16`.
+> Son güncelleme: 4. oturum — **acil hata düzeltme + performans fazı** bitti (son commit `ad0e3ff`).
 
 ## Genel durum
 
 - **Konum:** `C:\Users\Aykut\coil-procurement-hub`
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
-- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **80 test** (unit+integration) geçiyor,
-  Playwright **8 E2E** geçiyor — **hem SQLite hem PostgreSQL production build üzerinde 8/8**, build **temiz**.
-- **Veri:** Gerçek geçmiş satınalma verisi içe aktarıldı — **492 sipariş** (490 imported + 2 seed), 70,4M ₺.
+- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **99 test** (unit+integration) geçiyor,
+  Playwright **12 E2E** geçiyor — **hem SQLite hem PostgreSQL production build üzerinde 12/12**, build **temiz**.
+- **Veri:** Gerçek geçmiş satınalma verisi içe aktarıldı — **494 sipariş** (490 imported + seed), 70,4M ₺ (korundu).
 - **Git:** her aşama ayrı commit; çalışma ağacı temiz. Kaynak Excel/yedekler `.gitignore`'da.
+
+## Acil hata düzeltme + performans fazı (4. oturum) — ayrı commitler
+
+Gerçek kullanım testinde bildirilen 4 sorun kök nedeninden çözüldü (try/catch ile gizlenmedi):
+
+| Commit | Konu | Sonuç |
+|---|---|---|
+| `3f24ede` | **Talep taslak/gönderim hatası** | Kök neden: tek katı şema + `fail()` ham Zod JSON sızdırıyordu. Taslak (minimal, her zaman DRAFT) ↔ gönderim (tam doğrulama) **ayrıldı** (domain + server action). `fail()` artık ZodError→alan bazlı, Prisma→dostça, beklenmeyen→correlation ID; **ham hata asla sızmaz**. Idempotency alanı (`clientRequestId`). |
+| `bcae854` | **Kullanıcı dostu doğrulama + toast** | Erişilebilir toast sistemi (success/error/warning/info). Formda alan altı hata + üstte erişilebilir özet + ilk hataya odak + iki dilli mesaj + spinner + çift-tıklama koruması; başarısızlıkta form korunur. |
+| `859b87e` | **Performans** | **Güvenlik**: liste `include:{requester:true}` passwordHash/mfaSecret sızdırıyordu → `select`. Server-side **pagination** (494 siparişin tümü erişilebilir). Dashboard bekleyen-onay 2×→1× (React cache) + indexler + anında loading iskeleti. Ölçüm: `docs/performance-report.md` (production build, önce/sonra). |
+| `ad0e3ff` | **Regresyon testleri (12 senaryo)** | Birim (taslak/gönderim doğrulama, `fail` ham-sızıntı) + entegrasyon (idempotency, tenant izolasyonu) + tarayıcı (talep akışı, pagination). |
+
+**Final doğrulama:** ESLint 0 · tsc 0 · vitest **99/99** (mojibake + i18n parite dahil) · SQLite build 41 route ·
+**SQLite E2E 12/12** · PG db push/generate/build · **PostgreSQL E2E 12/12** · mojibake temiz · perf önce/sonra ölçüldü.
+
+## Son tamamlama fazı (3. oturum) — hepsi ayrı commit
+
+İlk ana gereksinime göre "isteğe bağlı / mekanik / canlı veri birikince" olarak bırakılan tüm maddeler tamamlandı:
+
+| Commit | Aşama | Sonuç |
+|---|---|---|
+| `2f9f032` | **A — Sözleşme CRUD** | oluştur/düzenle/detay, limit, fiyat listesi, SLA, statü + audit sürüm geçmişi |
+| `ef2ad07` | **B — Bütçe CRUD + gerçek kontrol** | oluştur/düzenle/detay + hareketler; talep gönderiminde **gerçek bütçe rezerv/serbest** |
+| `21d309f` | **C — Katalog CRUD + import** | oluştur/düzenle/detay, fiyat geçmişi, tercih tedarikçi, birim dönüşüm, CSV import |
+| `ecc8712` | **D — Hesaplama motorları** | OTIF/çevrim süresi/onay bekleme/tasarruf saf fonksiyonlar + **"veri yetersiz"** göstergesi + gerçek DB + demo senaryo + 8 test |
+| `979b972` | **E — Tam E2E** | talep→onay→onay→RFQ zinciri (tarayıcı) + arka yarı (award→PO→3'lü eşleştirme) — **SQLite + PostgreSQL 6/6** |
+| `d5663dc` | **F — i18n** | tr/en **parite testi** (runtime + tip ile derleme-zamanı) + düzgün İngilizce durum etiketleri (`STATUS_LABELS_EN`) |
+| `7e87911` | **G — Rol bazlı denetim** | TODO/placeholder/ölü-link YOK; bulunan 2 liste-only boşluk (**Tedarikçi**, **Kullanıcı**) tam CRUD ile kapatıldı; E2E ile doğrulandı |
+
+**Final doğrulama battery'si (H):** ESLint 0 · tsc 0 · vitest **80/80** (mojibake + i18n parite guard dahil) ·
+SQLite build 41 route temiz · **SQLite E2E 8/8** · PG db push/generate/build temiz · **PostgreSQL E2E 8/8** · mojibake taraması temiz.
 
 ## Son tamamlama fazı (3. oturum) — hepsi ayrı commit
 

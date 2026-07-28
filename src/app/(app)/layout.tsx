@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { ROLE_LABELS_TR, type RoleKey } from "@/lib/rbac";
 import { I18nProvider } from "@/components/i18n-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <I18nProvider locale={locale}>
+      <ToastProvider>
       <div className="flex min-h-screen">
         <Sidebar items={visibleNav} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -42,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <main className="flex-1 overflow-x-hidden p-6">{children}</main>
         </div>
       </div>
+      </ToastProvider>
     </I18nProvider>
   );
 }

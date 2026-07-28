@@ -1,11 +1,13 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { createRequisition, submitRequisition } from "../actions";
+import { useToast } from "@/components/ui/toast";
+import { useI18n } from "@/components/i18n-provider";
+import { createRequisition, createAndSubmitRequisition } from "../actions";
 import { lineNet, formatMoney, add } from "@/lib/money";
 
 interface Opt {
@@ -23,6 +25,27 @@ interface Line {
 }
 
 const emptyLine: Line = { description: "", quantity: "1", uom: "", estUnitPrice: "0", taxRate: "20", categoryId: "" };
+
+const TXT = {
+  tr: {
+    draftSaved: "Taslak başarıyla kaydedildi.",
+    submitted: "Talep onaya gönderildi.",
+    saveFailed: "Talep kaydedilemedi. Lütfen işaretli alanları kontrol edin.",
+    unexpected: "İşlem sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+    summaryTitle: "Lütfen aşağıdaki alanları düzeltin:",
+    saving: "Kaydediliyor…",
+    sending: "Gönderiliyor…",
+  },
+  en: {
+    draftSaved: "Draft saved successfully.",
+    submitted: "Requisition submitted for approval.",
+    saveFailed: "The requisition could not be saved. Please check the highlighted fields.",
+    unexpected: "An unexpected error occurred. Please try again.",
+    summaryTitle: "Please fix the following fields:",
+    saving: "Saving…",
+    sending: "Submitting…",
+  },
+} as const;
 
 export function NewRequisitionForm({
   companies,
@@ -42,6 +65,10 @@ export function NewRequisitionForm({
   uoms: string[];
 }) {
   const router = useRouter();
+  const { toast } = useToast();
+  const { locale } = useI18n();
+  const t = TXT[(locale as "tr" | "en") in TXT ? (locale as "tr" | "en") : "tr"];
+
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
   const [departmentId, setDepartmentId] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -56,8 +83,13 @@ export function NewRequisitionForm({
   const [justification, setJustification] = useState("");
   const [internalNote, setInternalNote] = useState("");
   const [lines, setLines] = useState<Line[]>([{ ...emptyLine }]);
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState("");
+  const [busy, setBusy] = useState<null | "draft" | "submit">(null);
+
+  // Idempotency: bir istek anahtarı; başarıda sıfırlanır (çift tıklama tek talep üretir)
+  const requestIdRef = useRef<string | null>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   const filteredDepts = departments.filter((d) => d.companyId === companyId);
   const filteredProjects = projects.filter((p) => p.companyId === companyId);
@@ -78,10 +110,31 @@ export function NewRequisitionForm({
     setLines((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
   }
 
-  async function onSubmit(saveDraft: boolean) {
-    setError("");
-    setSubmitting(true);
-    const res = await createRequisition({
+  function fieldId(path: string) {
+    return `field-${path.replace(/\./g, "-")}`;
+  }
+
+  function focusFirstError(fields: Record<string, string>) {
+    const first = Object.keys(fields)[0];
+    if (!first) return;
+    // Önce hata özetine, sonra ilk hatalı alana kaydır ve odakla
+    summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      const el = document.getElementById(fieldId(first));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 150);
+  }
+
+  function buildPayload() {
+    if (!requestIdRef.current) {
+      requestIdRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    }
+    return {
+      clientRequestId: requestIdRef.current,
       companyId,
       departmentId: departmentId || undefined,
       projectId: projectId || undefined,
@@ -103,28 +156,72 @@ export function NewRequisitionForm({
         taxRate: l.taxRate || "20",
         categoryId: l.categoryId || undefined,
       })),
-    });
+    };
+  }
+
+  async function onDraft() {
+    if (busy) return;
+    setBusy("draft");
+    setFieldErrors({});
+    setSummary("");
+    const res = await createRequisition(buildPayload());
     if (!res.ok) {
-      setSubmitting(false);
-      setError(res.error);
+      setBusy(null);
+      setFieldErrors(res.fields ?? {});
+      setSummary(res.error);
+      toast({ type: "error", title: t.saveFailed, description: res.error });
+      if (res.fields) focusFirstError(res.fields);
       return;
     }
-    // "Kaydet ve Onaya Gönder" ise gerçekten onaya gönder
-    if (!saveDraft) {
-      const sub = await submitRequisition(res.data.id);
-      if (!sub.ok) {
-        setSubmitting(false);
-        setError(sub.error);
-        router.push(`/requisitions/${res.data.id}`);
-        return;
-      }
-    }
-    setSubmitting(false);
+    requestIdRef.current = null;
+    toast({ type: "success", title: t.draftSaved });
     router.push(`/requisitions/${res.data.id}`);
   }
 
+  async function onSubmitApproval() {
+    if (busy) return;
+    setBusy("submit");
+    setFieldErrors({});
+    setSummary("");
+    const res = await createAndSubmitRequisition(buildPayload());
+    if (!res.ok) {
+      setBusy(null);
+      setFieldErrors(res.fields ?? {});
+      setSummary(res.error);
+      toast({ type: "error", title: res.fields ? t.saveFailed : t.unexpected, description: res.error });
+      if (res.fields) focusFirstError(res.fields);
+      return;
+    }
+    requestIdRef.current = null;
+    toast({ type: "success", title: t.submitted });
+    router.push(`/requisitions/${res.data.id}`);
+  }
+
+  const err = (path: string) => fieldErrors[path];
+  const errClass = (path: string) => (err(path) ? "border-destructive focus-visible:ring-destructive" : "");
+
   return (
     <div className="space-y-6">
+      {summary && (
+        <div
+          ref={summaryRef}
+          role="alert"
+          className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
+          <div>
+            <p className="font-medium text-destructive">{summary}</p>
+            {Object.keys(fieldErrors).length > 0 && (
+              <ul className="mt-1 list-inside list-disc text-destructive/90">
+                {Object.entries(fieldErrors).map(([k, v]) => (
+                  <li key={k}>{v}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Genel Bilgiler</CardTitle>
@@ -132,13 +229,14 @@ export function NewRequisitionForm({
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1.5">
             <Label>Şirket *</Label>
-            <Select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+            <Select id={fieldId("companyId")} value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={errClass("companyId")} aria-invalid={!!err("companyId")}>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </Select>
+            {err("companyId") && <p className="text-xs text-destructive">{err("companyId")}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Departman</Label>
@@ -246,10 +344,14 @@ export function NewRequisitionForm({
               <div className="sm:col-span-4">
                 <Label className="text-xs">Açıklama *</Label>
                 <Input
+                  id={fieldId(`lines.${i}.description`)}
                   value={l.description}
                   onChange={(e) => updateLine(i, { description: e.target.value })}
                   placeholder="Malzeme / hizmet açıklaması"
+                  className={errClass(`lines.${i}.description`)}
+                  aria-invalid={!!err(`lines.${i}.description`)}
                 />
+                {err(`lines.${i}.description`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.description`)}</p>}
               </div>
               <div className="sm:col-span-2">
                 <Label className="text-xs">Kategori</Label>
@@ -264,7 +366,14 @@ export function NewRequisitionForm({
               </div>
               <div className="sm:col-span-1">
                 <Label className="text-xs">Miktar</Label>
-                <Input value={l.quantity} onChange={(e) => updateLine(i, { quantity: e.target.value })} />
+                <Input
+                  id={fieldId(`lines.${i}.quantity`)}
+                  value={l.quantity}
+                  onChange={(e) => updateLine(i, { quantity: e.target.value })}
+                  className={errClass(`lines.${i}.quantity`)}
+                  aria-invalid={!!err(`lines.${i}.quantity`)}
+                />
+                {err(`lines.${i}.quantity`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.quantity`)}</p>}
               </div>
               <div className="sm:col-span-1">
                 <Label className="text-xs">Birim</Label>
@@ -279,7 +388,14 @@ export function NewRequisitionForm({
               </div>
               <div className="sm:col-span-2">
                 <Label className="text-xs">Tah. Birim Fiyat</Label>
-                <Input value={l.estUnitPrice} onChange={(e) => updateLine(i, { estUnitPrice: e.target.value })} />
+                <Input
+                  id={fieldId(`lines.${i}.estUnitPrice`)}
+                  value={l.estUnitPrice}
+                  onChange={(e) => updateLine(i, { estUnitPrice: e.target.value })}
+                  className={errClass(`lines.${i}.estUnitPrice`)}
+                  aria-invalid={!!err(`lines.${i}.estUnitPrice`)}
+                />
+                {err(`lines.${i}.estUnitPrice`) && <p className="mt-1 text-xs text-destructive">{err(`lines.${i}.estUnitPrice`)}</p>}
               </div>
               <div className="sm:col-span-1">
                 <Label className="text-xs">KDV %</Label>
@@ -312,17 +428,17 @@ export function NewRequisitionForm({
         </CardContent>
       </Card>
 
-      {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()} disabled={submitting}>
+        <Button variant="outline" onClick={() => router.back()} disabled={!!busy}>
           İptal
         </Button>
-        <Button variant="secondary" onClick={() => onSubmit(true)} disabled={submitting}>
-          Taslak Kaydet
+        <Button variant="secondary" onClick={onDraft} disabled={!!busy}>
+          {busy === "draft" && <Loader2 className="size-4 animate-spin" />}
+          {busy === "draft" ? t.saving : "Taslak Kaydet"}
         </Button>
-        <Button onClick={() => onSubmit(false)} disabled={submitting}>
-          {submitting ? "Kaydediliyor..." : "Kaydet ve Onaya Gönder"}
+        <Button onClick={onSubmitApproval} disabled={!!busy}>
+          {busy === "submit" && <Loader2 className="size-4 animate-spin" />}
+          {busy === "submit" ? t.sending : "Kaydet ve Onaya Gönder"}
         </Button>
       </div>
     </div>

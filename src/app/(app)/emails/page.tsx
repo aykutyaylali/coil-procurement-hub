@@ -23,7 +23,7 @@ export default async function EmailsPage() {
       <PageHeader title="E-posta İşlem Merkezi" description={`Aktif sağlayıcı: ${env.EMAIL_PROVIDER.toUpperCase()} · Gelen/giden tüm e-postalar, teslim durumu ve loglar.`} />
       {unmatched > 0 && (
         <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-4 py-2 text-sm">
-          {unmatched} adet eşleşmeyen gelen e-posta "eşleştirme bekleyen" kuyruğunda.
+          {unmatched} adet eşleşmeyen gelen e-posta &quot;eşleştirme bekleyen&quot; kuyruğunda.
         </div>
       )}
       <Card>

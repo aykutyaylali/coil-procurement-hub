@@ -76,14 +76,29 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 - Prod geçişi: `schema.prisma` provider `postgresql` + `prisma migrate deploy` (migration seti hazır).
 - PG servisi manuel başlatıldı: `& "C:\Program Files\PostgreSQL\16\bin\pg_ctl" -D C:\Users\Aykut\pgdata start`.
 
-## Kalan işler (sıradaki oturum)
+## 2. Oturumda tamamlananlar (özet)
 
-- **PDF modülünü commit et** (kod hazır, build temiz).
-- 6. Raporlar: gerçek hesaplanan metrikler (OTIF, çevrim süresi, tasarruf, landed cost) + çalışan filtreler + CSV/PDF export.
-- 5. i18n: kalan yönetim ekranlarındaki metinleri merkezî sözlüğe taşıma + eksik anahtar testi kapsamı.
-- 7. Modül denetimi (eksik create/edit, dead link kontrolü).
-- 8. **PostgreSQL doğrulaması** (bu makinede Docker/Postgres kurulu değil — kurulup gerçek migrate+seed+test gerekli).
-- 9-10. Güvenlik/iş kuralı testleri + tam uçtan uca E2E senaryosu + README "sınırlamalar" güncelleme.
+| Commit | İçerik |
+|---|---|
+| `6581a61` | **Gerçek Excel import** çalıştırıldı + Excel↔DB mutabakatı tüm boyutlarda OK |
+| `e58bc57` | **Raporlar** gerçek metriklerle (harcama/kategori/tedarikçi/operasyon/PB/aylık/talep eden) + filtreler + CSV/PDF |
+| `562cd06` | **i18n**: üst menü dil değiştirici (TR/EN, tercih saklanır) + **mojibake regresyon testi** |
+| `b353074` | **PostgreSQL doğrulaması**: gerçek migration + seed + build + 48 unit + 7 davranış + 5 E2E + backup/restore |
+| `6e8fd3c` | **Güvenlik/iş kuralı testleri**: görevler ayrılığı, vekâlet, yetkisiz-red, mükerrer fatura, tenant izolasyonu + token/TOTP/parola |
+
+**Son doğrulama:** ESLint 0 hata, TypeScript 0 hata, **62 test** (unit+integration), production build temiz.
+
+## Kalan işler (gerçekten kalan / harici gereksinim)
+
+- **i18n tam string çıkarımı:** Mimari + üst menü değiştirici + mojibake guard + eksik-anahtar testi tamam.
+  Bazı yönetim ekranlarındaki satır içi TR/EN metinlerin merkezî sözlüğe taşınması sürüyor (kullanıcıya
+  görünen eksik metin yok; mekanik iyileştirme).
+- **Sözleşme / Bütçe / Katalog**: şu an gerçek veri okuyan liste ekranları (dead link/placeholder yok);
+  create/edit formları eklenebilir.
+- **Gelişmiş raporlar** (OTIF, çevrim süresi, tasarruf, cost avoidance): canlı operasyonel veri
+  (onay/teslim zaman damgaları) biriktikçe otomatik hesaplanır; geçmiş içe aktarımda bu adımlar yok.
+- **Harici hesap gerektirenler** (adapter + mock/local mod hazır): ERP, e-Fatura, SSO, AI, virüs tarama.
+- **PostgreSQL prod**: migration seti hazır ve doğrulandı; prod'da servis + secret yönetimi kurulmalı.
 
 ## Önemli notlar
 

@@ -1,5 +1,36 @@
 # Üretim Dağıtım Kılavuzu
 
+## 0. Doğrulanmış PostgreSQL kurulumu (bu projede test edildi)
+
+Aşağıdaki adımlar bu makinede **gerçekten çalıştırılıp doğrulandı** (native PostgreSQL 16, Windows;
+Docker/WSL2 gerektirmeden). Gerçek migration üretildi, seed yüklendi, build + 48 unit + 7 davranış
+doğrulaması + 5 Playwright E2E + pg_dump/pg_restore başarıyla geçti.
+
+```powershell
+# 1) PostgreSQL 16 kur (reboot gerekmez)
+winget install -e --id PostgreSQL.PostgreSQL.16 --silent `
+  --override "--mode unattended --superpassword <PAROLA> --serverport 5432"
+
+# 2) Cluster'ı kullanıcı-yazılabilir bir dizinde başlat (locale=C; sistem locale non-ASCII olabilir)
+$PG="C:\Program Files\PostgreSQL\16\bin"; $DATA="C:\Users\<user>\pgdata"
+& "$PG\initdb.exe" -D $DATA -U postgres --pwfile=<pw.txt> -E UTF8 --locale=C
+& "$PG\pg_ctl.exe" -D $DATA -o "-p 5432" -l "$DATA\server.log" start
+
+# 3) Veritabanları
+& "$PG\createdb.exe" -U postgres -h 127.0.0.1 coil_dev
+& "$PG\createdb.exe" -U postgres -h 127.0.0.1 coil_test
+
+# 4) Prisma: provider'ı postgresql yap, migration üret + uygula + seed
+#   (schema.prisma: datasource db { provider = "postgresql" })
+$env:DATABASE_URL="postgresql://postgres:<PAROLA>@127.0.0.1:5432/coil_dev?schema=public"
+npx prisma migrate dev --name init     # prisma/migrations/ üretilir ve uygulanır
+npx prisma db seed
+npm run build ; npm test               # temiz build + testler
+```
+
+> Ünix/Docker ortamında `docker compose up -d db` ile aynı sonuç elde edilir (bkz. `docker-compose.yml`).
+> Migration seti `prisma/migrations/` altında hazırdır; prod'da `npx prisma migrate deploy` kullanın.
+
 ## 1. PostgreSQL'e geçiş
 
 `prisma/schema.prisma` içindeki datasource'u değiştirin:

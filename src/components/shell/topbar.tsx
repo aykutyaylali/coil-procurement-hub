@@ -5,17 +5,20 @@ import { useState } from "react";
 import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/app/(auth)/actions";
+import { updateLocale } from "@/app/(app)/profile/actions";
 
 export function Topbar({
   userName,
   userTitle,
   pendingApprovals,
   unreadNotifications,
+  locale,
 }: {
   userName: string;
   userTitle: string;
   pendingApprovals: number;
   unreadNotifications: number;
+  locale: string;
 }) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -56,6 +59,20 @@ export function Topbar({
             </span>
           )}
         </Button>
+        <div className="flex overflow-hidden rounded-md border text-xs" title="Dil / Language">
+          <button
+            onClick={() => updateLocale("tr")}
+            className={`px-2 py-1 ${locale === "tr" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+          >
+            TR
+          </button>
+          <button
+            onClick={() => updateLocale("en")}
+            className={`px-2 py-1 ${locale === "en" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+          >
+            EN
+          </button>
+        </div>
         <Button
           variant="ghost"
           size="icon"

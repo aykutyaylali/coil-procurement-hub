@@ -37,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             userTitle={roleLabel}
             pendingApprovals={pending.length}
             unreadNotifications={unread}
+            locale={locale}
           />
           <main className="flex-1 overflow-x-hidden p-6">{children}</main>
         </div>

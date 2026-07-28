@@ -35,10 +35,15 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
   maliyet, sorumlu, doğrulama, kapanış), **CAPA/8D** oluşturma/yönetim, tedarikçi performansına etki.
 - Tolerans ayarları, dosya yükleme (attachment) altyapısı.
 
-### Geçmiş Veri İçe Aktarma (commit `8ee23be`)
+### Geçmiş Veri İçe Aktarma (commit `8ee23be`) + GERÇEK İMPORT YAPILDI
 - Excel motoru + **sihirbaz** (yükle → sütun eşleştirme → özet → uyarılar → dry-run → onay → sonuç → hatalı satır CSV).
-- **Dry-run yapıldı ve gösterildi** (gerçek import kullanıcının onayına bırakıldı):
-  490 sipariş · 1.032 kalem · 117 yeni tedarikçi · kaynak = içe aktarılacak = **70.435.847,79 ₺ (fark 0)**.
+- **GERÇEK İMPORT ÇALIŞTIRILDI** (kullanıcı onayıyla). Batch: `cms48jnjf0000vx9sb9d26wpa`.
+  - Tarihli SQLite yedeği alındı → `prisma/backups/dev-2026-07-28T05-48-54.db`
+  - 490 sipariş · 1.032 kalem · 117 yeni tedarikçi · 8 kategori · **70.435.847,79 ₺** yazıldı.
+- **MUTABAKAT (Excel ↔ DB) — TÜM BOYUTLAR OK:** sipariş 490=490, kalem 1032=1032, tedarikçi 117=117,
+  toplam TL 70.435.847,79=70.435.847,79, eksik fiyat/KDV/teslim 50/69/59 eşit,
+  para birimi (TRY 7.713.126 / EUR 62.067.401 / USD 655.320) ve 8 kategori toplamı birebir tutuyor.
+  Kurallar korundu: tarihsel TL ayrı, boş değer null (0 değil), tedarikçi normalize, mükerrer 0.
 - İdempotent (mevcut sipariş atlanır), otomatik yedek, transaction, **kontrollü geri alma**, audit.
 - Kurallar: tarihsel TL ayrı saklanır (yeniden hesaplanmaz), boş fiyat/KDV null (0 ile doldurulmaz),
   tedarikçi/kategori normalize, talep eden geçmiş referans (login oluşturulmaz).

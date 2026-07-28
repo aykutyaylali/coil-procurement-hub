@@ -460,6 +460,10 @@ model Item {
   leadTimeDays  Int?
   lastPurchasePrice String? // decimal-as-string
   lastPurchaseCurrency String?
+  // Tercih edilen tedarikçiler (JSON array: [{supplierId}]) ve birim dönüşümleri
+  preferredSuppliers String? // JSON
+  unitConversions    String? // JSON: [{fromUom, toUom, factor}]
+  manufacturerCode   String?
   isService     Boolean  @default(false)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())

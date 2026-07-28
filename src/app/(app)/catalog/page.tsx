@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requirePermission } from "@/lib/auth/context";
+import Link from "next/link";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -7,11 +8,13 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
+import { ImportCsv } from "./import-csv";
 
 export const metadata: Metadata = { title: "Ürün Kataloğu" };
 
 export default async function CatalogPage() {
   const user = await requirePermission(PERMISSIONS.CATALOG_VIEW);
+  const canManage = userCan(user, PERMISSIONS.CATALOG_MANAGE);
   const items = await prisma.item.findMany({
     where: { tenantId: user.tenantId },
     orderBy: { name: "asc" },
@@ -21,7 +24,8 @@ export default async function CatalogPage() {
 
   return (
     <div>
-      <PageHeader title="Ürün ve Hizmet Kataloğu" description="Merkezi ürün/hizmet kartları, kategoriler ve fiyat geçmişi." />
+      <PageHeader title="Ürün ve Hizmet Kataloğu" description="Merkezi ürün/hizmet kartları, kategoriler ve fiyat geçmişi." action={canManage ? { label: "Yeni Ürün", href: "/catalog/new" } : undefined} />
+      {canManage && <div className="mb-4"><ImportCsv /></div>}
       <Card>
         {items.length === 0 ? (
           <EmptyState title="Katalog boş" hint="Seed verisi yükleyin veya ürün ekleyin." />
@@ -41,7 +45,7 @@ export default async function CatalogPage() {
             <TBody>
               {items.map((i) => (
                 <TR key={i.id}>
-                  <TD className="font-mono text-xs">{i.code}</TD>
+                  <TD><Link href={`/catalog/${i.id}`} className="font-mono text-xs text-primary hover:underline">{i.code}</Link></TD>
                   <TD className="font-medium">{i.name}</TD>
                   <TD className="text-sm">{i.category?.name ?? "-"}</TD>
                   <TD className="text-sm">{i.brand ?? "-"}</TD>

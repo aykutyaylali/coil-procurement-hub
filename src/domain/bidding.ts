@@ -16,6 +16,7 @@ export interface BidContext {
   dueAt: Date | null;
   isExpired: boolean;
   companyName: string;
+  operationType: string; // DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
   currencyOptions: string[];
   lines: {
     id: string;
@@ -30,8 +31,19 @@ export interface BidContext {
     status: string;
     currency: string;
     note: string | null;
-    lines: Record<string, { unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: string; brand: string; note: string; willQuote: boolean }>;
+    lines: Record<string, { unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: string; brand: string; note: string; willQuote: boolean; currency: string }>;
   } | null;
+}
+
+/**
+ * RFQ para birimi seçenekleri: operasyon türüne göre makul varsayılan set.
+ * Yurt içi → TL öncelikli; ithalat/ihracat → döviz öncelikli. RFQ'nun kendi
+ * seçenekleri de eklenir. Kalem bazında farklı para birimi seçilebilir.
+ */
+export function currencyOptionsFor(operationType: string, rfqOptions: string[]): string[] {
+  const base = operationType === "DOMESTIC_PURCHASE" ? ["TRY", "USD", "EUR"] : ["USD", "EUR", "TRY", "GBP"];
+  const merged = [...rfqOptions, ...base].filter((c) => c && c.length === 3);
+  return [...new Set(merged)];
 }
 
 /** Magic link token'ından teklif bağlamını yükler. Token doğrulanır, VIEWED işaretlenir. */
@@ -96,6 +108,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
               brand: bl.brand ?? "",
               note: bl.note ?? "",
               willQuote: bl.willQuote,
+              currency: bl.currency ?? rfqSupplier.bids[0]!.currency,
             },
           ]),
         ),
@@ -114,7 +127,8 @@ export async function loadBidContext(token: string): Promise<BidContext> {
     dueAt: rfq.dueAt,
     isExpired: dueExpired,
     companyName: rfq.company.name,
-    currencyOptions,
+    operationType: rfq.operationType,
+    currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     lines: rfq.lines.map((l) => ({
       id: l.id,
       lineNo: l.lineNo,
@@ -158,7 +172,8 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
     dueAt: rfq.dueAt,
     isExpired: false, // önizlemede form her zaman görünür
     companyName: rfq.company.name,
-    currencyOptions,
+    operationType: rfq.operationType,
+    currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     lines: rfq.lines.map((l) => ({
       id: l.id,
       lineNo: l.lineNo,
@@ -189,6 +204,7 @@ export interface SaveBidInput {
     brand?: string;
     leadTimeDays?: string;
     note?: string;
+    currency?: string;
   }[];
 }
 
@@ -277,6 +293,7 @@ export async function saveBid(input: SaveBidInput): Promise<{ bidId: string; tot
         brand: l.brand ?? null,
         leadTimeDays: l.leadTimeDays ? parseInt(l.leadTimeDays, 10) : null,
         note: l.note ?? null,
+        currency: l.currency ?? input.currency,
       })),
     });
 

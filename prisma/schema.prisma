@@ -1034,6 +1034,8 @@ model BidLine {
   unitPrice   String   @default("0") // decimal-as-string
   discountPct String   @default("0")
   taxRate     String   @default("20")
+  // Kalem bazında para birimi (bazı kalem TL, bazı USD/EUR olabilir). Boşsa teklif para birimi.
+  currency    String?
   minOrderQty String?
   leadTimeDays Int?
   deliveryDate DateTime?

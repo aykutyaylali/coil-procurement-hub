@@ -12,7 +12,8 @@ import type { Locale } from "@/lib/i18n";
 const S = {
   tr: {
     terms: "Teklif Koşulları",
-    currency: "Para Birimi",
+    currency: "Varsayılan Para Birimi",
+    lineCurrency: "Para Br.",
     paymentDays: "Ödeme Vadesi (gün)",
     incoterm: "Incoterm",
     items: "Kalemler",
@@ -45,7 +46,8 @@ const S = {
   },
   en: {
     terms: "Quotation Terms",
-    currency: "Currency",
+    currency: "Default Currency",
+    lineCurrency: "Curr.",
     paymentDays: "Payment Term (days)",
     incoterm: "Incoterm",
     items: "Items",
@@ -86,6 +88,7 @@ interface LineState {
   brand: string;
   leadTimeDays: string;
   note: string;
+  currency: string;
 }
 
 export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean }) {
@@ -108,10 +111,12 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
         willQuote: ex?.willQuote ?? true,
         unitPrice: ex?.unitPrice ?? "0",
         discountPct: ex?.discountPct ?? "0",
-        taxRate: ex?.taxRate ?? "20",
+        // İthalat/ihracatta KDV genelde 0; yurt içinde 20 varsayılan
+        taxRate: ex?.taxRate ?? (ctx.operationType === "DOMESTIC_PURCHASE" ? "20" : "0"),
         brand: ex?.brand ?? "",
         leadTimeDays: ex?.leadTimeDays ?? "",
         note: ex?.note ?? "",
+        currency: ex?.currency ?? currency,
       };
     }
     return init;
@@ -121,16 +126,23 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
     setLines((prev) => ({ ...prev, [id]: { ...prev[id]!, ...patch } }));
   }
 
-  const grandTotal = useMemo(() => {
-    let t = add(0);
+  // Para birimine göre gruplu toplam (kalemler farklı PB olabilir). Navlun varsayılan PB'ye eklenir.
+  const totalsByCurrency = useMemo(() => {
+    const map: Record<string, ReturnType<typeof add>> = {};
     for (const l of ctx.lines) {
       const ls = lines[l.id]!;
       if (!ls.willQuote) continue;
+      const cur = ls.currency || currency;
       const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
-      t = add(t, net, lineTax(net, ls.taxRate));
+      const withTax = add(net, lineTax(net, ls.taxRate));
+      map[cur] = add(map[cur] ?? add(0), withTax);
     }
-    return add(t, freight || "0");
-  }, [lines, freight, ctx.lines]);
+    if (Number(freight || "0") > 0) {
+      map[currency] = add(map[currency] ?? add(0), freight || "0");
+    }
+    return map;
+  }, [lines, freight, ctx.lines, currency]);
+  const totalCurrencies = Object.keys(totalsByCurrency);
 
   async function save(submit: boolean) {
     setError("");
@@ -152,6 +164,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
         brand: lines[l.id]!.brand || undefined,
         leadTimeDays: lines[l.id]!.leadTimeDays || undefined,
         note: lines[l.id]!.note || undefined,
+        currency: lines[l.id]!.currency || currency,
       })),
     });
     setSubmitting(false);
@@ -220,6 +233,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
                 <TH className="text-right">{s.qty}</TH>
                 <TH>{s.quote}</TH>
                 <TH className="text-right">{s.unitPrice}</TH>
+                <TH>{s.lineCurrency}</TH>
                 <TH className="text-right">{s.disc}</TH>
                 <TH className="text-right">{s.vat}</TH>
                 <TH>{s.lead}</TH>
@@ -265,6 +279,18 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
                       />
                     </TD>
                     <TD>
+                      <Select
+                        className="h-8 w-20"
+                        disabled={!ls.willQuote}
+                        value={ls.currency}
+                        onChange={(e) => update(l.id, { currency: e.target.value })}
+                      >
+                        {ctx.currencyOptions.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </Select>
+                    </TD>
+                    <TD>
                       <Input
                         className="h-8 w-16 text-right"
                         disabled={!ls.willQuote}
@@ -289,7 +315,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
                       />
                     </TD>
                     <TD className="text-right font-medium">
-                      {ls.willQuote ? formatMoney(withTax, currency) : "-"}
+                      {ls.willQuote ? formatMoney(withTax, ls.currency) : "-"}
                     </TD>
                   </TR>
                 );
@@ -317,7 +343,22 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
       <div className="flex items-center justify-between rounded-lg border bg-white p-4 dark:bg-slate-900">
         <div>
           <div className="text-xs text-muted-foreground">{s.grand}</div>
-          <div className="text-2xl font-bold">{formatMoney(grandTotal, currency)}</div>
+          {totalCurrencies.length === 0 ? (
+            <div className="text-2xl font-bold">{formatMoney("0", currency)}</div>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              {totalCurrencies.map((cur) => (
+                <span key={cur} className="text-2xl font-bold">
+                  {formatMoney(totalsByCurrency[cur]!, cur)}
+                </span>
+              ))}
+            </div>
+          )}
+          {totalCurrencies.length > 1 && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Kalemler farklı para birimlerinde; toplamlar para birimine göre ayrı gösterilir.
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           {preview ? (
@@ -345,7 +386,9 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm">
-                {ctx.rfqNumber} {s.confirmBody1} <b>{formatMoney(grandTotal, currency)}</b> {s.confirmBody2}
+                {ctx.rfqNumber} {s.confirmBody1}{" "}
+                <b>{totalCurrencies.length ? totalCurrencies.map((c) => formatMoney(totalsByCurrency[c]!, c)).join(" + ") : formatMoney("0", currency)}</b>{" "}
+                {s.confirmBody2}
               </p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setConfirming(false)} disabled={submitting}>

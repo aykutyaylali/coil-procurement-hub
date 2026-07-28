@@ -1,15 +1,17 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: geliştirme oturumu (bilgisayar kapatma öncesi ara kayıt).
+> Son güncelleme: 2. geliştirme oturumu sonu — son commit `b562ccc`.
 
 ## Genel durum
 
 - **Konum:** `C:\Users\Aykut\coil-procurement-hub`
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
-- **Sağlık:** build **temiz**, TypeScript typecheck **hatasız**, **46 birim testi** geçiyor, 5 E2E geçiyor.
-- **Git:** her aşama ayrı commit'li (aşağıda). Kaynak Excel ve yedekler `.gitignore`'da.
+- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **62 test** (unit+integration) geçiyor,
+  Playwright **5 E2E** geçiyor (SQLite ve PostgreSQL üzerinde), production build **temiz**.
+- **Veri:** Gerçek geçmiş satınalma verisi içe aktarıldı — **492 sipariş** (490 imported + 2 seed), 70,4M ₺.
+- **Git:** 11 commit, her aşama ayrı; çalışma ağacı temiz. Kaynak Excel/yedekler `.gitignore`'da.
 
 ## Teknoloji
 
@@ -54,9 +56,9 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 - Fatura oluşturma formu (PO seçimi, mal kabul satırları önden dolu, tevkifat), tolerans dışı → **BLOCKED**
   + istisna onayı (gerekçe zorunlu), **mükerrer engel**, PO `INVOICED` geçişi, 3-way eşleştirme tablosu.
 
-### Faz 2 — PDF Üretimi (commit sırada)
+### Faz 2 — PDF Üretimi (commit `6bc12bd`)
 - **pdfkit + DejaVu Türkçe font**; markalı, çift dilli (TR/EN) PDF: **Sipariş, RFQ, Karşılaştırma, Mal Kabul,
-  NCR, Tedarikçi Değerlendirme** — indirme rotaları + detay sayfalarında butonlar.
+  NCR, Tedarikçi Değerlendirme** — indirme rotaları + detay sayfalarında butonlar. Harcama raporu PDF'i de var.
 - **Not:** geliştirme sırasında bazı dosyalarda oluşan Türkçe karakter (mojibake) bozulması tespit edildi ve
   **tüm kaynak dosyalarda deterministik onarıldı** (0 kaldı, doğrulandı). PDF başlıkları artık doğru: "SATINALMA SİPARİŞİ", "TEDARİKÇİ".
 
@@ -86,7 +88,18 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 | `b353074` | **PostgreSQL doğrulaması**: gerçek migration + seed + build + 48 unit + 7 davranış + 5 E2E + backup/restore |
 | `6e8fd3c` | **Güvenlik/iş kuralı testleri**: görevler ayrılığı, vekâlet, yetkisiz-red, mükerrer fatura, tenant izolasyonu + token/TOTP/parola |
 
-**Son doğrulama:** ESLint 0 hata, TypeScript 0 hata, **62 test** (unit+integration), production build temiz.
+| `b562ccc` | **Son doğrulama**: ESLint temiz + RAPOR/deployment güncellendi (doğrulanmış PostgreSQL komutları) |
+
+**Son doğrulama:** ESLint 0 hata, TypeScript 0 hata, **62 test** (unit+integration), 5 Playwright E2E, production build temiz.
+
+### Test kapsamı (62 test / 10 dosya)
+- **Birim:** para (decimal, floating-point yok), durum makineleri (geçersiz geçiş engelleme), RBAC yetki matrisi,
+  landed cost dağıtımı, i18n eksik-anahtar + Türkçe sıralama, **mojibake regresyon**, import ayrıştırma,
+  üçlü eşleştirme tolerans, güvenlik primitifleri (token hash/TOTP/parola).
+- **Entegrasyon (gerçek DB, rollback tx):** görevler ayrılığı, başka yetkilinin onayı, **vekâlet**,
+  yetkisiz reddi, **mükerrer fatura (unique)**, **tenant izolasyonu**.
+- **E2E (tarayıcı):** korumalı sayfa yönlendirme, giriş→dashboard, hatalı parola reddi, magic-link token reddi,
+  tedarikçi portalı EN dil değiştirme — SQLite ve **PostgreSQL** üzerinde geçti.
 
 ## Kalan işler (gerçekten kalan / harici gereksinim)
 
@@ -102,6 +115,22 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 
 ## Önemli notlar
 
-- Excel kaynak dosyası değiştirilmedi; import henüz **çalıştırılmadı** (kullanıcı onayı bekliyor).
-- Bu makinede Node 24 + Git kurulu; Docker/PostgreSQL yok.
-- Dev sunucusu kapatıldı (bilgisayar kapatılacağı için arka planda process bırakılmadı).
+- Excel kaynak dosyası **değiştirilmedi**; gerçek import **çalıştırıldı ve mutabık** (batch `cms48jnjf...`).
+  Kontrollü geri alma mevcut (Entegrasyon Merkezi → İçe Aktarma ekranı).
+- Bu makinede kurulu: **Node 24, Git, PostgreSQL 16** (native, `C:\Users\Aykut\pgdata`, port 5432).
+  Docker/WSL2 kurulu değil (WSL2 reboot gerektirdiği için native PG tercih edildi).
+- **Dev veritabanı SQLite** (`prisma/dev.db`, import verisi burada). PostgreSQL doğrulama için kullanıldı,
+  sonra SQLite'a dönüldü. PG servisini başlatmak için:
+  `& "C:\Program Files\PostgreSQL\16\bin\pg_ctl" -D C:\Users\Aykut\pgdata start`
+- Yedekler `prisma/backups/` (gitignore'da). Kaynak Excel `Downloads` ve proje kökünde (gitignore'da).
+
+## Nasıl doğrulanır (yeniden çalıştırma)
+
+```powershell
+cd C:\Users\Aykut\coil-procurement-hub
+npm run typecheck   # 0 hata
+npm run lint        # 0 hata/uyarı
+npm test            # 62 test
+npm run build       # temiz
+npm run dev         # http://localhost:3000
+```

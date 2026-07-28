@@ -21,6 +21,7 @@ export default async function RequisitionsPage({
 }) {
   const user = await requirePermission(PERMISSIONS.REQUISITION_VIEW);
   const canCreate = userCan(user, PERMISSIONS.REQUISITION_CREATE);
+  const canSetPolicy = userCan(user, PERMISSIONS.REQUISITION_ASSIGN);
   const sp = await searchParams;
   const page = parsePage(sp.page);
 
@@ -75,6 +76,11 @@ export default async function RequisitionsPage({
             {statusLabel(s)}
           </Link>
         ))}
+        {canSetPolicy && (
+          <Link href="/requisitions/approval-policy" className="ml-auto rounded-full border px-3 py-1 text-xs hover:bg-accent" prefetch>
+            ⚙ Onay Politikası
+          </Link>
+        )}
       </div>
 
       <Card>

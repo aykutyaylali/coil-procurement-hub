@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/lib/rbac";
 import { nextNumber } from "@/domain/numbering";
 import { actOnApproval, buildApprovalInstance, type ApprovalActionType } from "@/domain/approval";
 import { reserveBudget, releaseBudget } from "@/domain/budget";
+import { parseReqApprovalPolicy, requiresApproval } from "@/domain/approval-policy";
 import { REQUISITION_TRANSITIONS, assertTransition } from "@/domain/state-machines";
 import { writeAudit } from "@/lib/audit";
 import { add, lineNet, toStr } from "@/lib/money";
@@ -98,33 +99,39 @@ export async function createRequisition(input: unknown): Promise<Result<{ id: st
 async function doSubmit(tx: Tx, user: { tenantId: string; id: string }, reqId: string): Promise<{ status: string }> {
   const req = await tx.purchaseRequisition.findFirst({
     where: { id: reqId, tenantId: user.tenantId },
-    include: { requester: { include: { manager: true } }, department: true },
+    include: { requester: { include: { manager: true } }, department: true, company: { select: { settings: true } } },
   });
   if (!req) throw new NotFoundError("Talep bulunamadı.");
   assertTransition(REQUISITION_TRANSITIONS, req.status, "PENDING_APPROVAL", "Talep");
 
+  // Satınalmanın belirlediği onay politikası: her talep onaya gitmez.
+  const policy = parseReqApprovalPolicy(req.company?.settings);
+  const needApproval = requiresApproval(req.estimatedTotal, policy);
+
   let deptManagerId: string | null = null;
-  if (req.departmentId) {
+  if (needApproval && req.departmentId) {
     const dept = await tx.department.findUnique({ where: { id: req.departmentId } });
     deptManagerId = dept?.managerId ?? null;
   }
 
-  const instance = await buildApprovalInstance(tx, {
-    tenantId: user.tenantId,
-    documentType: "REQUISITION",
-    documentId: req.id,
-    context: {
-      amount: req.estimatedTotal,
-      currency: req.currency,
-      companyId: req.companyId,
-      projectId: req.projectId,
-      urgency: req.priority,
-      operationType: req.operationType,
-      requesterId: req.requesterId,
-      requesterManagerId: req.requester.managerId,
-      departmentManagerId: deptManagerId,
-    },
-  });
+  const instance = needApproval
+    ? await buildApprovalInstance(tx, {
+        tenantId: user.tenantId,
+        documentType: "REQUISITION",
+        documentId: req.id,
+        context: {
+          amount: req.estimatedTotal,
+          currency: req.currency,
+          companyId: req.companyId,
+          projectId: req.projectId,
+          urgency: req.priority,
+          operationType: req.operationType,
+          requesterId: req.requesterId,
+          requesterManagerId: req.requester.managerId,
+          departmentManagerId: deptManagerId,
+        },
+      })
+    : null;
 
   const budgetRes = await reserveBudget(tx, {
     tenantId: user.tenantId,

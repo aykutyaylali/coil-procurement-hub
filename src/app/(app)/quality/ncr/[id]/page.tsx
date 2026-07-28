@@ -40,7 +40,7 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
             <Link href={`/quality/${ncr.inspectionId}`} className="text-primary hover:underline">Kontrol kaydı</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">← Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

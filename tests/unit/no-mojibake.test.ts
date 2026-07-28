@@ -11,7 +11,9 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..", "src");
 
 // Mojibake öncü karakterleri: Ã(0xC3) Ä(0xC4) Å(0xC5) + CP1252 artıkları
-const BAD_CODES = new Set([0x00c3, 0x00c4, 0x00c5, 0x0178, 0x0152, 0x0153, 0x017d, 0x017e]);
+// 0x2020 (†) = "←" okunun çift-kodlama göstergesi; 0x0090 = CP1252 kontrol artığı.
+// (0x00E2 "â" Türkçede meşrudur — ör. "kâğıt" — bu yüzden yasaklanmaz.)
+const BAD_CODES = new Set([0x00c3, 0x00c4, 0x00c5, 0x0178, 0x0152, 0x0153, 0x017d, 0x017e, 0x2020, 0x0090]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];

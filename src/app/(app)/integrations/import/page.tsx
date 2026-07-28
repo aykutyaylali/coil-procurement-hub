@@ -28,7 +28,7 @@ export default async function ImportPage() {
         description="Excel (.xlsx) dosyasından geçmiş siparişleri güvenli, idempotent ve geri alınabilir şekilde içe aktarın."
       />
       <div className="mb-4">
-        <Link href="/integrations" className="text-sm text-primary hover:underline">â† Entegrasyon Merkezi</Link>
+        <Link href="/integrations" className="text-sm text-primary hover:underline">← Entegrasyon Merkezi</Link>
       </div>
 
       <ImportWizard />

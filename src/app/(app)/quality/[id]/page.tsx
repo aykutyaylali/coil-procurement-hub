@@ -39,7 +39,7 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
             <Link href={`/receipts/${inspection.receiptId}`} className="text-primary hover:underline">{inspection.receipt.number}</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">← Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -41,7 +41,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             {" "}· {formatDate(invoice.invoiceDate)}
           </p>
         </div>
-        <Link href="/invoices" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
+        <Link href="/invoices" className="text-sm text-primary hover:underline">← Listeye dön</Link>
       </div>
 
       {invoice.status === "BLOCKED" && invoice.blockReason && (

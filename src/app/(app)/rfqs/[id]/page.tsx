@@ -178,9 +178,14 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
             <CardContent className="space-y-2">
               {rfq.suppliers.length === 0 && <p className="text-sm text-muted-foreground">Henüz tedarikçi davet edilmedi.</p>}
               {rfq.suppliers.map((rs) => (
-                <div key={rs.id} className="flex items-center justify-between text-sm">
-                  <span>{rs.supplier.legalName}</span>
+                <div key={rs.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{rs.supplier.legalName}</span>
                   <StatusBadge status={rs.status} />
+                  {canEvaluate && (
+                    <Link href={`/rfqs/${rfq.id}/teklif-gir/${rs.id}`} className="shrink-0 text-xs text-primary hover:underline">
+                      Teklif Gir/Düzenle
+                    </Link>
+                  )}
                 </div>
               ))}
             </CardContent>

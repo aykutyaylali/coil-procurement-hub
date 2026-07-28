@@ -6,7 +6,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { add, lineNet, lineTax, formatMoney } from "@/lib/money";
-import { submitBidAction } from "./actions";
+import { submitBidAction, submitBidByBuyerAction } from "./actions";
 import type { Locale } from "@/lib/i18n";
 
 const S = {
@@ -14,7 +14,9 @@ const S = {
     terms: "Teklif Koşulları",
     currency: "Varsayılan Para Birimi",
     lineCurrency: "Para Br.",
-    paymentDays: "Ödeme Vadesi (gün)",
+    paymentDays: "Ödeme Vadesi",
+    cash: "Peşin",
+    days: "gün",
     incoterm: "Incoterm",
     items: "Kalemler",
     item: "Kalem",
@@ -48,7 +50,9 @@ const S = {
     terms: "Quotation Terms",
     currency: "Default Currency",
     lineCurrency: "Curr.",
-    paymentDays: "Payment Term (days)",
+    paymentDays: "Payment Term",
+    cash: "Advance/Cash",
+    days: "days",
     incoterm: "Incoterm",
     items: "Items",
     item: "Item",
@@ -80,6 +84,9 @@ const S = {
   },
 } as const;
 
+// Türkiye'de geçerli KDV oranları (manuel giriş yerine seçim)
+const VAT_RATES = ["0", "1", "10", "20"];
+
 interface LineState {
   willQuote: boolean;
   unitPrice: string;
@@ -91,12 +98,15 @@ interface LineState {
   currency: string;
 }
 
-export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean }) {
+export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSupplierId }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean; buyerRfqSupplierId?: string }) {
   const s = S[locale];
   const [currency, setCurrency] = useState(ctx.existingBid?.currency ?? ctx.currencyOptions[0] ?? "TRY");
   const [note, setNote] = useState(ctx.existingBid?.note ?? "");
-  const [paymentTermDays, setPaymentTermDays] = useState("");
-  const [incoterm, setIncoterm] = useState("");
+  // Ödeme vadesi: mevcut teklif > tedarikçinin kayıtlı vadesi > boş (otomatik gelir)
+  const [paymentTermDays, setPaymentTermDays] = useState(
+    ctx.existingBid?.paymentTermDays != null ? String(ctx.existingBid.paymentTermDays) : ctx.supplierPaymentTermDays != null ? String(ctx.supplierPaymentTermDays) : "",
+  );
+  const [incoterm, setIncoterm] = useState(ctx.existingBid?.incoterm ?? "");
   const [freight, setFreight] = useState("0");
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -147,8 +157,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
   async function save(submit: boolean) {
     setError("");
     setSubmitting(true);
-    const res = await submitBidAction({
-      token,
+    const payload = {
       currency,
       note: note || undefined,
       paymentTermDays: paymentTermDays ? parseInt(paymentTermDays, 10) : undefined,
@@ -166,7 +175,10 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
         note: lines[l.id]!.note || undefined,
         currency: lines[l.id]!.currency || currency,
       })),
-    });
+    };
+    const res = buyerRfqSupplierId
+      ? await submitBidByBuyerAction(buyerRfqSupplierId, payload)
+      : await submitBidAction({ token, ...payload });
     setSubmitting(false);
     setConfirming(false);
     if (!res.ok) setError(res.error);
@@ -212,7 +224,12 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
           </div>
           <div className="space-y-1.5">
             <Label>{s.paymentDays}</Label>
-            <Input value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)} placeholder="60" />
+            <Select value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)}>
+              {paymentTermDays === "" && <option value="">—</option>}
+              {[...new Set(["0", "30", "45", "60", "90", paymentTermDays].filter((v) => v !== ""))].sort((a, b) => Number(a) - Number(b)).map((d) => (
+                <option key={d} value={d}>{d === "0" ? s.cash : `${d} ${s.days}`}</option>
+              ))}
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>{s.incoterm}</Label>
@@ -299,12 +316,16 @@ export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: B
                       />
                     </TD>
                     <TD>
-                      <Input
-                        className="h-8 w-16 text-right"
+                      <Select
+                        className="h-8 w-20"
                         disabled={!ls.willQuote}
                         value={ls.taxRate}
                         onChange={(e) => update(l.id, { taxRate: e.target.value })}
-                      />
+                      >
+                        {[...new Set([...VAT_RATES, ls.taxRate])].map((r) => (
+                          <option key={r} value={r}>%{r}</option>
+                        ))}
+                      </Select>
                     </TD>
                     <TD>
                       <Input

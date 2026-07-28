@@ -18,6 +18,8 @@ export interface BidContext {
   companyName: string;
   operationType: string; // DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
   currencyOptions: string[];
+  /** Tedarikçinin kayıtlı varsayılan ödeme vadesi (gün); teklif formunda otomatik gelir. */
+  supplierPaymentTermDays: number | null;
   lines: {
     id: string;
     lineNo: number;
@@ -31,6 +33,8 @@ export interface BidContext {
     status: string;
     currency: string;
     note: string | null;
+    paymentTermDays: number | null;
+    incoterm: string | null;
     lines: Record<string, { unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: string; brand: string; note: string; willQuote: boolean; currency: string }>;
   } | null;
 }
@@ -41,7 +45,7 @@ export interface BidContext {
  * seçenekleri de eklenir. Kalem bazında farklı para birimi seçilebilir.
  */
 export function currencyOptionsFor(operationType: string, rfqOptions: string[]): string[] {
-  const base = operationType === "DOMESTIC_PURCHASE" ? ["TRY", "USD", "EUR"] : ["USD", "EUR", "TRY", "GBP"];
+  const base = operationType === "DOMESTIC_PURCHASE" ? ["TRY", "USD", "EUR", "GBP"] : ["USD", "EUR", "GBP", "TRY"];
   const merged = [...rfqOptions, ...base].filter((c) => c && c.length === 3);
   return [...new Set(merged)];
 }
@@ -97,6 +101,8 @@ export async function loadBidContext(token: string): Promise<BidContext> {
         status: rfqSupplier.bids[0].status,
         currency: rfqSupplier.bids[0].currency,
         note: rfqSupplier.bids[0].note,
+        paymentTermDays: rfqSupplier.bids[0].paymentTermDays,
+        incoterm: rfqSupplier.bids[0].incoterm,
         lines: Object.fromEntries(
           rfqSupplier.bids[0].lines.map((bl) => [
             bl.rfqLineId,
@@ -129,6 +135,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
     companyName: rfq.company.name,
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
+    supplierPaymentTermDays: rfqSupplier.supplier.defaultPaymentTermDays ?? null,
     lines: rfq.lines.map((l) => ({
       id: l.id,
       lineNo: l.lineNo,
@@ -174,6 +181,7 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
     companyName: rfq.company.name,
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
+    supplierPaymentTermDays: null,
     lines: rfq.lines.map((l) => ({
       id: l.id,
       lineNo: l.lineNo,
@@ -183,6 +191,78 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
       uom: l.uom,
     })),
     existingBid: null,
+  };
+}
+
+/**
+ * SATINALMA'nın tedarikçi adına teklif girmesi/düzeltmesi için bağlam
+ * (rfqSupplierId ile; token gerekmez, durum değişmez). Gerçek tedarikçi bilgisi
+ * ve varsa mevcut teklif döner.
+ */
+export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: string): Promise<BidContext & { supplierInvitedStatus: string }> {
+  const rfqSupplier = await prisma.rFQSupplier.findFirst({
+    where: { id: rfqSupplierId, rfq: { tenantId } },
+    include: {
+      supplier: true,
+      rfq: { include: { company: true, lines: { orderBy: { lineNo: "asc" } } } },
+      bids: { orderBy: { createdAt: "desc" }, take: 1, include: { lines: true } },
+    },
+  });
+  if (!rfqSupplier) throw new AppError("Davetli tedarikçi bulunamadı.", "NOT_FOUND", 404);
+  const rfq = rfqSupplier.rfq;
+
+  let currencyOptions: string[] = ["TRY"];
+  try {
+    currencyOptions = JSON.parse(rfq.currencyOptions);
+  } catch {
+    /* varsayılan */
+  }
+
+  const b = rfqSupplier.bids[0];
+  const existingBid = b
+    ? {
+        id: b.id,
+        status: b.status,
+        currency: b.currency,
+        note: b.note,
+        paymentTermDays: b.paymentTermDays,
+        incoterm: b.incoterm,
+        lines: Object.fromEntries(
+          b.lines.map((bl) => [
+            bl.rfqLineId,
+            {
+              unitPrice: bl.unitPrice,
+              discountPct: bl.discountPct,
+              taxRate: bl.taxRate,
+              leadTimeDays: bl.leadTimeDays?.toString() ?? "",
+              brand: bl.brand ?? "",
+              note: bl.note ?? "",
+              willQuote: bl.willQuote,
+              currency: bl.currency ?? b.currency,
+            },
+          ]),
+        ),
+      }
+    : null;
+
+  return {
+    rfqSupplierId: rfqSupplier.id,
+    rfqId: rfq.id,
+    supplierId: rfqSupplier.supplierId,
+    supplierName: rfqSupplier.supplier.legalName,
+    supplierLanguage: rfqSupplier.supplier.preferredLanguage || "tr",
+    rfqNumber: rfq.number,
+    title: rfq.title,
+    description: rfq.description,
+    dueAt: rfq.dueAt,
+    isExpired: false, // satınalma geç teklif de girebilir
+    companyName: rfq.company.name,
+    operationType: rfq.operationType,
+    currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
+    supplierPaymentTermDays: rfqSupplier.supplier.defaultPaymentTermDays ?? null,
+    lines: rfq.lines.map((l) => ({ id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom })),
+    existingBid,
+    supplierInvitedStatus: rfqSupplier.status,
   };
 }
 
@@ -208,6 +288,9 @@ export interface SaveBidInput {
   }[];
 }
 
+type PersistBidInput = Omit<SaveBidInput, "token">;
+type RfqSupplierWithRfq = Awaited<ReturnType<typeof prisma.rFQSupplier.findFirst>> extends infer T ? NonNullable<T> & { rfq: NonNullable<Awaited<ReturnType<typeof prisma.rFQ.findFirst>>> } : never;
+
 /** Teklifi kaydeder/gönderir. Fiyat hesapları backend'de doğrulanır. */
 export async function saveBid(input: SaveBidInput): Promise<{ bidId: string; total: string; status: string }> {
   const rfqSupplier = await prisma.rFQSupplier.findFirst({
@@ -222,7 +305,24 @@ export async function saveBid(input: SaveBidInput): Promise<{ bidId: string; tot
   if (input.submit && rfqSupplier.rfq.dueAt && rfqSupplier.rfq.dueAt.getTime() < Date.now()) {
     throw new AppError("Son teklif tarihi geçti; teklif gönderilemez.", "DEADLINE_PASSED", 409);
   }
+  return persistBid(rfqSupplier as RfqSupplierWithRfq, input);
+}
 
+/**
+ * SATINALMA, tedarikçi ADINA teklif girer/düzeltir (e-posta/telefonla gelen
+ * teklifleri sisteme işler veya tedarikçinin hatasını düzeltir). Token gerekmez;
+ * son teklif tarihi kısıtı uygulanmaz. RFQ_EVALUATE yetkisiyle çağrılır.
+ */
+export async function saveBidByBuyer(rfqSupplierId: string, tenantId: string, input: PersistBidInput): Promise<{ bidId: string; total: string; status: string }> {
+  const rfqSupplier = await prisma.rFQSupplier.findFirst({
+    where: { id: rfqSupplierId, rfq: { tenantId } },
+    include: { rfq: true },
+  });
+  if (!rfqSupplier) throw new AppError("Davetli tedarikçi bulunamadı.", "NOT_FOUND", 404);
+  return persistBid(rfqSupplier as RfqSupplierWithRfq, input);
+}
+
+async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInput): Promise<{ bidId: string; total: string; status: string }> {
   const round = rfqSupplier.rfq.round;
 
   // Toplam hesabı (backend doğrulaması)

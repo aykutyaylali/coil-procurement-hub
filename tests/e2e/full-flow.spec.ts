@@ -87,6 +87,16 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   await page.goto(`/teklif-onizleme/${rfqId}`);
   await expect(page.getByText(/ÖNİZLEME/)).toBeVisible({ timeout: 15000 });
   await expect(page.getByText(rfq!.number)).toBeVisible();
+
+  // Satınalma, TEDARİKÇİ ADINA teklif girer (manuel giriş / düzeltme)
+  const rs = await prisma.rFQSupplier.findFirst({ where: { rfqId }, select: { id: true } });
+  await page.goto(`/rfqs/${rfqId}/teklif-gir/${rs!.id}`);
+  await expect(page.getByText(/Tedarikçi Adına Teklif/)).toBeVisible({ timeout: 15000 });
+  // KDV artık seçim (dropdown); birim fiyat (w-28) gir + gönder
+  await page.locator("input.w-28").first().fill("250");
+  await page.getByRole("button", { name: /Teklifi Gönder/ }).click();
+  await page.getByRole("button", { name: /Onayla ve Gönder/ }).click();
+  await expect.poll(async () => prisma.bid.count({ where: { rfqSupplierId: rs!.id } }), { timeout: 15000 }).toBeGreaterThan(0);
   void context;
-  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→tedarikçiye gönder zinciri doğrulandı.`);
+  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→gönder→önizle→tedarikçi adına teklif zinciri doğrulandı.`);
 });

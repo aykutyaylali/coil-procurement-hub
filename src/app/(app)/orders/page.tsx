@@ -7,19 +7,32 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
+import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Siparişler" };
 
-export default async function OrdersPage() {
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requirePermission(PERMISSIONS.ORDER_VIEW);
-  const orders = await prisma.purchaseOrder.findMany({
-    where: { tenantId: user.tenantId },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: { supplier: true, company: true, _count: { select: { lines: true } } },
-  });
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
+  const where = { tenantId: user.tenantId };
+
+  const [orders, total] = await Promise.all([
+    prisma.purchaseOrder.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      ...pageArgs(page),
+      select: {
+        id: true, number: true, grandTotal: true, currency: true, status: true, orderDate: true,
+        supplier: { select: { legalName: true } },
+        company: { select: { name: true } },
+        _count: { select: { lines: true } },
+      },
+    }),
+    prisma.purchaseOrder.count({ where }),
+  ]);
 
   return (
     <div>
@@ -62,6 +75,7 @@ export default async function OrdersPage() {
           </Table>
         )}
       </Card>
+      <Pagination page={page} total={total} basePath="/orders" />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
+import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
@@ -16,11 +17,12 @@ export const metadata: Metadata = { title: "Talepler" };
 export default async function RequisitionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const user = await requirePermission(PERMISSIONS.REQUISITION_VIEW);
   const canCreate = userCan(user, PERMISSIONS.REQUISITION_CREATE);
   const sp = await searchParams;
+  const page = parsePage(sp.page);
 
   const where = {
     tenantId: user.tenantId,
@@ -30,12 +32,22 @@ export default async function RequisitionsPage({
       : {}),
   };
 
-  const requisitions = await prisma.purchaseRequisition.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: { requester: true, company: true, department: true, _count: { select: { lines: true } } },
-  });
+  // Sadece gerekli sütunlar (include:true yerine select — hassas alan sızıntısı yok) + sayfalama
+  const [requisitions, total] = await Promise.all([
+    prisma.purchaseRequisition.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      ...pageArgs(page),
+      select: {
+        id: true, number: true, priority: true, status: true, estimatedTotal: true, currency: true, createdAt: true,
+        company: { select: { name: true } },
+        department: { select: { name: true } },
+        requester: { select: { name: true } },
+        _count: { select: { lines: true } },
+      },
+    }),
+    prisma.purchaseRequisition.count({ where }),
+  ]);
 
   const statuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "IN_RFQ", "ORDERED", "REJECTED"];
 
@@ -108,6 +120,7 @@ export default async function RequisitionsPage({
           </Table>
         )}
       </Card>
+      <Pagination page={page} total={total} basePath="/requisitions" query={{ status: sp.status, q: sp.q }} />
     </div>
   );
 }

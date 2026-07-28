@@ -394,6 +394,7 @@ model ApprovalInstance {
 
   actions ApprovalAction[]
 
+  @@index([status])
   @@index([documentType, documentId])
   @@index([workflowId])
 }
@@ -605,6 +606,7 @@ model Supplier {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([tenantId, taxNumber])
+  @@index([tenantId, legalName])
 }
 
 model SupplierContact {
@@ -1152,6 +1154,7 @@ model PurchaseOrder {
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
   @@index([supplierId])
 }
 

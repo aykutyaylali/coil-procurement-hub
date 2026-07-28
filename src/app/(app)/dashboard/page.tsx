@@ -3,7 +3,7 @@ import Link from "next/link";
 import * as Icons from "lucide-react";
 import { requireUser } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
-import { pendingApprovalsForUser } from "@/domain/approval";
+import { getMyPendingApprovals } from "@/lib/pending";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatMoney, add } from "@/lib/money";
@@ -80,21 +80,26 @@ export default async function DashboardPage() {
     }),
     prisma.invoice.count({ where: { tenantId, status: { in: ["MATCHING", "MATCHED", "APPROVED"] } } }),
     prisma.invoice.count({ where: { tenantId, status: "BLOCKED" } }),
-    pendingApprovalsForUser(prisma, user.id, user.roleKeys),
+    getMyPendingApprovals(),
     prisma.purchaseRequisition.findMany({
       where: { tenantId },
       orderBy: { createdAt: "desc" },
       take: 6,
-      include: { requester: true, company: true },
+      select: {
+        id: true, number: true, status: true, estimatedTotal: true, currency: true, createdAt: true,
+        requester: { select: { name: true } },
+        company: { select: { name: true } },
+      },
     }),
+    // Yalnızca TRY siparişlerin tutarını çek (tüm siparişleri çekip JS'de filtrelemek yerine)
     prisma.purchaseOrder.findMany({
-      where: { tenantId, status: { notIn: ["CANCELLED"] } },
-      select: { grandTotal: true, currency: true },
+      where: { tenantId, currency: "TRY", status: { notIn: ["CANCELLED"] } },
+      select: { grandTotal: true },
     }),
   ]);
 
-  // Basit toplam harcama (TRY bazlı gösterim; çoklu döviz raporlar sayfasında ayrıştırılır)
-  const totalSpend = add(...poAgg.filter((p) => p.currency === "TRY").map((p) => p.grandTotal));
+  // Toplam harcama (TRY bazlı gösterim; çoklu döviz raporlar sayfasında ayrıştırılır)
+  const totalSpend = add(...poAgg.map((p) => p.grandTotal));
 
   return (
     <div className="space-y-6">

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
-import { pendingApprovalsForUser } from "@/domain/approval";
+import { getMyPendingApprovals } from "@/lib/pending";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
@@ -17,8 +17,8 @@ const DOC_ROUTES: Record<string, { path: string; label: string }> = {
 };
 
 export default async function ApprovalsPage() {
-  const user = await requireUser();
-  const pending = await pendingApprovalsForUser(prisma, user.id, user.roleKeys);
+  await requireUser(); // auth guard (giriş yoksa yönlendirir)
+  const pending = await getMyPendingApprovals();
 
   // Belge özetlerini çöz
   const rows = await Promise.all(

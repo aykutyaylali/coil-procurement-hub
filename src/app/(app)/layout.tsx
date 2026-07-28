@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, userCan } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
-import { pendingApprovalsForUser } from "@/domain/approval";
+import { getMyPendingApprovals } from "@/lib/pending";
 import { NAV_ITEMS } from "@/components/shell/nav-config";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const visibleNav = NAV_ITEMS.filter((item) => !item.permission || userCan(user, item.permission));
 
   const [pending, unread] = await Promise.all([
-    pendingApprovalsForUser(prisma, user.id, user.roleKeys),
+    getMyPendingApprovals(),
     prisma.notification.count({ where: { userId: user.id, isRead: false } }),
   ]);
 

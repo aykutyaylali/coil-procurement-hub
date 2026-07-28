@@ -7,19 +7,30 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
+import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { opLabel } from "@/domain/operations";
 
 export const metadata: Metadata = { title: "Tedarikçiler" };
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requirePermission(PERMISSIONS.SUPPLIER_VIEW);
   const canCreate = userCan(user, PERMISSIONS.SUPPLIER_CREATE);
-  const suppliers = await prisma.supplier.findMany({
-    where: { tenantId: user.tenantId, deletedAt: null },
-    orderBy: { legalName: "asc" },
-    take: 200,
-    include: { _count: { select: { purchaseOrders: true, contacts: true } } },
-  });
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
+  const where = { tenantId: user.tenantId, deletedAt: null };
+
+  const [suppliers, total] = await Promise.all([
+    prisma.supplier.findMany({
+      where,
+      orderBy: { legalName: "asc" },
+      ...pageArgs(page),
+      select: {
+        id: true, code: true, legalName: true, supplierType: true, country: true, operationTypes: true, status: true,
+        _count: { select: { purchaseOrders: true } },
+      },
+    }),
+    prisma.supplier.count({ where }),
+  ]);
 
   return (
     <div>
@@ -74,6 +85,7 @@ export default async function SuppliersPage() {
           </Table>
         )}
       </Card>
+      <Pagination page={page} total={total} basePath="/suppliers" />
     </div>
   );
 }

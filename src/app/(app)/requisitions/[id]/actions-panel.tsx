@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { submitRequisition, decideRequisition } from "../actions";
+import { submitRequisition, decideRequisition, takeRequisitionIntoProcess } from "../actions";
 
 export function RequisitionActionsPanel({
   id,
@@ -13,12 +13,14 @@ export function RequisitionActionsPanel({
   canSubmit,
   canDecide,
   canCreateRfq,
+  canAssign,
 }: {
   id: string;
   status: string;
   canSubmit: boolean;
   canDecide: boolean;
   canCreateRfq: boolean;
+  canAssign: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -105,7 +107,26 @@ export function RequisitionActionsPanel({
         </div>
       )}
 
-      {canCreateRfq && (status === "APPROVED" || status === "IN_RFQ") && (
+      {canAssign && status === "APPROVED" && (
+        <Button
+          className="w-full"
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true); setError("");
+            const res = await takeRequisitionIntoProcess(id);
+            setBusy(false);
+            if (!res.ok) { setError(res.error); toast({ type: "error", title: "İşleme alınamadı.", description: res.error }); return; }
+            toast({ type: "success", title: "Talep işleme alındı.", description: "Durum: Satınalma İşleme Aldı." });
+            router.refresh();
+          }}
+          disabled={busy}
+        >
+          {busy && <Loader2 className="size-4 animate-spin" />}
+          Satınalma İşleme Al
+        </Button>
+      )}
+
+      {canCreateRfq && (status === "APPROVED" || status === "ASSIGNED" || status === "IN_RFQ") && (
         <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           Teklif talebi (RFQ) oluşturmak için soldaki <b>Talep Kalemleri</b> bölümünden kalemleri seçin.
           Farklı tedarikçiler için kalemleri ayrı ayrı seçip birden fazla RFQ oluşturabilirsiniz.

@@ -50,7 +50,7 @@ export default async function RequisitionsPage({
     prisma.purchaseRequisition.count({ where }),
   ]);
 
-  const statuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "IN_RFQ", "ORDERED", "REJECTED"];
+  const statuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "ASSIGNED", "IN_RFQ", "ORDERED", "REJECTED"];
 
   return (
     <div>

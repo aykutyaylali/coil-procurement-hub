@@ -228,6 +228,26 @@ export async function submitRequisition(id: string): Promise<Result<{ status: st
   }
 }
 
+/**
+ * Satınalma bir onaylı talebi "İŞLEME ALIR": durum APPROVED → ASSIGNED, alıcı
+ * atanır. Böylece satınalma hangi talepleri gördüğünü/işleyeceğini ayırt eder.
+ */
+export async function takeRequisitionIntoProcess(id: string): Promise<Result<{ status: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.REQUISITION_ASSIGN);
+    const req = await prisma.purchaseRequisition.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!req) throw new NotFoundError("Talep bulunamadı.");
+    assertTransition(REQUISITION_TRANSITIONS, req.status, "ASSIGNED", "Talep");
+    await prisma.purchaseRequisition.update({ where: { id: req.id }, data: { status: "ASSIGNED", assignedBuyerId: user.id } });
+    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "STATUS_CHANGE", entityType: "PurchaseRequisition", entityId: req.id, before: { status: req.status }, after: { status: "ASSIGNED", assignedBuyer: user.id }, reason: "Satınalma işleme aldı" });
+    revalidatePath(`/requisitions/${id}`);
+    revalidatePath("/requisitions");
+    return ok({ status: "ASSIGNED" });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 const decideSchema = z.object({
   id: z.string(),
   action: z.enum(["APPROVE", "REJECT", "REQUEST_CHANGE", "REQUEST_INFO", "FORWARD"]),

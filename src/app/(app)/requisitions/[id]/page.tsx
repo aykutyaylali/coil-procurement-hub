@@ -65,6 +65,7 @@ export default async function RequisitionDetailPage({
 
   const canSubmit = req.requesterId === user.id || user.isSystemAdmin;
   const canCreateRfq = userCan(user, PERMISSIONS.RFQ_CREATE);
+  const canAssign = userCan(user, PERMISSIONS.REQUISITION_ASSIGN);
 
   return (
     <div>
@@ -149,6 +150,7 @@ export default async function RequisitionDetailPage({
                 canSubmit={canSubmit}
                 canDecide={canDecide}
                 canCreateRfq={canCreateRfq}
+                canAssign={canAssign}
               />
             </CardContent>
           </Card>

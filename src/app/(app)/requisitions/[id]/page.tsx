@@ -66,6 +66,11 @@ export default async function RequisitionDetailPage({
   const canSubmit = req.requesterId === user.id || user.isSystemAdmin;
   const canCreateRfq = userCan(user, PERMISSIONS.RFQ_CREATE);
   const canAssign = userCan(user, PERMISSIONS.REQUISITION_ASSIGN);
+  const editableStatuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "ASSIGNED", "REJECTED"];
+  const canEditReq =
+    (req.requesterId === user.id || user.isSystemAdmin || userCan(user, PERMISSIONS.REQUISITION_EDIT)) &&
+    editableStatuses.includes(req.status);
+  const canDeleteReq = userCan(user, PERMISSIONS.REQUISITION_EDIT);
 
   return (
     <div>
@@ -151,6 +156,8 @@ export default async function RequisitionDetailPage({
                 canDecide={canDecide}
                 canCreateRfq={canCreateRfq}
                 canAssign={canAssign}
+                canEdit={canEditReq}
+                canDelete={canDeleteReq}
               />
             </CardContent>
           </Card>

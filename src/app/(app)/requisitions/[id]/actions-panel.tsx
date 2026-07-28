@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { submitRequisition, decideRequisition, takeRequisitionIntoProcess } from "../actions";
+import { submitRequisition, decideRequisition, takeRequisitionIntoProcess, deleteRequisition } from "../actions";
 
 export function RequisitionActionsPanel({
   id,
@@ -14,6 +14,8 @@ export function RequisitionActionsPanel({
   canDecide,
   canCreateRfq,
   canAssign,
+  canEdit,
+  canDelete,
 }: {
   id: string;
   status: string;
@@ -21,6 +23,8 @@ export function RequisitionActionsPanel({
   canDecide: boolean;
   canCreateRfq: boolean;
   canAssign: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -44,6 +48,17 @@ export function RequisitionActionsPanel({
     }
     toast({ type: "success", title: res.data.status === "PENDING_APPROVAL" ? "Talep onaya gönderildi." : "Talep gönderildi." });
     router.refresh();
+  }
+
+  async function doDelete() {
+    if (!confirm("Bu talep kalıcı olarak silinecek. Onaylıyor musunuz?")) return;
+    if (busy) return;
+    setBusy(true); setError("");
+    const res = await deleteRequisition(id);
+    setBusy(false);
+    if (!res.ok) { setError(res.error); toast({ type: "error", title: "Talep silinemedi.", description: res.error }); return; }
+    toast({ type: "success", title: "Talep silindi." });
+    router.push("/requisitions");
   }
 
   async function doDecide(action: "APPROVE" | "REJECT" | "REQUEST_CHANGE") {
@@ -131,6 +146,21 @@ export function RequisitionActionsPanel({
           Teklif talebi (RFQ) oluşturmak için soldaki <b>Talep Kalemleri</b> bölümünden kalemleri seçin.
           Farklı tedarikçiler için kalemleri ayrı ayrı seçip birden fazla RFQ oluşturabilirsiniz.
         </p>
+      )}
+
+      {(canEdit || canDelete) && (
+        <div className="flex gap-2 border-t pt-3">
+          {canEdit && (
+            <Button variant="outline" className="flex-1" onClick={() => router.push(`/requisitions/${id}/edit`)} disabled={busy}>
+              <Pencil className="size-4" /> Düzelt
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="ghost" className="flex-1 text-destructive hover:bg-destructive/10" onClick={doDelete} disabled={busy}>
+              <Trash2 className="size-4" /> Sil
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

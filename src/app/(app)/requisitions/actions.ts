@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireUser, requirePermission } from "@/lib/auth/context";
+import { requireUser, requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { nextNumber } from "@/domain/numbering";
 import { actOnApproval, buildApprovalInstance, type ApprovalActionType } from "@/domain/approval";
@@ -223,6 +223,98 @@ export async function submitRequisition(id: string): Promise<Result<{ status: st
     revalidatePath("/requisitions");
     revalidatePath("/approvals");
     return ok(result);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const EDITABLE_STATUSES = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "ASSIGNED", "REJECTED"];
+
+/**
+ * Talebi DÜZELTİR (yönetici/satınalma veya talep sahibi). Genel bilgiler ve
+ * kalemler güncellenir. Teklife/siparişe geçmiş (IN_RFQ/ORDERED/CLOSED) talepler
+ * düzeltilemez (veri bütünlüğü). Kalemler tümüyle yenilenir.
+ */
+export async function updateRequisition(input: unknown): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requireUser();
+    const data = draftSchema.extend({ id: z.string() }).parse(input);
+    const existing = await prisma.purchaseRequisition.findFirst({ where: { id: data.id, tenantId: user.tenantId } });
+    if (!existing) throw new NotFoundError("Talep bulunamadı.");
+
+    const canEdit = existing.requesterId === user.id || user.isSystemAdmin || userCan(user, PERMISSIONS.REQUISITION_EDIT);
+    if (!canEdit) throw new ForbiddenError("Bu talebi düzenleme yetkiniz yok.");
+    if (!EDITABLE_STATUSES.includes(existing.status)) {
+      throw new ValidationError(`Bu durumdaki talep düzeltilemez (${existing.status}). Teklif/sipariş aşamasına geçmiş talepler değiştirilemez.`);
+    }
+
+    const lines = meaningfulLines(data.lines);
+    const estimatedTotal = add(...lines.map((l) => lineNet(l.quantity || "0", l.estUnitPrice || "0")));
+
+    await prisma.$transaction(async (tx) => {
+      // RFQ'ya bağlı kalem yoksa güvenle tüm kalemleri yenile
+      await tx.requisitionLine.deleteMany({ where: { requisitionId: existing.id } });
+      await tx.purchaseRequisition.update({
+        where: { id: existing.id },
+        data: {
+          companyId: data.companyId,
+          departmentId: data.departmentId || null,
+          costCenterId: data.costCenterId || null,
+          projectId: data.projectId || null,
+          priority: data.priority,
+          purchaseType: data.purchaseType,
+          operationType: data.operationType,
+          exportProjectNo: data.exportProjectNo || null,
+          targetCountry: data.targetCountry || null,
+          neededBy: data.neededBy ? new Date(data.neededBy) : null,
+          justification: data.justification || null,
+          internalNote: data.internalNote || null,
+          estimatedTotal: toStr(estimatedTotal, 2),
+          lines: {
+            create: lines.map((l, i) => ({
+              lineNo: i + 1,
+              description: l.description,
+              quantity: toStr(l.quantity || "0", 4),
+              uom: l.uom || null,
+              estUnitPrice: toStr(l.estUnitPrice || "0", 4),
+              currency: existing.currency,
+              categoryId: l.categoryId || null,
+            })),
+          },
+        },
+      });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "PurchaseRequisition", entityId: existing.id, before: { estimatedTotal: existing.estimatedTotal }, after: { estimatedTotal: toStr(estimatedTotal, 2), lineCount: lines.length }, reason: "Talep düzeltildi" }, tx);
+    });
+    revalidatePath(`/requisitions/${existing.id}`);
+    revalidatePath("/requisitions");
+    return ok({ id: existing.id });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Talebi SİLER (yönetici/satınalma yetkisi). Teklif talebine bağlı (RFQ'da olan)
+ * talepler silinemez; önce ilgili RFQ iptal edilmelidir.
+ */
+export async function deleteRequisition(id: string): Promise<Result<null>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.REQUISITION_EDIT);
+    const req = await prisma.purchaseRequisition.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!req) throw new NotFoundError("Talep bulunamadı.");
+
+    const rfqRefs = await prisma.rFQLine.count({ where: { requisitionId: req.id } });
+    if (rfqRefs > 0) {
+      throw new ValidationError("Bu talebe bağlı teklif talebi (RFQ) var. Önce ilgili RFQ'yu iptal edin, sonra silin.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.requisitionLine.deleteMany({ where: { requisitionId: req.id } });
+      await tx.purchaseRequisition.delete({ where: { id: req.id } });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "PurchaseRequisition", entityId: req.id, before: { number: req.number, status: req.status }, reason: "Talep silindi" }, tx);
+    });
+    revalidatePath("/requisitions");
+    return ok(null);
   } catch (e) {
     return fail(e);
   }

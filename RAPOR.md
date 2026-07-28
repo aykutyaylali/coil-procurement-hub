@@ -1,7 +1,19 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 4. oturum — **acil hata düzeltme + performans fazı** bitti (son commit `ad0e3ff`).
+> Son güncelleme: 4. oturum — acil hata+performans fazı + onay politikası + Excel talep import (son commit `a226861`).
+
+## 4. oturum ek işler (onay politikası + talep import)
+
+- **Onay politikası (`ea3d494`)** — "her talep onaya gitmesin": onaya gidip gitmeyeceğini **satınalma** belirler.
+  Company.settings'te `reqApproval` (ALWAYS/THRESHOLD/NEVER + eşik). `/requisitions/approval-policy` ekranı
+  (REQUISITION_ASSIGN = satınalma). Eşik altı talepler onay beklemeden APPROVED olur; satınalma doğrudan RFQ yapar.
+- **Excel talep import (`a226861`)** — Excel "Kalem Detayları"ndaki Talep No + Talep Eden'den türetildi:
+  **18 talep açan → kullanıcı** (giriş yapamaz, passwordHash null, `@imported.coilpartners.com`),
+  **433 talep → PurchaseRequisition (ORDERED) + 1032 kalem**. Mutabık (18/18, 433/433, 1032/1032), idempotent.
+  `scripts/import-requisitions.ts` (yedek sonrası çalışır, Excel salt-okunur, boş fiyat 0 uydurulmaz).
+- **Menü yavaşlığı**: ölçüldü — **DEV modu kaynaklı** (cold ~2800ms derleme, warm ~1130ms); production ~730ms.
+  Hız için `npm run build` + production `next start` önerilir (anında loading iskeleti + prefetch eklendi).
 
 ## Genel durum
 

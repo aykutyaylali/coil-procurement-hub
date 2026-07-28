@@ -37,7 +37,7 @@ const envSchema = z.object({
   STORAGE_LOCAL_DIR: z.string().default("./storage"),
 
   REDIS_URL: z.string().optional(),
-  EXCHANGE_RATE_PROVIDER: z.enum(["tcmb", "manual", "mock"]).default("mock"),
+  EXCHANGE_RATE_PROVIDER: z.enum(["tcmb", "manual", "mock"]).default("tcmb"),
   ANTIVIRUS_PROVIDER: z.enum(["clamav", "none"]).default("none"),
 
   FEATURE_AI: z

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requirePermission } from "@/lib/auth/context";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -19,6 +19,7 @@ export default async function RequisitionsPage({
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const user = await requirePermission(PERMISSIONS.REQUISITION_VIEW);
+  const canCreate = userCan(user, PERMISSIONS.REQUISITION_CREATE);
   const sp = await searchParams;
 
   const where = {
@@ -43,7 +44,7 @@ export default async function RequisitionsPage({
       <PageHeader
         title="Satınalma Talepleri"
         description="Departman ihtiyaçları için talep oluşturun ve takip edin."
-        action={{ label: "Yeni Talep", href: "/requisitions/new" }}
+        action={canCreate ? { label: "Yeni Talep", href: "/requisitions/new" } : undefined}
       />
 
       <div className="mb-4 flex flex-wrap gap-2">

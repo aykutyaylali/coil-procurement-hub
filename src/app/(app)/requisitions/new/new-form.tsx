@@ -5,7 +5,7 @@ import { Trash2, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { createRequisition } from "../actions";
+import { createRequisition, submitRequisition } from "../actions";
 import { lineNet, formatMoney, add } from "@/lib/money";
 
 interface Opt {
@@ -104,12 +104,23 @@ export function NewRequisitionForm({
         categoryId: l.categoryId || undefined,
       })),
     });
-    setSubmitting(false);
     if (!res.ok) {
+      setSubmitting(false);
       setError(res.error);
       return;
     }
-    router.push(`/requisitions/${res.data.id}${saveDraft ? "" : "?submit=1"}`);
+    // "Kaydet ve Onaya Gönder" ise gerçekten onaya gönder
+    if (!saveDraft) {
+      const sub = await submitRequisition(res.data.id);
+      if (!sub.ok) {
+        setSubmitting(false);
+        setError(sub.error);
+        router.push(`/requisitions/${res.data.id}`);
+        return;
+      }
+    }
+    setSubmitting(false);
+    router.push(`/requisitions/${res.data.id}`);
   }
 
   return (

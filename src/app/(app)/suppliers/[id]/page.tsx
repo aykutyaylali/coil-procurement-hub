@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { requirePermission } from "@/lib/auth/context";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { opLabel } from "@/domain/operations";
 export default async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.SUPPLIER_VIEW);
+  const canEdit = userCan(user, PERMISSIONS.SUPPLIER_EDIT);
 
   const s = await prisma.supplier.findFirst({
     where: { id, tenantId: user.tenantId },
@@ -44,7 +45,10 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
             {s.code} · {s.country} · Tercih dil: {s.preferredLanguage.toUpperCase()}
           </p>
         </div>
-        <Link href="/suppliers" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+        <div className="flex items-center gap-4">
+          {canEdit && <Link href={`/suppliers/${s.id}/edit`} className="text-sm text-primary hover:underline">Düzenle</Link>}
+          <Link href="/suppliers" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

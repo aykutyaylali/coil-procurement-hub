@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requirePermission } from "@/lib/auth/context";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
@@ -13,6 +13,7 @@ export const metadata: Metadata = { title: "Tedarikçiler" };
 
 export default async function SuppliersPage() {
   const user = await requirePermission(PERMISSIONS.SUPPLIER_VIEW);
+  const canCreate = userCan(user, PERMISSIONS.SUPPLIER_CREATE);
   const suppliers = await prisma.supplier.findMany({
     where: { tenantId: user.tenantId, deletedAt: null },
     orderBy: { legalName: "asc" },
@@ -22,10 +23,14 @@ export default async function SuppliersPage() {
 
   return (
     <div>
-      <PageHeader title="Tedarikçiler" description="Yerli ve yabancı tedarikçi kartları, onboarding ve performans." />
+      <PageHeader
+        title="Tedarikçiler"
+        description="Yerli ve yabancı tedarikçi kartları, onboarding ve performans."
+        action={canCreate ? { label: "Yeni Tedarikçi", href: "/suppliers/new" } : undefined}
+      />
       <Card>
         {suppliers.length === 0 ? (
-          <EmptyState title="Tedarikçi yok" hint="Seed verisi yükleyin veya yeni tedarikçi ekleyin." />
+          <EmptyState title="Tedarikçi yok" hint={canCreate ? "“Yeni Tedarikçi” ile ekleyin veya seed verisi yükleyin." : "Seed verisi yükleyin."} />
         ) : (
           <Table>
             <THead>

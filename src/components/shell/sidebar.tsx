@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,13 +30,17 @@ export function Sidebar({ items }: { items: NavItem[] }) {
         collapsed ? "w-16" : "w-64",
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-          C
-        </div>
-        {!collapsed && (
-          <span className="truncate text-sm font-semibold">Coil Procurement Hub</span>
-        )}
+      <div className="flex h-14 items-center border-b px-3">
+        <Link href="/dashboard" className="flex items-center rounded-md bg-white px-2 py-1 shadow-sm ring-1 ring-black/5" title="Coil Partners">
+          <Image
+            src="/brand/coil-logo.png"
+            alt="Coil Partners"
+            width={281}
+            height={120}
+            priority
+            className={cn("w-auto", collapsed ? "h-6" : "h-7")}
+          />
+        </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">

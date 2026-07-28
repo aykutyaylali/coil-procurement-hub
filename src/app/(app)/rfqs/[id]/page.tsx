@@ -76,6 +76,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <a href={`/teklif-onizleme/${rfq.id}`} target="_blank" rel="noopener" className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10">👁 Teklif Sayfasını Önizle</a>
           <a href={`/rfqs/${rfq.id}/pdf`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">RFQ PDF</a>
           <a href={`/rfqs/${rfq.id}/comparison-pdf`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">Karşılaştırma PDF</a>
           <Link href="/rfqs" className="text-sm text-primary hover:underline">← Listeye dön</Link>

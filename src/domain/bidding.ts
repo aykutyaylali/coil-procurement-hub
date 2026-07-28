@@ -127,6 +127,50 @@ export async function loadBidContext(token: string): Promise<BidContext> {
   };
 }
 
+/**
+ * Tedarikçi teklif sayfasının ÖNİZLEMESİ için bağlam (token gerektirmez).
+ * Satınalma, tedarikçinin göreceği sayfayı kontrol amaçlı görüntüler; hiçbir
+ * durum değişmez (VIEWED işaretlenmez) ve teklif gönderilemez.
+ */
+export async function loadBidContextForPreview(rfqId: string, tenantId: string): Promise<BidContext> {
+  const rfq = await prisma.rFQ.findFirst({
+    where: { id: rfqId, tenantId },
+    include: { company: true, lines: { orderBy: { lineNo: "asc" } } },
+  });
+  if (!rfq) throw new AppError("RFQ bulunamadı.", "NOT_FOUND", 404);
+
+  let currencyOptions: string[] = ["TRY"];
+  try {
+    currencyOptions = JSON.parse(rfq.currencyOptions);
+  } catch {
+    /* varsayılan */
+  }
+
+  return {
+    rfqSupplierId: "preview",
+    rfqId: rfq.id,
+    supplierId: "preview",
+    supplierName: "(Örnek Tedarikçi — Önizleme)",
+    supplierLanguage: "tr",
+    rfqNumber: rfq.number,
+    title: rfq.title,
+    description: rfq.description,
+    dueAt: rfq.dueAt,
+    isExpired: false, // önizlemede form her zaman görünür
+    companyName: rfq.company.name,
+    currencyOptions,
+    lines: rfq.lines.map((l) => ({
+      id: l.id,
+      lineNo: l.lineNo,
+      description: l.description,
+      specs: l.specs,
+      quantity: l.quantity,
+      uom: l.uom,
+    })),
+    existingBid: null,
+  };
+}
+
 export interface SaveBidInput {
   token: string;
   currency: string;

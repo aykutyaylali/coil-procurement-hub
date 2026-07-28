@@ -88,7 +88,7 @@ interface LineState {
   note: string;
 }
 
-export function BidForm({ ctx, token, locale = "tr" }: { ctx: BidContext; token: string; locale?: Locale }) {
+export function BidForm({ ctx, token, locale = "tr", preview = false }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean }) {
   const s = S[locale];
   const [currency, setCurrency] = useState(ctx.existingBid?.currency ?? ctx.currencyOptions[0] ?? "TRY");
   const [note, setNote] = useState(ctx.existingBid?.note ?? "");
@@ -320,12 +320,20 @@ export function BidForm({ ctx, token, locale = "tr" }: { ctx: BidContext; token:
           <div className="text-2xl font-bold">{formatMoney(grandTotal, currency)}</div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => save(false)} disabled={submitting}>
-            {s.saveDraft}
-          </Button>
-          <Button onClick={() => setConfirming(true)} disabled={submitting}>
-            {s.submit}
-          </Button>
+          {preview ? (
+            <span className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              Önizleme — bu sayfa tedarikçinin gördüğü haldir; gönderim kapalıdır.
+            </span>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => save(false)} disabled={submitting}>
+                {s.saveDraft}
+              </Button>
+              <Button onClick={() => setConfirming(true)} disabled={submitting}>
+                {s.submit}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

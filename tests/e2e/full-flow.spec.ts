@@ -82,6 +82,11 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   expect(errs.join(" ")).not.toMatch(/Veritabanı işlemi tamamlanamadı|database is locked/i);
   // Davet oluşmalı
   await expect.poll(async () => prisma.rFQSupplier.count({ where: { rfqId } }), { timeout: 15000 }).toBeGreaterThan(0);
+
+  // Satınalma, tedarikçi teklif sayfasını ÖNİZLER (kontrol amaçlı, token'sız)
+  await page.goto(`/teklif-onizleme/${rfqId}`);
+  await expect(page.getByText(/ÖNİZLEME/)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(rfq!.number)).toBeVisible();
   void context;
   console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→tedarikçiye gönder zinciri doğrulandı.`);
 });

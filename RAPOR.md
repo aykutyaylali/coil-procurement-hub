@@ -60,6 +60,22 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 - **Not:** geliştirme sırasında bazı dosyalarda oluşan Türkçe karakter (mojibake) bozulması tespit edildi ve
   **tüm kaynak dosyalarda deterministik onarıldı** (0 kaldı, doğrulandı). PDF başlıkları artık doğru: "SATINALMA SİPARİŞİ", "TEDARİKÇİ".
 
+### PostgreSQL Doğrulaması — GERÇEKTEN ÇALIŞTIRILDI VE DOĞRULANDI
+- Docker/WSL2 kurulu değildi ve WSL2 yeniden başlatma gerektirdiğinden, **native PostgreSQL 16**
+  winget ile kuruldu (reboot yok). Cluster `C:\Users\Aykut\pgdata`, port 5432, superuser `postgres`.
+- **Gerçek Prisma migration** oluşturuldu ve uygulandı: `prisma/migrations/20260728061258_init/`.
+- Seed PG'de çalıştı: 9 kullanıcı, 16 rol, 15 tedarikçi, 1 şirket (tüm demo hesaplar mevcut).
+- **Doğrulama sonuçları (hepsi geçti):**
+  - Production build (postgresql provider): **temiz**
+  - Unit testler: **48/48**
+  - Davranış doğrulaması **7/7**: decimal-as-string hassasiyet, tarih UTC, JSON round-trip (Türkçe),
+    unique constraint (P2002), transaction rollback, tenant izolasyonu, Türkçe UTF8 arama.
+  - **Playwright E2E (PG-destekli sunucu üzerinde): 5/5** (giriş akışı, RBAC, magic-link, i18n).
+  - **backup/restore:** `pg_dump -Fc` (194KB) → yeni DB'ye `pg_restore` → doğrulandı.
+- Doğrulama sonrası **SQLite'a geri dönüldü**; import verisi korundu (492 PO = 490 imported + 2 seed).
+- Prod geçişi: `schema.prisma` provider `postgresql` + `prisma migrate deploy` (migration seti hazır).
+- PG servisi manuel başlatıldı: `& "C:\Program Files\PostgreSQL\16\bin\pg_ctl" -D C:\Users\Aykut\pgdata start`.
+
 ## Kalan işler (sıradaki oturum)
 
 - **PDF modülünü commit et** (kod hazır, build temiz).

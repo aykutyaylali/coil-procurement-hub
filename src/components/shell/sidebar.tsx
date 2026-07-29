@@ -18,10 +18,29 @@ export function Sidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState<Record<string, boolean>>({});
 
   const groups = Array.from(new Set(items.map((i) => i.group)));
   const groupLabel = (g: NavItem["group"]) =>
     g === "main" ? "" : t(`group.${g}` as TranslationKey);
+
+  const renderLink = (item: NavItem) => {
+    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={t(item.labelKey as TranslationKey)}
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          active ? "bg-primary/10 text-primary" : "text-foreground/70 hover:bg-accent hover:text-foreground",
+        )}
+      >
+        <Icon name={item.icon} className="size-4 shrink-0" />
+        {!collapsed && <span className="truncate">{t(item.labelKey as TranslationKey)}</span>}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -47,6 +66,9 @@ export function Sidebar({ items }: { items: NavItem[] }) {
         {groups.map((group) => {
           const groupItems = items.filter((i) => i.group === group);
           if (groupItems.length === 0) return null;
+          const primary = groupItems.filter((i) => !i.secondary);
+          const secondary = groupItems.filter((i) => i.secondary);
+          const open = showAdvanced[group];
           return (
             <div key={group} className="mb-3">
               {!collapsed && groupLabel(group) && (
@@ -54,26 +76,21 @@ export function Sidebar({ items }: { items: NavItem[] }) {
                   {groupLabel(group)}
                 </div>
               )}
-              {groupItems.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={t(item.labelKey as TranslationKey)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground/70 hover:bg-accent hover:text-foreground",
-                    )}
+              {primary.map(renderLink)}
+              {secondary.length > 0 && !collapsed && (
+                <>
+                  <button
+                    onClick={() => setShowAdvanced((s) => ({ ...s, [group]: !s[group] }))}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-[11px] text-muted-foreground/70 hover:bg-accent hover:text-foreground"
+                    aria-expanded={open}
                   >
-                    <Icon name={item.icon} className="size-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{t(item.labelKey as TranslationKey)}</span>}
-                  </Link>
-                );
-              })}
+                    <Icon name={open ? "ChevronDown" : "ChevronRight"} className="size-3" />
+                    İleri
+                  </button>
+                  {open && secondary.map(renderLink)}
+                </>
+              )}
+              {secondary.length > 0 && collapsed && secondary.map(renderLink)}
             </div>
           );
         })}

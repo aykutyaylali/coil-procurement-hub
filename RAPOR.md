@@ -1,13 +1,56 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 4. oturum — acil hata+performans fazı + onay politikası + Excel talep import (son commit `a226861`).
+> Son güncelleme: 5. oturum — gerçek kullanım geri bildirimleri (talep akışı, tedarikçi teklif portalı,
+> TCMB kur, veri temizliği, keşfedilebilirlik) — son commit `0e0d775`.
+
+## 5. oturum — gerçek kullanım geri bildirimleri (ayrı commitler)
+
+Kullanıcı canlı denerken bildirdiği sorunlar/istekler tek tek, kök nedeninden çözüldü:
+
+### Talep akışı
+- **Talep onayı VARSAYILAN KAPALI (`48511ee`)** — "tüm malzemeler onaya giderse iş yürümez": artık talep
+  açılınca doğrudan işleme girer (DEFAULT_REQ_APPROVAL_POLICY = **NEVER**). Yönetim onayı **teklif sonrası
+  sipariş (PO) aşamasında opsiyonel**. Satınalma isterse politikayı THRESHOLD/ALWAYS yapabilir.
+- **Talep formu sadeleştirildi (`b5f7160`)** — talebi açan **fiyat/para birimi/KDV girmez** (bilmez);
+  bunları satınalma teklif/sipariş aşamasında belirler. Açan yalnız: açıklama, kategori, miktar, birim, gerekçe.
+- **Kalemleri ayrı RFQ'lara bölme (`6490945`)** — bir talepte farklı kategoriler (hırdavat + bakır tel) farklı
+  tedarikçilere gidebilir; satınalma kalem seçip birden fazla RFQ oluşturur.
+- **Talep DÜZELT/SİL (`cbdb764`)** — yönetici/satınalma talebi düzeltir veya siler (RFQ'ya bağlıysa korunur).
+- **"Satınalma İşleme Al" durumu + net etiketler (`5031a99`)** — "Teklifte" → **"Teklifler toplanıyor"**;
+  ASSIGNED → **"Satınalma İşleme Aldı"**; satınalma hangi talepleri gördüğünü ayırt eder.
+- **AI kategori önerisi (`edeeb7e`)** — ücretsiz yerel heuristik (1032 geçmiş kalemden öğrenir); Claude anahtarı
+  eklenince gerçek AI'ya yükseltilebilir.
+
+### Tedarikçi teklif portalı / RFQ
+- **RFQ gönderim 2 bug (`603292e`)** — "Veritabanı işlemi tamamlanamadı": (1) transaction içinde e-posta
+  yazımı SQLite kilidi → kuyruk transaction dışına; (2) RFQ_TRANSITIONS DRAFT→SENT yoktu → eklendi.
+- **Gönder paneli (`7b25987`)** — tedarikçi **araması**, yeni (DRAFT) tedarikçiler artık listede, tedarikçi
+  seçmeden bırakılan boş RFQ **iptal** edilebilir (kalemler yeniden açılır).
+- **Teklif sayfası ÖNİZLEME (`5db3e1d`)** — satınalma tedarikçinin gördüğü sayfayı kontrol amaçlı görür
+  (token'sız, gönderim kapalı).
+- **Profesyonel teklif sayfası (`6b2a57b`)** — **logo** + **kalem bazında para birimi** (bazı kalem TL bazı
+  USD/EUR; toplam PB'ye göre gruplu) + operasyon türüne göre uyarlama (KDV/PB varsayılanları).
+- **GBP + tedarikçi ADINA teklif (`6ed746e`)** — GBP eklendi; satınalma tedarikçi adına teklif girer/düzeltir
+  (e-posta/telefon teklifi); **KDV seçim** (%0/%1/%10/%20), **ödeme vadesi seçim** (Peşin/30/45/60/90) +
+  tedarikçinin kayıtlı vadesi otomatik gelir.
+- **Keşfedilebilirlik (`0e0d775`)** — yanıtlanan RFQ bulunması: dashboard **"Değerlendirilecek Teklif"** +
+  RFQ listesinde **"Teklif Geldi" filtresi** + "X/Y yanıtladı" rozeti + yeşil vurgu.
+
+### Veri / entegrasyon / görsel
+- **Demo/test verisi temizliği + Excel uyarlaması (`8d8b9bb`)** — yalnız Excel verisi + admin bırakıldı
+  (433 talep, 490 sipariş, 117 tedarikçi, 18 talep-açan). Boş tarihler sipariş tarihiyle dolduruldu;
+  **450 mal kabul** (alınan/tamamlanan siparişler) oluşturuldu. `scripts/cleanup-and-adapt.ts`.
+- **TCMB döviz kuru otomatiği (`4acc0c1`)** — ücretsiz, anahtarsız (today.xml). Entegrasyonlar'da "Döviz
+  Kurları (TCMB)" kartı + otomatik tazeleme. Gerçek bağlantı doğrulandı (USD/EUR/GBP...).
+- **Şirket logosu (`4511d60`)** + **mojibake düzeltmesi (`10c0c9c`)** + regresyon guard.
 
 ## 4. oturum ek işler (onay politikası + talep import)
 
 - **Onay politikası (`ea3d494`)** — "her talep onaya gitmesin": onaya gidip gitmeyeceğini **satınalma** belirler.
   Company.settings'te `reqApproval` (ALWAYS/THRESHOLD/NEVER + eşik). `/requisitions/approval-policy` ekranı
-  (REQUISITION_ASSIGN = satınalma). Eşik altı talepler onay beklemeden APPROVED olur; satınalma doğrudan RFQ yapar.
+  (REQUISITION_ASSIGN = satınalma). _Not: 5. oturumda (`48511ee`) **varsayılan NEVER** yapıldı — talep
+  varsayılan olarak onaya gitmez; yönetim onayı sipariş (PO) aşamasında opsiyonel._
 - **Excel talep import (`a226861`)** — Excel "Kalem Detayları"ndaki Talep No + Talep Eden'den türetildi:
   **18 talep açan → kullanıcı** (giriş yapamaz, passwordHash null, `@imported.coilpartners.com`),
   **433 talep → PurchaseRequisition (ORDERED) + 1032 kalem**. Mutabık (18/18, 433/433, 1032/1032), idempotent.
@@ -20,9 +63,11 @@
 - **Konum:** `C:\Users\Aykut\coil-procurement-hub`
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
-- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **99 test** (unit+integration) geçiyor,
-  Playwright **12 E2E** geçiyor — **hem SQLite hem PostgreSQL production build üzerinde 12/12**, build **temiz**.
-- **Veri:** Gerçek geçmiş satınalma verisi içe aktarıldı — **494 sipariş** (490 imported + seed), 70,4M ₺ (korundu).
+- **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **109 test** (unit+integration) geçiyor,
+  Playwright **13 E2E** (5 dosya) geçiyor, production build **temiz**.
+- **Veri (5. oturumda temizlendi):** Yalnız Excel verisi + admin kaldı — **490 sipariş · 433 talep · 117
+  tedarikçi · 18 talep-açan kişi (giriş yapamaz) + admin · 450 mal kabul** · TCMB kurları. Demo/test verisi silindi.
+  Yedek: `prisma/backups/dev-before-cleanup-*.db`.
 - **Git:** her aşama ayrı commit; çalışma ağacı temiz. Kaynak Excel/yedekler `.gitignore`'da.
 
 ## Acil hata düzeltme + performans fazı (4. oturum) — ayrı commitler
@@ -152,14 +197,16 @@ Next.js 15 (App Router) · TypeScript strict · Prisma (SQLite dev / PostgreSQL 
 
 ### Sürüm tarihçesi — test/E2E snapshot (geçmiş; güncel değil)
 
-Aşağıdaki sayılar ilgili oturumun sonundaki durumdur; **güncel değer 80 test / 8 E2E** (sayfa başı).
+Aşağıdaki sayılar ilgili oturumun sonundaki durumdur; **güncel değer 109 test / 13 E2E** (sayfa başı).
 
 | Oturum | Birim+entegrasyon test | E2E (tarayıcı) | Not |
 |---|---|---|---|
 | 2. oturum sonu | 62 (10 dosya) | 5 | PostgreSQL doğrulaması + güvenlik/iş kuralı testleri |
-| **3. oturum sonu (güncel)** | **80 (13 dosya)** | **8** | Sözleşme/Bütçe/Katalog/Tedarikçi/Kullanıcı CRUD + metrik motorları + i18n parite |
+| 3. oturum sonu | 80 (13 dosya) | 8 | Sözleşme/Bütçe/Katalog/Tedarikçi/Kullanıcı CRUD + metrik motorları + i18n parite |
+| 4. oturum sonu | 99 | 12 | Acil hata+performans fazı + onay politikası + Excel talep import |
+| **5. oturum sonu (güncel)** | **109** | **13** | Talep akışı sadeleştirme + tedarikçi teklif portalı + TCMB + veri temizliği + keşfedilebilirlik |
 
-### Test kapsamı (güncel: 80 test / 13 dosya)
+### Test kapsamı (güncel: 109 test)
 - **Birim:** para (decimal, floating-point yok), durum makineleri (geçersiz geçiş engelleme), RBAC yetki matrisi,
   landed cost dağıtımı, **i18n tr/en parite** + eksik-anahtar + Türkçe sıralama, **mojibake regresyon**, import ayrıştırma,
   üçlü eşleştirme tolerans, **OTIF/çevrim/tasarruf metrik motorları**, güvenlik primitifleri (token hash/TOTP/parola).
@@ -201,8 +248,8 @@ yalnızca dış sistem/hesap gerektirir:
 cd C:\Users\Aykut\coil-procurement-hub
 npm run typecheck   # 0 hata
 npm run lint        # 0 hata/uyarı
-npm test            # 80 test (unit+integration)
+npm test            # 109 test (unit+integration)
 npm run build       # temiz (41 route)
-npx playwright test # 8 E2E (SQLite; PG için provider=postgresql + PG server)
+npx playwright test # 13 E2E (5 dosya)
 npm run dev         # http://localhost:3000
 ```

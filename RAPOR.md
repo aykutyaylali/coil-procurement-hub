@@ -1,7 +1,8 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 6. oturum — **Satınalma İşlem Merkezi** (birleşik dosya-bazlı UX) — son commit `a70fb4e`.
+> Son güncelleme: 6. oturum — **Satınalma İşlem Merkezi** (birleşik dosya-bazlı UX) + karşılaştırma/karar
+> yeniden tasarım + rol bazlı menü + mobil drawer + bildirim derin-linkleri.
 
 ## 6. oturum — Satınalma İşlem Merkezi (birleşik dosya deneyimi)
 
@@ -17,10 +18,15 @@ bozulmadı** (yalnız ilişkilendirilip okunur; domain/DB değişmedi). Detay: [
   Sidebar'da birincil giriş.
 - **Faz C (`a70fb4e`)** — RFQ ekranı sadeleştirildi: üst özet + **tek Türkçe tedarikçi yanıt tablosu**
   (tekrarlı iki kutu kaldırıldı; ham enum `RESPONDED` yok) + "← Satınalma Dosyası" linki.
-- **Faz D-lite / F** — "Bid Analysis" → "Teklif Karşılaştırma"; tek-teklif uyarısı; birleşik akış
-  Playwright testi (`islem-merkezi.spec.ts`, gerçek tıklamalar: talep→dosya→Teklif Süreci→RFQ).
-- Kalan (sonraki fazlar): karşılaştırma tam yeniden tasarım + 2 aşamalı karar; sol menü rol-bazlı sadeleşme
-  + mobil drawer; bildirim derin-linkleri.
+- **Faz D (`27f5609`)** — Teklif karşılaştırma **sütun bazlı** yeniden tasarım: sabit ilk kolon, tedarikçi
+  sütunları + rozetler (En Düşük Fiyat/En Kısa Termin/Tek Teklif/Eksik Bilgi), **TL karşılığı** (USD/EUR/GBP
+  TCMB kuruyla), teklif **detay drawer**, kalem bazlı seçim (split). **2 aşamalı karar**: seçim+gerekçe →
+  Karar Özeti → "Kararı Onayla ve X Sipariş Oluştur" (onay modalı, çift-tıklama koruması, sipariş linkleri).
+  `Bid.source` (portal/manuel/e-posta) eklendi.
+- **Faz E-1 (`60ea42f`)** — rol bazlı sade menü: RFQ "İleri" bölümüne alındı; RBAC (izin filtresi) korunur.
+- **Faz E-2 (`dcef30a`)** — mobil hamburger/drawer (erişilebilir) + bildirim **derin-linkleri** (yeni teklif →
+  dosyanın Karşılaştırma sekmesi).
+- **Faz F (`64efd84`)** — birleşik akış + karşılaştırma+karar Playwright testleri (gerçek tıklamalar).
 
 ## 5. oturum — gerçek kullanım geri bildirimleri (ayrı commitler)
 
@@ -82,7 +88,7 @@ Kullanıcı canlı denerken bildirdiği sorunlar/istekler tek tek, kök nedenind
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
 - **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **109 test** (unit+integration) geçiyor,
-  Playwright **14 E2E** (6 dosya, birleşik İşlem Merkezi akışı dahil) geçiyor, production build **temiz** (43 route).
+  Playwright **15 E2E** (7 dosya; İşlem Merkezi akışı + karşılaştırma/karar dahil) geçiyor, production build **temiz** (43 route).
 - **Veri (5. oturumda temizlendi):** Yalnız Excel verisi + admin kaldı — **490 sipariş · 433 talep · 117
   tedarikçi · 18 talep-açan kişi (giriş yapamaz) + admin · 450 mal kabul** · TCMB kurları. Demo/test verisi silindi.
   Yedek: `prisma/backups/dev-before-cleanup-*.db`.

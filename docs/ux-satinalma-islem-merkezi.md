@@ -59,8 +59,32 @@ e-posta merkezinde numara aramak zorunda kalmaz.
 "Teklif Süreci" sekmesinden kalem seçip RFQ oluştur → dosyaya dönüp RFQ'yu gör. Kullanıcı ayrı listede
 numara aramaz.
 
-## Kalan iyileştirmeler (sonraki fazlar)
+## Teklif karşılaştırma ve karar (Faz D)
 
-- Karşılaştırma ekranının tam yeniden tasarımı (sütun bazlı tedarikçi + rozetler + 2 aşamalı karar özeti).
-- Sol menünün role göre daha da sadeleşmesi (RFQ'yu ileri-seviye alt menüye alma) ve mobil drawer.
-- Bildirim dropdown'ının doğrudan dosya sekmesine derin bağlanması.
+- **Sütun bazlı karşılaştırma**: sol sabit "Kriter" kolonu (yatay kaydırmada sticky), her tedarikçi ayrı
+  sütun. Sütun başlığında rozetler: **En Düşük Fiyat** (TL bazlı) · **En Kısa Termin** · **Tek Teklif** ·
+  **Eksik Bilgi** + kaynak (portal/manuel/e-posta). Başlığa tıklayınca **teklif detay drawer** (tüm alanlar +
+  kalem bazında marka/model/birim/isk/KDV/termin/not).
+- **TL karşılığı**: farklı para birimlerindeki (USD/EUR/GBP) teklifler TCMB kuruyla TL'ye çevrilip
+  karşılaştırılır. Kalem bazında en düşük işaretlenir.
+- **Kalem bazlı seçim** (split award): farklı kalemler farklı tedarikçilere verilebilir.
+- **İki aşamalı karar**: (1) seçim + gerekçe + en-düşük-değil/tek-teklif açıklaması (zorunlu) →
+  (2) **Karar Özeti** (kalem/tedarikçi/miktar/birim/tutar/TL/termin + toplam + oluşacak sipariş sayısı +
+  gerekçeler + uyarılar) → **"Kararı Onayla ve X Sipariş Oluştur"** → onay modalı → spinner/disabled
+  (çift-tıklama koruması) → başarı + oluşan siparişlere linkler.
+
+## Rol bazlı menü + bildirim (Faz E)
+
+- **Sade menü**: satınalma ana menüsü Kontrol Paneli · İşlem Merkezi · Talepler · Siparişler · Tedarikçiler ·
+  Raporlar. RFQ (Teklif Talepleri) grup altında katlanabilir **"İleri"** bölümünde; asıl erişim dosya içinden.
+  Görünürlük izne bağlı (RBAC): yetkisiz modüller görünmez; backend `requirePermission` her sayfada korunur.
+- **Mobil drawer**: `lg` altında topbar'da hamburger → erişilebilir drawer (role=dialog, aria-modal,
+  overlay/X ile kapanır, gezinince kapanır).
+- **Bildirim derin-linkleri**: yeni teklif bildirimi doğrudan dosyanın **Karşılaştırma** sekmesine gider
+  (`/islem-merkezi/[talep]?tab=karsilastirma`), genel listeye değil. Okundu/okunmadı + rozet + tarih.
+
+## Test
+
+- `tests/e2e/islem-merkezi.spec.ts` — birleşik akış (talep→dosya→Teklif Süreci→RFQ).
+- `tests/e2e/comparison-award.spec.ts` — karşılaştırma + split seçim + Karar Özeti + onay → 2 sipariş
+  (gerçek tıklamalar, farklı para birimleri).

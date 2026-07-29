@@ -7,6 +7,7 @@ export const tr = {
   "nav.dashboard": "Kontrol Paneli",
   "nav.tasks": "Görevlerim",
   "nav.approvals": "Onaylarım",
+  "nav.islemMerkezi": "Satınalma İşlem Merkezi",
   "nav.requisitions": "Talepler",
   "nav.rfqs": "Teklif Talepleri",
   "nav.orders": "Siparişler",

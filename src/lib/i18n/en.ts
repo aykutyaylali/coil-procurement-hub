@@ -8,6 +8,7 @@ export const en: Record<keyof typeof tr, string> = {
   "nav.dashboard": "Dashboard",
   "nav.tasks": "My Tasks",
   "nav.approvals": "My Approvals",
+  "nav.islemMerkezi": "Procurement Hub",
   "nav.requisitions": "Requisitions",
   "nav.rfqs": "RFQs",
   "nav.orders": "Orders",

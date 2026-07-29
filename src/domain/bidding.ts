@@ -402,17 +402,19 @@ async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInpu
         where: { id: rfqSupplier.id },
         data: { status: "RESPONDED", respondedAt: new Date() },
       });
-      // Satınalma uzmanına bildirim
+      // Satınalma uzmanına bildirim — doğrudan satınalma DOSYASININ Karşılaştırma sekmesine derin bağlantı
       const rfq = await tx.rFQ.findUnique({ where: { id: rfqSupplier.rfqId } });
       if (rfq) {
+        const rl = await tx.rFQLine.findFirst({ where: { rfqId: rfq.id, requisitionId: { not: null } }, select: { requisitionId: true } });
+        const link = rl?.requisitionId ? `/islem-merkezi/${rl.requisitionId}?tab=karsilastirma` : `/rfqs/${rfq.id}`;
         await tx.notification.create({
           data: {
             tenantId: rfq.tenantId,
             userId: rfq.createdById,
             type: "BID_RECEIVED",
-            title: `Yeni teklif alındı: ${rfq.number}`,
-            body: `Bir tedarikçi ${rfq.number} için teklif gönderdi.`,
-            link: `/rfqs/${rfq.id}`,
+            title: `Yeni teklif geldi: ${rfq.number}`,
+            body: `Bir tedarikçi ${rfq.number} için teklif gönderdi. Karşılaştırıp karar verebilirsiniz.`,
+            link,
           },
         });
       }

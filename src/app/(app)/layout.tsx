@@ -3,7 +3,7 @@ import { getCurrentUser, userCan } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
 import { getMyPendingApprovals } from "@/lib/pending";
 import { NAV_ITEMS } from "@/components/shell/nav-config";
-import { Sidebar } from "@/components/shell/sidebar";
+import { Sidebar, MobileMenu } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { ROLE_LABELS_TR, type RoleKey } from "@/lib/rbac";
 import { I18nProvider } from "@/components/i18n-provider";
@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             pendingApprovals={pending.length}
             unreadNotifications={unread}
             locale={locale}
+            mobileMenu={<MobileMenu items={visibleNav} />}
           />
           <main className="flex-1 overflow-x-hidden p-6">{children}</main>
         </div>

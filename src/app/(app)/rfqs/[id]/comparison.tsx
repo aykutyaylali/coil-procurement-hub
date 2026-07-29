@@ -164,7 +164,7 @@ export function Comparison({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Teklif Karşılaştırma (Bid Analysis)</CardTitle>
+        <CardTitle>Teklif Karşılaştırma</CardTitle>
         {canEvaluate && rfqStatus === "OPEN" && (
           <Button size="sm" variant="outline" onClick={evaluate} disabled={busy}>
             Değerlendirmeye Al
@@ -172,6 +172,11 @@ export function Comparison({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {bids.length === 1 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            ⚠ Yalnızca bir tedarikçiden teklif alındı. Sipariş kararından önce gerekçe girilmelidir.
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <THead>

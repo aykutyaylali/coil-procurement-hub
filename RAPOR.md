@@ -1,8 +1,26 @@
 # Coil Procurement Hub — Çalışma Raporu
 
 > Bu dosya yapılan her şeyin güncel özetidir. Her önemli aşamada güncellenir.
-> Son güncelleme: 5. oturum — gerçek kullanım geri bildirimleri (talep akışı, tedarikçi teklif portalı,
-> TCMB kur, veri temizliği, keşfedilebilirlik) — son commit `0e0d775`.
+> Son güncelleme: 6. oturum — **Satınalma İşlem Merkezi** (birleşik dosya-bazlı UX) — son commit `a70fb4e`.
+
+## 6. oturum — Satınalma İşlem Merkezi (birleşik dosya deneyimi)
+
+Sorun: talep/RFQ/teklif/sipariş ayrı sayfalarda; satınalmacı sürecin nerede olduğunu göremiyor. Çözüm:
+her talep bir **satınalma dosyası (case)**; tüm süreç tek ekranda ilişkilendirilir. **Mevcut modül/URL'ler
+bozulmadı** (yalnız ilişkilendirilip okunur; domain/DB değişmedi). Detay: [`docs/ux-satinalma-islem-merkezi.md`](docs/ux-satinalma-islem-merkezi.md).
+
+- **Faz A+B (`9f0ade2`)** — `src/domain/procurement-case.ts` (loadProcurementCase: talep+kalem+RFQ+teklif+
+  sipariş+mal kabul+fatura + **hesaplanan 9 aşama** + sonraki-işlem). `/islem-merkezi/[id]` birleşik dosya
+  detayı: **süreç göstergesi (stepper)** + sekmeler (Genel Bakış/Kalemler/Teklif Süreci/Karşılaştırma/
+  Siparişler/Teslimat-Kalite/Faturalar/İletişim) + sabit "Dosya Özeti". `/islem-merkezi` **iş kuyrukları**
+  (İşlem Bekleyen/RFQ Hazırlanacak/Yanıt Bekleyen/**Teklif Gelenler**/Sipariş/Tamamlanan + rozetler).
+  Sidebar'da birincil giriş.
+- **Faz C (`a70fb4e`)** — RFQ ekranı sadeleştirildi: üst özet + **tek Türkçe tedarikçi yanıt tablosu**
+  (tekrarlı iki kutu kaldırıldı; ham enum `RESPONDED` yok) + "← Satınalma Dosyası" linki.
+- **Faz D-lite / F** — "Bid Analysis" → "Teklif Karşılaştırma"; tek-teklif uyarısı; birleşik akış
+  Playwright testi (`islem-merkezi.spec.ts`, gerçek tıklamalar: talep→dosya→Teklif Süreci→RFQ).
+- Kalan (sonraki fazlar): karşılaştırma tam yeniden tasarım + 2 aşamalı karar; sol menü rol-bazlı sadeleşme
+  + mobil drawer; bildirim derin-linkleri.
 
 ## 5. oturum — gerçek kullanım geri bildirimleri (ayrı commitler)
 
@@ -64,7 +82,7 @@ Kullanıcı canlı denerken bildirdiği sorunlar/istekler tek tek, kök nedenind
 - **Çalıştırma:** `npm run dev` → http://localhost:3000
 - **Demo giriş:** `admin@coilpartners.com` / `Coil2026!` (diğer roller README'de)
 - **Sağlık:** ESLint **0 hata/uyarı**, TypeScript typecheck **0 hata**, **109 test** (unit+integration) geçiyor,
-  Playwright **13 E2E** (5 dosya) geçiyor, production build **temiz**.
+  Playwright **14 E2E** (6 dosya, birleşik İşlem Merkezi akışı dahil) geçiyor, production build **temiz** (43 route).
 - **Veri (5. oturumda temizlendi):** Yalnız Excel verisi + admin kaldı — **490 sipariş · 433 talep · 117
   tedarikçi · 18 talep-açan kişi (giriş yapamaz) + admin · 450 mal kabul** · TCMB kurları. Demo/test verisi silindi.
   Yedek: `prisma/backups/dev-before-cleanup-*.db`.

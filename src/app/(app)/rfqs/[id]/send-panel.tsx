@@ -13,12 +13,14 @@ export function SendPanel({
   suppliers,
   invited,
   dueAt,
+  hideInvited = false,
 }: {
   rfqId: string;
   status: string;
   suppliers: { id: string; name: string }[];
   invited: { id: string; name: string; status: string; remindersSent: number }[];
   dueAt: string | null;
+  hideInvited?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
@@ -143,7 +145,7 @@ export function SendPanel({
         {msg && <p className="rounded bg-success/10 px-3 py-2 text-sm text-success">{msg}</p>}
         {error && <p className="rounded bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
 
-        {invited.length > 0 && (
+        {!hideInvited && invited.length > 0 && (
           <div className="space-y-1 border-t pt-2">
             {invited.map((i) => (
               <div key={i.id} className="flex items-center justify-between text-xs">

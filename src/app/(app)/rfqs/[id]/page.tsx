@@ -9,6 +9,7 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDateTime, formatDate } from "@/lib/dates";
 import { add, lineNet, lineTax, toStr, formatMoney } from "@/lib/money";
 import { supplierResponseLabel } from "@/domain/procurement-case";
+import { getLatestRates } from "@/lib/exchange/service";
 import { SendPanel } from "./send-panel";
 import { Comparison } from "./comparison";
 
@@ -48,6 +49,11 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   // Bağlı talep (satınalma dosyası) — kalemlerden
   const requisitionId = rfq.lines.find((l) => l.requisitionId)?.requisitionId ?? null;
 
+  // Güncel TCMB kurları (TL karşılığı hesabı için) — { USD: "47.35", ... }
+  const rates = await getLatestRates(user.tenantId);
+  const rateMap: Record<string, string> = { TRY: "1" };
+  for (const r of rates) rateMap[r.quote] = r.rate;
+
   // Üst özet + tedarikçi yanıt tablosu verisi (tek tablo; Türkçe durumlar)
   const invitedCount = rfq.suppliers.length;
   const respondedCount = rfq.suppliers.filter((s) => s.status === "RESPONDED").length;
@@ -75,13 +81,20 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     bid: bidTotalBySupplier.get(rs.supplierId) ?? null,
   }));
 
-  // Karşılaştırma verisi
+  // Karşılaştırma verisi (zengin: kaynak, ödeme vadesi, incoterm, geçerlilik, navlun, marka/model, not)
   const bidData = rfq.bids.map((b) => ({
     id: b.id,
     supplierId: b.supplierId,
     supplierName: b.supplier.legalName,
     currency: b.currency,
     status: b.status,
+    source: b.source,
+    paymentTermDays: b.paymentTermDays,
+    incoterm: b.incoterm,
+    validUntil: b.validUntil ? b.validUntil.toISOString() : null,
+    freightAmount: b.freightAmount,
+    note: b.note,
+    submittedAt: b.submittedAt ? b.submittedAt.toISOString() : null,
     lines: b.lines.map((bl) => ({
       rfqLineId: bl.rfqLineId,
       willQuote: bl.willQuote,
@@ -89,6 +102,10 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       discountPct: bl.discountPct,
       taxRate: bl.taxRate,
       leadTimeDays: bl.leadTimeDays,
+      currency: bl.currency,
+      brand: bl.brand,
+      model: bl.model,
+      note: bl.note,
     })),
   }));
 
@@ -231,6 +248,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
               rfqStatus={rfq.status}
               lines={rfq.lines.map((l) => ({ id: l.id, lineNo: l.lineNo, description: l.description, quantity: l.quantity, uom: l.uom }))}
               bids={bidData}
+              rateMap={rateMap}
               canEvaluate={canEvaluate}
               canAward={canAward}
               awarded={!!rfq.award}

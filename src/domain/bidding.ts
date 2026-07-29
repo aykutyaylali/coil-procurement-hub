@@ -305,7 +305,7 @@ export async function saveBid(input: SaveBidInput): Promise<{ bidId: string; tot
   if (input.submit && rfqSupplier.rfq.dueAt && rfqSupplier.rfq.dueAt.getTime() < Date.now()) {
     throw new AppError("Son teklif tarihi geçti; teklif gönderilemez.", "DEADLINE_PASSED", 409);
   }
-  return persistBid(rfqSupplier as RfqSupplierWithRfq, input);
+  return persistBid(rfqSupplier as RfqSupplierWithRfq, input, "PORTAL");
 }
 
 /**
@@ -319,10 +319,10 @@ export async function saveBidByBuyer(rfqSupplierId: string, tenantId: string, in
     include: { rfq: true },
   });
   if (!rfqSupplier) throw new AppError("Davetli tedarikçi bulunamadı.", "NOT_FOUND", 404);
-  return persistBid(rfqSupplier as RfqSupplierWithRfq, input);
+  return persistBid(rfqSupplier as RfqSupplierWithRfq, input, "MANUAL");
 }
 
-async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInput): Promise<{ bidId: string; total: string; status: string }> {
+async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInput, source: string): Promise<{ bidId: string; total: string; status: string }> {
   const round = rfqSupplier.rfq.round;
 
   // Toplam hesabı (backend doğrulaması)
@@ -356,7 +356,7 @@ async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInpu
           rfqSupplierId: rfqSupplier.id,
           supplierId: rfqSupplier.supplierId,
           round,
-          status: input.submit ? "SUBMITTED" : "DRAFT",
+          status: input.submit ? "SUBMITTED" : "DRAFT", source,
           currency: input.currency,
           note: input.note ?? null,
           paymentTermDays: input.paymentTermDays ?? null,

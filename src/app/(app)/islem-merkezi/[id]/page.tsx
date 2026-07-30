@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatQty } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
 import { loadProcurementCase, supplierResponseLabel, CASE_STAGE_LABELS } from "@/domain/procurement-case";
@@ -224,7 +224,7 @@ function KalemlerTab({ c }: { c: ProcCase }) {
                 <TD>{l.lineNo}</TD>
                 <TD className="font-medium">{l.description}</TD>
                 <TD className="text-sm text-muted-foreground">{l.category?.name ?? "-"}</TD>
-                <TD className="text-right">{l.quantity} {l.uom ?? ""}</TD>
+                <TD className="text-right">{formatQty(l.quantity)} {l.uom ?? ""}</TD>
                 <TD>{l.status === "OPEN" ? <Badge>Açık</Badge> : <StatusBadge status={l.status} />}</TD>
               </TR>
             ))}

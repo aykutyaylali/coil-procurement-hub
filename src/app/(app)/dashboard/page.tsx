@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { getMyPendingApprovals } from "@/lib/pending";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { formatMoney, add } from "@/lib/money";
+import { formatMoney, formatMoneyOrDash, add } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Kontrol Paneli" };
@@ -113,17 +113,38 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Bekleyen Onaylarım" value={pendingApprovals.length} icon="Stamp" href="/approvals" tone="warning" />
-        <Stat label="Onay Bekleyen Talep" value={pendingReqs} icon="FileText" href="/requisitions?status=PENDING_APPROVAL" />
-        <Stat label="Açık Teklif Talebi" value={openRfqs} icon="Send" href="/rfqs" />
-        <Stat label="Değerlendirilecek Teklif" value={rfqsToEvaluate} icon="ClipboardCheck" href="/rfqs?filter=responded" tone={rfqsToEvaluate ? "success" : "default"} />
-        <Stat label="Yanıt Bekleyen Tedarikçi" value={awaitingSuppliers} icon="Clock" href="/rfqs" tone="warning" />
-        <Stat label="Açık Sipariş" value={openOrders} icon="ShoppingCart" href="/orders" />
-        <Stat label="Geciken Sipariş Satırı" value={lateOrders} icon="AlertTriangle" href="/orders" tone="danger" />
-        <Stat label="Açık Fatura" value={openInvoices} icon="Receipt" href="/invoices" />
-        <Stat label="Bloke Fatura" value={blockedInvoices} icon="ShieldAlert" href="/invoices?status=BLOCKED" tone="danger" />
-      </div>
+      {(() => {
+        const tonePriority: Record<string, number> = { danger: 0, warning: 1, success: 2, default: 3 };
+        const allStats = [
+          { label: "Bekleyen Onaylarım", value: pendingApprovals.length, icon: "Stamp", href: "/approvals", tone: "warning" },
+          { label: "Onay Bekleyen Talep", value: pendingReqs, icon: "FileText", href: "/requisitions?status=PENDING_APPROVAL", tone: "default" },
+          { label: "Açık Teklif Talebi", value: openRfqs, icon: "Send", href: "/rfqs", tone: "default" },
+          { label: "Değerlendirilecek Teklif", value: rfqsToEvaluate, icon: "ClipboardCheck", href: "/rfqs?filter=responded", tone: "success" },
+          { label: "Yanıt Bekleyen Tedarikçi", value: awaitingSuppliers, icon: "Clock", href: "/rfqs", tone: "warning" },
+          { label: "Açık Sipariş", value: openOrders, icon: "ShoppingCart", href: "/orders", tone: "default" },
+          { label: "Geciken Sipariş Satırı", value: lateOrders, icon: "AlertTriangle", href: "/orders", tone: "danger" },
+          { label: "Açık Fatura", value: openInvoices, icon: "Receipt", href: "/invoices", tone: "default" },
+          { label: "Bloke Fatura", value: blockedInvoices, icon: "ShieldAlert", href: "/invoices?status=BLOCKED", tone: "danger" },
+        ] as const;
+        // Yalnızca aksiyon gerektiren (değeri > 0) kartlar; kritik olanlar (danger/warning) önce
+        const active = allStats
+          .filter((s) => s.value > 0)
+          .sort((a, b) => (tonePriority[a.tone] ?? 3) - (tonePriority[b.tone] ?? 3));
+        if (active.length === 0) {
+          return (
+            <div className="rounded-lg border bg-white p-6 text-center dark:bg-slate-900">
+              <p className="text-sm text-muted-foreground">🎉 Şu an sizi bekleyen bir işlem yok. Tüm kuyruklar temiz.</p>
+            </div>
+          );
+        }
+        return (
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {active.map((s) => (
+              <Stat key={s.label} label={s.label} value={s.value} icon={s.icon} href={s.href} tone={s.tone} />
+            ))}
+          </div>
+        );
+      })()}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -153,7 +174,7 @@ export default async function DashboardPage() {
                   </div>
                 </div>
                 <div className="text-right text-sm font-medium">
-                  {formatMoney(r.estimatedTotal, r.currency)}
+                  {formatMoneyOrDash(r.estimatedTotal, r.currency)}
                 </div>
               </Link>
             ))}

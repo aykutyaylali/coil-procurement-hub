@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus, Loader2, AlertCircle, Sparkles, ImagePlus, X } from "lucide-react";
+import { Trash2, Plus, Loader2, AlertCircle, Sparkles, ImagePlus, X, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -295,28 +295,6 @@ export function NewRequisitionForm({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Proje</Label>
-            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">Seçiniz</option>
-              {filteredProjects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Maliyet Merkezi</Label>
-            <Select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>
-              <option value="">Seçiniz</option>
-              {filteredCC.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <Label>Öncelik</Label>
             <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
               <option value="LOW">Düşük</option>
@@ -359,11 +337,39 @@ export function NewRequisitionForm({
               <Input value={targetCountry} onChange={(e) => setTargetCountry(e.target.value)} placeholder="Örn: Çin, Almanya" />
             </div>
           )}
-          <div className="space-y-1.5">
-            <Label>İstenen Teslim Tarihi</Label>
-            <Input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
-          </div>
         </CardContent>
+      </Card>
+
+      <Card>
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 font-medium">
+            <span className="flex items-center gap-2">
+              <ChevronRight className="size-4 transition-transform group-open:rotate-90" />
+              Ek Detaylar (opsiyonel)
+            </span>
+            <span className="text-xs font-normal text-muted-foreground">Proje · Maliyet Merkezi · Teslim Tarihi</span>
+          </summary>
+          <div className="grid gap-4 px-6 pb-6 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label>Proje</Label>
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">Seçiniz</option>
+                {filteredProjects.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Maliyet Merkezi</Label>
+              <Select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>
+                <option value="">Seçiniz</option>
+                {filteredCC.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>İstenen Teslim Tarihi</Label>
+              <Input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
+            </div>
+          </div>
+        </details>
       </Card>
 
       <Card>

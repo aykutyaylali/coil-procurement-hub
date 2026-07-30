@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDateTime, formatDate } from "@/lib/dates";
-import { add, lineNet, lineTax, toStr, formatMoney } from "@/lib/money";
+import { add, lineNet, lineTax, toStr, formatMoney, formatQty } from "@/lib/money";
 import { supplierResponseLabel } from "@/domain/procurement-case";
 import { getLatestRates } from "@/lib/exchange/service";
 import { SendPanel } from "./send-panel";
@@ -174,7 +174,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
                     <TR key={l.id}>
                       <TD>{l.lineNo}</TD>
                       <TD className="font-medium">{l.description}</TD>
-                      <TD className="text-right">{l.quantity}</TD>
+                      <TD className="text-right">{formatQty(l.quantity)}</TD>
                       <TD>{l.uom ?? "-"}</TD>
                     </TR>
                   ))}

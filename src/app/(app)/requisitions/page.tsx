@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
-import { formatMoney } from "@/lib/money";
+import { formatMoneyOrDash } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
 
@@ -116,7 +116,7 @@ export default async function RequisitionsPage({
                   <TD className="text-sm">{r.requester.name}</TD>
                   <TD className="text-sm">{r._count.lines}</TD>
                   <TD>{statusLabel(r.priority)}</TD>
-                  <TD className="text-right font-medium">{formatMoney(r.estimatedTotal, r.currency)}</TD>
+                  <TD className="text-right font-medium">{formatMoneyOrDash(r.estimatedTotal, r.currency)}</TD>
                   <TD>
                     <StatusBadge status={r.status} />
                   </TD>

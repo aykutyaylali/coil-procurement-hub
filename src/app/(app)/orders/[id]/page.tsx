@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatQty } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { OrderActionsPanel } from "./actions-panel";
 
@@ -83,7 +83,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                       <TD>{l.lineNo}</TD>
                       <TD className="font-medium">{l.description}</TD>
                       <TD className="text-right">
-                        {l.quantity} {l.uom ?? ""}
+                        {formatQty(l.quantity)} {l.uom ?? ""}
                       </TD>
                       <TD className="text-right">{formatMoney(l.unitPrice, po.currency)}</TD>
                       <TD className="text-right">{l.taxRate}</TD>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { add, lineNet, lineTax, formatMoney } from "@/lib/money";
+import { add, lineNet, lineTax, formatMoney, formatQty } from "@/lib/money";
 import { submitBidAction, submitBidByBuyerAction } from "./actions";
 import type { Locale } from "@/lib/i18n";
 
@@ -288,7 +288,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
                       />
                     </TD>
                     <TD className="text-right">
-                      {l.quantity} {l.uom ?? ""}
+                      {formatQty(l.quantity)} {l.uom ?? ""}
                     </TD>
                     <TD>
                       <label className="flex items-center gap-1 text-xs">

@@ -9,6 +9,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { createRfqFromRequisition } from "@/app/(app)/rfqs/actions";
 import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
+import { formatQty } from "@/lib/money";
 
 export interface ReqLine {
   id: string;
@@ -133,7 +134,7 @@ export function RequisitionLinesPanel({
                     <TD>{l.lineNo}</TD>
                     <TD className="font-medium">{l.description}</TD>
                     <TD className="text-sm text-muted-foreground">{l.categoryName ?? "-"}</TD>
-                    <TD className="text-right">{l.quantity} {l.uom ?? ""}</TD>
+                    <TD className="text-right">{formatQty(l.quantity)} {l.uom ?? ""}</TD>
                     <TD>{l.status === "OPEN" ? <Badge tone="default">Açık</Badge> : <StatusBadge status={l.status} />}</TD>
                     <TD>
                       <Button type="button" variant={photosOpen ? "secondary" : "ghost"} size="sm" onClick={() => togglePhotos(l.id)}>

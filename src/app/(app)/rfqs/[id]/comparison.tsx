@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { lineNet, lineTax, add, mul, formatMoney, d, toStr } from "@/lib/money";
+import { lineNet, lineTax, add, mul, formatMoney, formatQty, d, toStr } from "@/lib/money";
 import { moveRfqToEvaluation } from "../actions";
 import { awardRfqAndCreateOrders } from "../award-actions";
 
@@ -219,7 +219,7 @@ export function Comparison({
                 <tr key={line.id} className="border-b">
                   <td className="sticky left-0 z-10 bg-background px-3 py-2">
                     <div className="font-medium">{line.description}</div>
-                    <div className="text-xs text-muted-foreground">{line.quantity} {line.uom ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">{formatQty(line.quantity)} {line.uom ?? ""}</div>
                   </td>
                   {bids.map((bid) => {
                     const bl = findBL(bid, line.id);

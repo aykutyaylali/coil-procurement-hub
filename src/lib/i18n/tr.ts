@@ -97,6 +97,22 @@ export const tr = {
   "po.workspace.act.APPROVE": "Onaylandı",
   "po.workspace.act.DELETE": "Silindi",
 
+  // PO Workspace — Tartışma
+  "po.workspace.tab.discussion": "Tartışma",
+  "po.workspace.discussion.title": "Tartışma",
+  "po.workspace.discussion.newMessage": "Yeni mesaj yaz… (@ ile kişi etiketle)",
+  "po.workspace.discussion.replyPlaceholder": "Yanıt yaz…",
+  "po.workspace.discussion.reply": "Yanıtla",
+  "po.workspace.discussion.internalToggle": "İç not (tedarikçi görmez)",
+  "po.workspace.discussion.empty": "Henüz mesaj yok. İlk mesajı sen yaz.",
+  "po.workspace.discussion.attach": "Dosya / Görsel ekle",
+  "po.workspace.discussion.posting": "Gönderiliyor…",
+  "po.workspace.discussion.repliesCount": "{n} yanıt",
+  "po.workspace.discussion.showReplies": "Yanıtları göster",
+  "po.workspace.discussion.hideReplies": "Yanıtları gizle",
+  "po.workspace.discussion.you": "Sen",
+  "po.workspace.discussion.mentioned": "seni etiketledi",
+
   // Auth
   "auth.login": "Giriş Yap",
   "auth.loggingIn": "Giriş yapılıyor...",

@@ -96,6 +96,22 @@ export const en: Record<keyof typeof tr, string> = {
   "po.workspace.act.APPROVE": "Approved",
   "po.workspace.act.DELETE": "Deleted",
 
+  // PO Workspace — Discussion
+  "po.workspace.tab.discussion": "Discussion",
+  "po.workspace.discussion.title": "Discussion",
+  "po.workspace.discussion.newMessage": "Write a message… (@ to mention)",
+  "po.workspace.discussion.replyPlaceholder": "Write a reply…",
+  "po.workspace.discussion.reply": "Reply",
+  "po.workspace.discussion.internalToggle": "Internal note (hidden from supplier)",
+  "po.workspace.discussion.empty": "No messages yet. Start the conversation.",
+  "po.workspace.discussion.attach": "Attach file / image",
+  "po.workspace.discussion.posting": "Sending…",
+  "po.workspace.discussion.repliesCount": "{n} replies",
+  "po.workspace.discussion.showReplies": "Show replies",
+  "po.workspace.discussion.hideReplies": "Hide replies",
+  "po.workspace.discussion.you": "You",
+  "po.workspace.discussion.mentioned": "mentioned you",
+
   "auth.login": "Sign in",
   "auth.loggingIn": "Signing in...",
   "auth.email": "Email",

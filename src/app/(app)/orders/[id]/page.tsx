@@ -10,12 +10,15 @@ import { formatMoney, formatQty } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { translator, type Locale, type TranslationKey } from "@/lib/i18n";
 import { loadPOTimeline } from "@/domain/po-workspace";
+import { loadDiscussion, unreadCommentCount } from "@/domain/discussion";
 import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
+import { DiscussionFeed } from "./discussion";
 import { OrderActionsPanel } from "./actions-panel";
 
 const TABS = [
   { key: "genel", labelKey: "po.workspace.tab.genel" },
   { key: "belgeler", labelKey: "po.workspace.tab.belgeler" },
+  { key: "discussion", labelKey: "po.workspace.tab.discussion" },
   { key: "zaman", labelKey: "po.workspace.tab.zaman" },
 ] as const;
 
@@ -59,8 +62,12 @@ export default async function OrderDetailPage({
   }
   const canSend = userCan(user, PERMISSIONS.ORDER_SEND);
   const canApprove = userCan(user, PERMISSIONS.ORDER_APPROVE);
+  const canComment = userCan(user, PERMISSIONS.PO_WORKSPACE_COMMENT);
+  const canInternalComment = userCan(user, PERMISSIONS.PO_INTERNAL_COMMENT);
 
   const timeline = activeTab === "zaman" ? await loadPOTimeline(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
+  const unreadComments = await unreadCommentCount("PurchaseOrder", po.id, user.id, { forSupplier: !canSeeInternal });
+  const discussion = activeTab === "discussion" ? await loadDiscussion("PurchaseOrder", po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
 
   return (
     <div>
@@ -87,11 +94,14 @@ export default async function OrderDetailPage({
           <Link
             key={t.key}
             href={`/orders/${po.id}?tab=${t.key}`}
-            className={`rounded-t-md px-3 py-2 text-sm ${
+            className={`flex items-center gap-1.5 rounded-t-md px-3 py-2 text-sm ${
               activeTab === t.key ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {T(t.labelKey as TranslationKey)}
+            {t.key === "discussion" && unreadComments > 0 && (
+              <span className="rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{unreadComments}</span>
+            )}
           </Link>
         ))}
       </div>
@@ -163,6 +173,23 @@ export default async function OrderDetailPage({
                   showInternalToggle={canSeeInternal}
                   internalToggleLabel={T("po.workspace.internalToggle")}
                   canEdit={canEditDocs}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "discussion" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{T("po.workspace.discussion.title")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DiscussionFeed
+                  orderId={po.id}
+                  comments={discussion}
+                  currentUserId={user.id}
+                  canInternal={canInternalComment}
+                  canComment={canComment}
                 />
               </CardContent>
             </Card>

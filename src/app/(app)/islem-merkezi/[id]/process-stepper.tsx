@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { CASE_STAGES, CASE_STAGE_LABELS, type CaseStage } from "@/domain/procurement-case";
+import { CASE_STAGES, type CaseStage } from "@/domain/procurement-case";
 
 const STAGE_TAB: Record<CaseStage, string> = {
   REQUEST: "genel",
@@ -14,10 +14,23 @@ const STAGE_TAB: Record<CaseStage, string> = {
   DONE: "genel",
 };
 
-export function ProcessStepper({ id, stage, problem }: { id: string; stage: CaseStage; problem?: boolean }) {
+export function ProcessStepper({
+  id,
+  stage,
+  problem,
+  stageLabel,
+  ariaLabel = "Süreç adımları",
+}: {
+  id: string;
+  stage: CaseStage;
+  problem?: boolean;
+  stageLabel?: (st: CaseStage) => string;
+  ariaLabel?: string;
+}) {
+  const label = (st: CaseStage) => (stageLabel ? stageLabel(st) : st);
   const currentIdx = CASE_STAGES.indexOf(stage);
   return (
-    <nav aria-label="Süreç adımları" className="overflow-x-auto">
+    <nav aria-label={ariaLabel} className="overflow-x-auto">
       <ol className="flex min-w-max items-center gap-1 py-2">
         {CASE_STAGES.map((st, i) => {
           const done = i < currentIdx;
@@ -34,13 +47,13 @@ export function ProcessStepper({ id, stage, problem }: { id: string; stage: Case
               <Link
                 href={`/islem-merkezi/${id}?tab=${STAGE_TAB[st]}`}
                 className="group flex flex-col items-center gap-1"
-                title={CASE_STAGE_LABELS[st]}
+                title={label(st)}
               >
                 <span className={`flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition ${tone}`}>
                   {done ? <Check className="size-4" /> : i + 1}
                 </span>
                 <span className={`whitespace-nowrap text-[11px] ${current ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                  {CASE_STAGE_LABELS[st]}
+                  {label(st)}
                 </span>
               </Link>
               {i < CASE_STAGES.length - 1 && (

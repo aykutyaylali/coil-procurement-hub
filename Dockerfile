@@ -14,6 +14,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Docker/deploy build'i standalone çıktı üretir (server.js). Lokal `next start` etkilenmez.
+ENV NEXT_OUTPUT_STANDALONE=true
 RUN npx prisma generate && npm run build
 
 FROM node:20-alpine AS runner

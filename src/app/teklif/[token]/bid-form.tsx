@@ -100,7 +100,10 @@ interface LineState {
 
 export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSupplierId }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean; buyerRfqSupplierId?: string }) {
   const s = S[locale];
-  const [currency, setCurrency] = useState(ctx.existingBid?.currency ?? ctx.currencyOptions[0] ?? "TRY");
+  // Para birimi artık KALEM BAZLI girilir (üstte "varsayılan" alanı yok).
+  // Navlunun kendi para birimi vardır; teklifin ana PB'si kalemlerden türetilir.
+  const defaultCurrency = ctx.existingBid?.currency ?? ctx.currencyOptions[0] ?? "TRY";
+  const [freightCurrency, setFreightCurrency] = useState(defaultCurrency);
   const [note, setNote] = useState(ctx.existingBid?.note ?? "");
   // Ödeme vadesi: mevcut teklif > tedarikçinin kayıtlı vadesi > boş (otomatik gelir)
   const [paymentTermDays, setPaymentTermDays] = useState(
@@ -126,7 +129,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         brand: ex?.brand ?? "",
         leadTimeDays: ex?.leadTimeDays ?? "",
         note: ex?.note ?? "",
-        currency: ex?.currency ?? currency,
+        currency: ex?.currency ?? defaultCurrency,
       };
     }
     return init;
@@ -136,29 +139,39 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
     setLines((prev) => ({ ...prev, [id]: { ...prev[id]!, ...patch } }));
   }
 
-  // Para birimine göre gruplu toplam (kalemler farklı PB olabilir). Navlun varsayılan PB'ye eklenir.
+  // Para birimine göre gruplu toplam (kalemler farklı PB olabilir). Navlun kendi PB'sine eklenir.
   const totalsByCurrency = useMemo(() => {
     const map: Record<string, ReturnType<typeof add>> = {};
     for (const l of ctx.lines) {
       const ls = lines[l.id]!;
       if (!ls.willQuote) continue;
-      const cur = ls.currency || currency;
+      const cur = ls.currency || defaultCurrency;
       const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
       const withTax = add(net, lineTax(net, ls.taxRate));
       map[cur] = add(map[cur] ?? add(0), withTax);
     }
     if (Number(freight || "0") > 0) {
-      map[currency] = add(map[currency] ?? add(0), freight || "0");
+      map[freightCurrency] = add(map[freightCurrency] ?? add(0), freight || "0");
     }
     return map;
-  }, [lines, freight, ctx.lines, currency]);
+  }, [lines, freight, ctx.lines, freightCurrency, defaultCurrency]);
   const totalCurrencies = Object.keys(totalsByCurrency);
+  // Teklifin ana para birimi: en büyük tutarlı PB (yoksa navlun PB'si).
+  const primaryCurrency = useMemo(() => {
+    let best = freightCurrency;
+    let bestVal = -1;
+    for (const [cur, val] of Object.entries(totalsByCurrency)) {
+      const n = Number(val.toString());
+      if (n > bestVal) { bestVal = n; best = cur; }
+    }
+    return best;
+  }, [totalsByCurrency, freightCurrency]);
 
   async function save(submit: boolean) {
     setError("");
     setSubmitting(true);
     const payload = {
-      currency,
+      currency: primaryCurrency,
       note: note || undefined,
       paymentTermDays: paymentTermDays ? parseInt(paymentTermDays, 10) : undefined,
       incoterm: incoterm || undefined,
@@ -173,7 +186,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         brand: lines[l.id]!.brand || undefined,
         leadTimeDays: lines[l.id]!.leadTimeDays || undefined,
         note: lines[l.id]!.note || undefined,
-        currency: lines[l.id]!.currency || currency,
+        currency: lines[l.id]!.currency || defaultCurrency,
       })),
     };
     const res = buyerRfqSupplierId
@@ -211,17 +224,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         <CardHeader>
           <CardTitle>{s.terms}</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label>{s.currency}</Label>
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {ctx.currencyOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>{s.paymentDays}</Label>
             <Select value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)}>
@@ -350,7 +353,14 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>{s.freight}</Label>
-            <Input value={freight} onChange={(e) => setFreight(e.target.value)} />
+            <div className="flex gap-2">
+              <Input value={freight} onChange={(e) => setFreight(e.target.value)} className="flex-1" />
+              <Select className="w-20" value={freightCurrency} onChange={(e) => setFreightCurrency(e.target.value)}>
+                {ctx.currencyOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>{s.notes}</Label>
@@ -365,7 +375,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         <div>
           <div className="text-xs text-muted-foreground">{s.grand}</div>
           {totalCurrencies.length === 0 ? (
-            <div className="text-2xl font-bold">{formatMoney("0", currency)}</div>
+            <div className="text-2xl font-bold">{formatMoney("0", primaryCurrency)}</div>
           ) : (
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               {totalCurrencies.map((cur) => (
@@ -408,7 +418,7 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
             <CardContent className="space-y-3">
               <p className="text-sm">
                 {ctx.rfqNumber} {s.confirmBody1}{" "}
-                <b>{totalCurrencies.length ? totalCurrencies.map((c) => formatMoney(totalsByCurrency[c]!, c)).join(" + ") : formatMoney("0", currency)}</b>{" "}
+                <b>{totalCurrencies.length ? totalCurrencies.map((c) => formatMoney(totalsByCurrency[c]!, c)).join(" + ") : formatMoney("0", primaryCurrency)}</b>{" "}
                 {s.confirmBody2}
               </p>
               <div className="flex justify-end gap-2">

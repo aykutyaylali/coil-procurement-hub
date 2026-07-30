@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { submitOrderForApproval, confirmOrderDirect, decideOrder, sendOrderToSupplier } from "../actions";
+import { submitOrderForApproval, confirmOrderDirect, decideOrder, sendOrderToSupplier, confirmAndSendOrder } from "../actions";
 
 export function OrderActionsPanel({
   id,
@@ -42,15 +42,27 @@ export function OrderActionsPanel({
 
       {status === "DRAFT" && (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Yönetim onayı opsiyoneldir. İsterseniz doğrudan onaylayıp tedarikçiye gönderebilir, dilerseniz önce yönetim onayına gönderebilirsiniz.
-          </p>
-          {canApprove && (
-            <Button className="w-full" disabled={busy} onClick={() => run(() => confirmOrderDirect(id))}>
-              Doğrudan Onayla (onaysız)
+          {canApprove && canSend && (
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={async () => {
+                const res = await run(() => confirmAndSendOrder(id));
+                if (res.ok) setMsg("Sipariş onaylandı ve tedarikçiye gönderildi.");
+              }}
+            >
+              {busy ? "İşleniyor…" : "✓ Onayla ve Tedarikçiye Gönder"}
             </Button>
           )}
-          <Button className="w-full" variant="outline" disabled={busy} onClick={() => run(() => submitOrderForApproval(id))}>
+          <p className="text-[11px] text-muted-foreground">
+            Yönetim onayı gerekiyorsa aşağıdan gönderin; aksi halde tek adımda onaylayıp gönderebilirsiniz.
+          </p>
+          {canApprove && (
+            <Button className="w-full" variant="ghost" size="sm" disabled={busy} onClick={() => run(() => confirmOrderDirect(id))}>
+              Yalnızca Onayla (gönderme)
+            </Button>
+          )}
+          <Button className="w-full" variant="outline" size="sm" disabled={busy} onClick={() => run(() => submitOrderForApproval(id))}>
             Yönetim Onayına Gönder
           </Button>
         </div>

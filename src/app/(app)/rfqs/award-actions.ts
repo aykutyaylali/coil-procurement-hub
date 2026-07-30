@@ -162,11 +162,31 @@ export async function awardRfqAndCreateOrders(
         tx,
       );
 
+      // Kararı verilen kalemleri ve bağlı TALEBİ güncelle (aksi halde talep
+      // "Teklifler toplanıyor" durumunda kalır). Award edilen RFQ satırı → talep satırı ORDERED.
+      const awardedRfqLineIds = new Set(data.awards.map((a) => a.rfqLineId));
+      const reqLineIds = rfq.lines.filter((l) => awardedRfqLineIds.has(l.id) && l.requisitionLineId).map((l) => l.requisitionLineId!);
+      const reqIds = Array.from(new Set(rfq.lines.filter((l) => awardedRfqLineIds.has(l.id) && l.requisitionId).map((l) => l.requisitionId!)));
+      if (reqLineIds.length) {
+        await tx.requisitionLine.updateMany({ where: { id: { in: reqLineIds } }, data: { status: "ORDERED" } });
+      }
+      for (const rid of reqIds) {
+        // Talebin açık/teklifte bekleyen kalemi kalmadıysa talep ORDERED olur
+        const openLeft = await tx.requisitionLine.count({ where: { requisitionId: rid, status: { in: ["OPEN", "IN_RFQ"] } } });
+        const req = await tx.purchaseRequisition.findUnique({ where: { id: rid }, select: { status: true } });
+        if (openLeft === 0 && req && ["IN_RFQ", "APPROVED", "ASSIGNED"].includes(req.status)) {
+          await tx.purchaseRequisition.update({ where: { id: rid }, data: { status: "ORDERED" } });
+          await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "STATUS_CHANGE", entityType: "PurchaseRequisition", entityId: rid, after: { status: "ORDERED" }, reason: `RFQ ${rfq.number} karara bağlandı` }, tx);
+        }
+      }
+
       return { orderIds };
     });
 
     revalidatePath(`/rfqs/${data.rfqId}`);
     revalidatePath("/orders");
+    revalidatePath("/requisitions");
+    revalidatePath("/islem-merkezi");
     return ok(result);
   } catch (e) {
     return fail(e);

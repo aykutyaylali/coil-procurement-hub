@@ -118,6 +118,18 @@ export async function decideOrder(input: {
 }
 
 /** Onaylı siparişi tedarikçiye e-posta ile gönderir. */
+/**
+ * TEK TIKLA sipariş verme: taslak siparişi doğrudan onaylar ve tedarikçiye gönderir.
+ * Yönetim onayı gerekmeyen (varsayılan) durumda süreci sadeleştirir.
+ */
+export async function confirmAndSendOrder(id: string): Promise<Result<{ status: string }>> {
+  const confirmed = await confirmOrderDirect(id);
+  if (!confirmed.ok) return confirmed;
+  const sent = await sendOrderToSupplier(id);
+  if (!sent.ok) return { ok: false, error: sent.error, code: sent.code, fields: sent.fields };
+  return ok({ status: "SENT" });
+}
+
 export async function sendOrderToSupplier(id: string): Promise<Result<{ sent: number }>> {
   try {
     const user = await requirePermission(PERMISSIONS.ORDER_SEND);

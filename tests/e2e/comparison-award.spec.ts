@@ -10,17 +10,28 @@ const PW = "Coil2026!";
 const prisma = new PrismaClient();
 let rfqId = "";
 
+let reqId = "";
 test.beforeAll(async () => {
   const t = await prisma.tenant.findFirst();
   const co = await prisma.company.findFirst({ where: { tenantId: t!.id } });
   const admin = await prisma.user.findFirst({ where: { email: "admin@coilpartners.com" } });
   const sups = await prisma.supplier.findMany({ where: { tenantId: t!.id }, take: 2 });
+  // Talep + kalemler (RFQ'ya bağlanacak — award sonrası talep ORDERED olmalı)
+  const req = await prisma.purchaseRequisition.create({
+    data: {
+      tenantId: t!.id, number: "REQT-" + Date.now(), companyId: co!.id, requesterId: admin!.id, status: "IN_RFQ",
+      priority: "NORMAL", purchaseType: "GOODS", operationType: "IMPORT_PURCHASE", currency: "USD",
+      lines: { create: [{ lineNo: 1, description: "Test Rulman AA", quantity: "100", uom: "AD", status: "IN_RFQ" }, { lineNo: 2, description: "Test Bakir BB", quantity: "50", uom: "KG", status: "IN_RFQ" }] },
+    },
+    include: { lines: true },
+  });
+  reqId = req.id;
   const rfq = await prisma.rFQ.create({
     data: {
       tenantId: t!.id, number: "CMPT-" + Date.now(), companyId: co!.id, title: "Karar testi",
       status: "OPEN", operationType: "IMPORT_PURCHASE", currencyOptions: JSON.stringify(["USD", "EUR"]),
       dueAt: new Date(Date.now() + 7 * 864e5), createdById: admin!.id,
-      lines: { create: [{ lineNo: 1, description: "Test Rulman AA", quantity: "100", uom: "AD" }, { lineNo: 2, description: "Test Bakir BB", quantity: "50", uom: "KG" }] },
+      lines: { create: req.lines.map((rl, j) => ({ lineNo: j + 1, description: rl.description, quantity: rl.quantity, uom: rl.uom, requisitionId: req.id, requisitionLineId: rl.id })) },
     },
     include: { lines: true },
   });
@@ -70,4 +81,7 @@ test("Karşılaştırma → split seçim → Karar Özeti → 2 sipariş", async
   // 2 sipariş oluşmalı (split award: 2 farklı tedarikçi)
   await expect.poll(async () => prisma.purchaseOrder.count({ where: { rfqId } }), { timeout: 20000 }).toBe(2);
   await expect(page.getByText(/sipariş oluşturuldu/).first()).toBeVisible({ timeout: 10000 });
+
+  // Bağlı TALEP artık "Teklifler toplanıyor"da (IN_RFQ) KALMAMALI → ORDERED (bildirilen bug)
+  await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 10000 }).toBe("ORDERED");
 });

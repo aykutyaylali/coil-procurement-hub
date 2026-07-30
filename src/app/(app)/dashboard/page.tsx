@@ -85,7 +85,7 @@ export default async function DashboardPage() {
     prisma.invoice.count({ where: { tenantId, status: "BLOCKED" } }),
     getMyPendingApprovals(),
     prisma.purchaseRequisition.findMany({
-      where: { tenantId },
+      where: { tenantId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {

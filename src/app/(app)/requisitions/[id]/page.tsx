@@ -19,7 +19,7 @@ export default async function RequisitionDetailPage({
   const user = await requireUser();
 
   const req = await prisma.purchaseRequisition.findFirst({
-    where: { id, tenantId: user.tenantId },
+    where: { id, tenantId: user.tenantId, deletedAt: null },
     include: {
       requester: true,
       company: true,

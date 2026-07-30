@@ -69,7 +69,7 @@ const OPEN_RFQ_STATUSES = ["DRAFT", "SENT", "OPEN", "CLARIFICATION", "EVALUATION
 
 export async function loadProcurementCase(requisitionId: string, tenantId: string) {
   const req = await prisma.purchaseRequisition.findFirst({
-    where: { id: requisitionId, tenantId },
+    where: { id: requisitionId, tenantId, deletedAt: null },
     include: {
       requester: { select: { id: true, name: true, email: true } },
       company: { select: { id: true, name: true } },
@@ -87,7 +87,7 @@ export async function loadProcurementCase(requisitionId: string, tenantId: strin
 
   // RFQ'lar: bu talebin kalemlerinden oluşturulanlar
   const rfqs = await prisma.rFQ.findMany({
-    where: { tenantId, lines: { some: { requisitionId: req.id } } },
+    where: { tenantId, deletedAt: null, lines: { some: { requisitionId: req.id } } },
     orderBy: { createdAt: "desc" },
     include: {
       lines: { orderBy: { lineNo: "asc" } },

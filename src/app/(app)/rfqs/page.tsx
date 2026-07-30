@@ -19,6 +19,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
 
   const where = {
     tenantId: user.tenantId,
+    deletedAt: null,
     ...(sp.status ? { status: sp.status } : {}),
     ...(sp.filter === "responded" ? { suppliers: { some: { status: "RESPONDED" } }, status: { in: EVAL_STATUSES } } : {}),
   };
@@ -36,7 +37,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
 
   // Değerlendirilecek (yanıt gelmiş) RFQ sayısı — üstte vurgulanır
   const respondedCount = await prisma.rFQ.count({
-    where: { tenantId: user.tenantId, status: { in: EVAL_STATUSES }, suppliers: { some: { status: "RESPONDED" } } },
+    where: { tenantId: user.tenantId, deletedAt: null, status: { in: EVAL_STATUSES }, suppliers: { some: { status: "RESPONDED" } } },
   });
 
   const chips = [

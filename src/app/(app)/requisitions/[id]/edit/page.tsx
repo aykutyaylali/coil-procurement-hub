@@ -14,7 +14,7 @@ export default async function EditRequisitionPage({ params }: { params: Promise<
   const { id } = await params;
   const user = await requireUser();
   const req = await prisma.purchaseRequisition.findFirst({
-    where: { id, tenantId: user.tenantId },
+    where: { id, tenantId: user.tenantId, deletedAt: null },
     include: { lines: { orderBy: { lineNo: "asc" }, select: { description: true, quantity: true, uom: true, categoryId: true } } },
   });
   if (!req) notFound();

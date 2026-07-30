@@ -27,6 +27,7 @@ export default async function RequisitionsPage({
 
   const where = {
     tenantId: user.tenantId,
+    deletedAt: null,
     ...(sp.status ? { status: sp.status } : {}),
     ...(sp.q
       ? { OR: [{ number: { contains: sp.q } }, { justification: { contains: sp.q } }] }

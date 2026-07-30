@@ -18,7 +18,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   const user = await requireUser();
 
   const rfq = await prisma.rFQ.findFirst({
-    where: { id, tenantId: user.tenantId },
+    where: { id, tenantId: user.tenantId, deletedAt: null },
     include: {
       company: true,
       lines: { orderBy: { lineNo: "asc" } },

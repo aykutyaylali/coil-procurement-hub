@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Satınalma İşlem Merkezi" };
 
 /** İş kuyrukları — her biri bir talep (satınalma dosyası) filtresi. */
 function queueWhere(key: string, tenantId: string): Prisma.PurchaseRequisitionWhereInput {
-  const base = { tenantId };
+  const base = { tenantId, deletedAt: null };
   const respondedRel = { lines: { some: { rfqLines: { some: { rfq: { suppliers: { some: { status: "RESPONDED" } } } } } } } };
   switch (key) {
     case "islem-bekleyen":

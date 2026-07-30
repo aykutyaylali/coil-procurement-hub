@@ -830,6 +830,7 @@ model PurchaseRequisition {
   importBatchId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines     RequisitionLine[]
   rfqLines  RFQLine[]
@@ -898,6 +899,7 @@ model RFQ {
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines     RFQLine[]
   suppliers RFQSupplier[]
@@ -1153,6 +1155,7 @@ model PurchaseOrder {
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines         PurchaseOrderLine[]
   revisions     OrderRevision[]
@@ -1387,6 +1390,7 @@ model Invoice {
   source        String   @default("MANUAL") // MANUAL | UPLOAD | EMAIL | EINVOICE | ERP
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines   InvoiceLine[]
   matches InvoiceMatch[]

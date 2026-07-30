@@ -46,11 +46,12 @@ export async function cancelRfq(rfqId: string): Promise<Result<{ id: string }>> 
           await tx.purchaseRequisition.update({ where: { id: rid }, data: { status: "APPROVED" } });
         }
       }
-      // Davetli tedarikçileri ve RFQ'yu temizle
+      // Davetli tedarikçileri ve kalemleri temizle; RFQ başlığı soft-delete
+      // (kayıt denetim için korunur, listelerden gizlenir).
       await tx.rFQSupplier.deleteMany({ where: { rfqId: rfq.id } });
       await tx.rFQLine.deleteMany({ where: { rfqId: rfq.id } });
-      await tx.rFQ.delete({ where: { id: rfq.id } });
-      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "RFQ", entityId: rfq.id, before: { number: rfq.number, status: rfq.status }, reason: "RFQ iptal edildi; kalemler yeniden açıldı" }, tx);
+      await tx.rFQ.update({ where: { id: rfq.id }, data: { deletedAt: new Date(), status: "CANCELLED" } });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "RFQ", entityId: rfq.id, before: { number: rfq.number, status: rfq.status }, reason: "RFQ iptal edildi (soft-delete); kalemler yeniden açıldı" }, tx);
     });
     revalidatePath("/rfqs");
     return ok({ id: rfqId });

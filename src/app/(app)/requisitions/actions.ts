@@ -302,7 +302,7 @@ export async function updateRequisition(input: unknown): Promise<Result<{ id: st
 export async function deleteRequisition(id: string): Promise<Result<null>> {
   try {
     const user = await requirePermission(PERMISSIONS.REQUISITION_EDIT);
-    const req = await prisma.purchaseRequisition.findFirst({ where: { id, tenantId: user.tenantId } });
+    const req = await prisma.purchaseRequisition.findFirst({ where: { id, tenantId: user.tenantId, deletedAt: null } });
     if (!req) throw new NotFoundError("Talep bulunamadı.");
 
     const rfqRefs = await prisma.rFQLine.count({ where: { requisitionId: req.id } });
@@ -310,10 +310,11 @@ export async function deleteRequisition(id: string): Promise<Result<null>> {
       throw new ValidationError("Bu talebe bağlı teklif talebi (RFQ) var. Önce ilgili RFQ'yu iptal edin, sonra silin.");
     }
 
+    // Soft-delete: kayıt korunur (denetim bütünlüğü), listelerden gizlenir.
     await prisma.$transaction(async (tx) => {
-      await tx.requisitionLine.deleteMany({ where: { requisitionId: req.id } });
-      await tx.purchaseRequisition.delete({ where: { id: req.id } });
-      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "PurchaseRequisition", entityId: req.id, before: { number: req.number, status: req.status }, reason: "Talep silindi" }, tx);
+      await tx.purchaseRequisition.update({ where: { id: req.id }, data: { deletedAt: new Date(), status: "CANCELLED" } });
+      await tx.requisitionLine.updateMany({ where: { requisitionId: req.id }, data: { status: "CANCELLED" } });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "PurchaseRequisition", entityId: req.id, before: { number: req.number, status: req.status }, reason: "Talep silindi (soft-delete)" }, tx);
     });
     revalidatePath("/requisitions");
     return ok(null);

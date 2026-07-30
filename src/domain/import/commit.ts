@@ -1,5 +1,5 @@
 import "server-only";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 import type { Tx } from "@/lib/db";
 import { nextNumber } from "@/domain/numbering";
@@ -14,16 +14,65 @@ import {
   type ParsedLine,
 } from "@/domain/import/historical";
 
-/** xlsx buffer'ından bir sayfayı satır nesnelerine çevirir. */
-export function readSheetRows(buffer: Buffer, sheetName = KALEM_SHEET): Record<string, unknown>[] {
-  const wb = XLSX.read(buffer, { cellDates: true });
-  const ws = wb.Sheets[sheetName];
-  if (!ws) throw new Error(`"${sheetName}" sayfası bulunamadı. Mevcut: ${wb.SheetNames.join(", ")}`);
-  return XLSX.utils.sheet_to_json(ws, { defval: null, raw: true }) as Record<string, unknown>[];
+/**
+ * exceljs hücre değerini SheetJS `raw:true` benzeri düz bir değere indirger:
+ * tarih → Date, formül → sonuç, richText → düz metin, hyperlink → metin,
+ * hata/boş → null; sayı/metin/boolean olduğu gibi.
+ */
+function cellToRaw(v: ExcelJS.CellValue): unknown {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === "object") {
+    const o = v as unknown as Record<string, unknown>;
+    if (Array.isArray(o.richText)) return (o.richText as { text?: string }[]).map((r) => r.text ?? "").join("");
+    if ("result" in o) {
+      const r = o.result;
+      return r === undefined ? null : r; // formül sonucu (Date olabilir)
+    }
+    if ("text" in o) return o.text; // hyperlink
+    if ("error" in o) return null;
+    return null;
+  }
+  return v; // number | string | boolean
 }
 
-export function listSheets(buffer: Buffer): string[] {
-  return XLSX.read(buffer, { type: "buffer" }).SheetNames;
+/**
+ * xlsx buffer'ından bir sayfayı satır nesnelerine çevirir.
+ * SheetJS `sheet_to_json(ws,{defval:null,raw:true})` davranışını birebir taklit eder:
+ * 1. satır başlıkları anahtar olur; boş hücreler null; tam boş satırlar atlanır.
+ */
+export async function readSheetRows(buffer: Buffer, sheetName = KALEM_SHEET): Promise<Record<string, unknown>[]> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  const ws = wb.getWorksheet(sheetName);
+  if (!ws) throw new Error(`"${sheetName}" sayfası bulunamadı. Mevcut: ${wb.worksheets.map((w) => w.name).join(", ")}`);
+
+  // Başlık satırı (1. satır) → sütun indeksine göre anahtarlar (birebir, kırpma yok)
+  const headers: (string | null)[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, col) => {
+    const h = cellToRaw(cell.value);
+    headers[col] = h === null ? null : String(h);
+  });
+
+  const rows: Record<string, unknown>[] = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    if (!row.hasValues) continue; // SheetJS de tamamen boş satırları atlar
+    const obj: Record<string, unknown> = {};
+    for (let col = 1; col < headers.length; col++) {
+      const key = headers[col];
+      if (key == null || key === "") continue;
+      obj[key] = cellToRaw(row.getCell(col).value); // defval:null davranışı (boş → null)
+    }
+    rows.push(obj);
+  }
+  return rows;
+}
+
+export async function listSheets(buffer: Buffer): Promise<string[]> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  return wb.worksheets.map((w) => w.name);
 }
 
 export interface DryRunResult {

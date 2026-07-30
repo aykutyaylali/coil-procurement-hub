@@ -1,4 +1,5 @@
-import xlsx from "xlsx";
+import ExcelJS from "exceljs";
+import { readFileSync } from "node:fs";
 import { prisma } from "@/lib/db";
 
 const EXCEL = "C:\\Users\\Aykut\\Downloads\\Satinalma_Dashboard_Raporu_1.xlsx";
@@ -16,6 +17,7 @@ function titleCase(s: string): string {
 }
 function parseDate(v: unknown): Date | null {
   if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v; // exceljs ham Date
   const s = String(v).trim();
   const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
@@ -26,10 +28,47 @@ function num(v: unknown): number | null {
   const n = typeof v === "number" ? v : Number(String(v).replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
+/** exceljs hücre değerini düz değere indirger (tarih→Date, formül→sonuç, richText→metin). */
+function cellToRaw(v: ExcelJS.CellValue): unknown {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === "object") {
+    const o = v as unknown as Record<string, unknown>;
+    if (Array.isArray(o.richText)) return (o.richText as { text?: string }[]).map((r) => r.text ?? "").join("");
+    if ("result" in o) return o.result === undefined ? null : o.result;
+    if ("text" in o) return o.text;
+    return null;
+  }
+  return v;
+}
+/** "Kalem Detayları" sayfasını satır nesnelerine çevirir (defval:null). */
+async function readKalemRows(path: string): Promise<Record<string, unknown>[]> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(readFileSync(path) as unknown as ArrayBuffer);
+  const ws = wb.getWorksheet("Kalem Detayları");
+  if (!ws) throw new Error("'Kalem Detayları' sayfası bulunamadı.");
+  const headers: (string | null)[] = [];
+  ws.getRow(1).eachCell({ includeEmpty: true }, (cell, col) => {
+    const h = cellToRaw(cell.value);
+    headers[col] = h === null ? null : String(h);
+  });
+  const out: Record<string, unknown>[] = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    if (!row.hasValues) continue;
+    const obj: Record<string, unknown> = {};
+    for (let col = 1; col < headers.length; col++) {
+      const key = headers[col];
+      if (key == null || key === "") continue;
+      obj[key] = cellToRaw(row.getCell(col).value);
+    }
+    out.push(obj);
+  }
+  return out;
+}
 
 async function main() {
-  const wb = xlsx.readFile(EXCEL, { cellDates: true });
-  const rows = xlsx.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets["Kalem Detayları"]!, { defval: null });
+  const rows = await readKalemRows(EXCEL);
 
   const tenant = await prisma.tenant.findFirst();
   if (!tenant) throw new Error("tenant yok");

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { requirePermission } from "@/lib/auth/context";
+import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { label } from "@/domain/labels";
 import { InspectionPanel } from "./panel";
+import { CoilTestsPanel, type CoilTest } from "./coil-tests-panel";
 
 export default async function QualityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,6 +24,16 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
   if (!inspection) notFound();
 
   const users = await prisma.user.findMany({ where: { tenantId: user.tenantId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+
+  const canInspect = userCan(user, PERMISSIONS.QUALITY_INSPECT);
+  let coilTests: CoilTest[] = [];
+  if (inspection.testsJson) {
+    try {
+      coilTests = JSON.parse(inspection.testsJson) as CoilTest[];
+    } catch {
+      coilTests = [];
+    }
+  }
 
   return (
     <div>
@@ -50,6 +61,8 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
             supplierId={inspection.receipt.order.supplierId}
             users={users}
           />
+
+          <CoilTestsPanel inspectionId={inspection.id} initialTests={coilTests} canEdit={canInspect} />
 
           <Card>
             <CardHeader><CardTitle>Uygunsuzluklar (NCR)</CardTitle></CardHeader>

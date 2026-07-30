@@ -61,6 +61,82 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
   }
 }
 
+export interface AttachmentMeta {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  isInternal: boolean;
+  isImage: boolean;
+  dataUrl: string | null; // görseller için küçük önizleme; diğer dosyalarda null
+  createdAt: string;
+}
+
+/** Bir varlığa (entityType/entityId) bağlı ekleri listeler (görsellerde önizleme dahil). */
+export async function listAttachments(entityType: string, entityId: string): Promise<Result<AttachmentMeta[]>> {
+  try {
+    const user = await requireUser();
+    const rows = await prisma.attachment.findMany({
+      where: { tenantId: user.tenantId, entityType, entityId },
+      orderBy: { createdAt: "asc" },
+    });
+    const storage = getStorage();
+    const items: AttachmentMeta[] = [];
+    for (const a of rows) {
+      const isImage = a.mimeType.startsWith("image/");
+      let dataUrl: string | null = null;
+      if (isImage && a.scanStatus !== "INFECTED") {
+        try {
+          const buffer = await storage.get(a.storageKey);
+          dataUrl = `data:${a.mimeType};base64,${buffer.toString("base64")}`;
+        } catch {
+          dataUrl = null;
+        }
+      }
+      items.push({
+        id: a.id,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        isInternal: a.isInternal,
+        isImage,
+        dataUrl,
+        createdAt: a.createdAt.toISOString(),
+      });
+    }
+    return ok(items);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Yetki kontrollü ek silme (yalnızca aynı tenant). */
+export async function deleteAttachment(id: string): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requireUser();
+    const att = await prisma.attachment.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!att) return fail(new Error("Dosya bulunamadı."));
+    const storage = getStorage();
+    try {
+      await storage.delete(att.storageKey);
+    } catch {
+      // depodan silinemese bile kaydı kaldır (yetim dosya temizliği ayrı yapılır)
+    }
+    await prisma.attachment.delete({ where: { id: att.id } });
+    await writeAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: "DELETE",
+      entityType: "Attachment",
+      entityId: att.id,
+      before: { fileName: att.fileName, entityType: att.entityType, entityId: att.entityId },
+    });
+    return ok({ id: att.id });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Yetki kontrollü dosya indirme (base64 data URL döner). */
 export async function getAttachmentData(id: string): Promise<Result<{ fileName: string; mimeType: string; dataUrl: string }>> {
   try {

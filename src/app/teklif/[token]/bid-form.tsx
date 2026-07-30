@@ -270,6 +270,16 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
                     <TD>
                       <div className="font-medium">{l.description}</div>
                       {l.specs && <div className="text-xs text-muted-foreground">{l.specs}</div>}
+                      {l.photos.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {l.photos.map((p) => (
+                            <a key={p.id} href={p.url} target="_blank" rel="noreferrer" title={p.name}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={p.url} alt={p.name} className="size-12 rounded border object-cover transition hover:opacity-80" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       <Input
                         className="mt-1 h-7 text-xs"
                         placeholder={s.brand}

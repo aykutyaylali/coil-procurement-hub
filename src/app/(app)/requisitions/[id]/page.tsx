@@ -95,6 +95,7 @@ export default async function RequisitionDetailPage({
           <RequisitionLinesPanel
             requisitionId={req.id}
             canCreateRfq={canCreateRfq}
+            canEditLines={canEditReq}
             reqStatus={req.status}
             lines={req.lines.map((l) => ({
               id: l.id,

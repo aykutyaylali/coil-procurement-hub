@@ -1317,6 +1317,7 @@ model QualityInspection {
   planRef     String?  // kontrol planı referansı
   sampleSize  String?
   sampleResult String? // numune/ölçüm sonuçları (JSON veya metin)
+  testsJson   String? // bobin testleri: [{name,method,spec,measured,result}] JSON dizisi
   inspectedBy String?
   inspectedAt DateTime?
   note        String?

@@ -2,7 +2,53 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/ids";
 import { add, lineNet, lineTax, toStr } from "@/lib/money";
+import { getStorage } from "@/lib/storage";
 import { AppError } from "@/lib/errors";
+
+export interface LinePhoto {
+  id: string;
+  url: string; // data: URL (base64) — tedarikçi oturumsuz göründüğü için gömülür
+  name: string;
+}
+
+/**
+ * Kalem görsellerini (talep kalemine veya RFQ kalemine bağlı, tedarikçiye açık
+ * = isInternal false) yükler ve rfqLineId bazında data-URL olarak döndürür.
+ * Tedarikçi oturumsuz olduğundan görseller sayfaya gömülür.
+ */
+async function loadLinePhotos(
+  rfqLines: { id: string; requisitionLineId: string | null }[],
+  tenantId: string,
+): Promise<Record<string, LinePhoto[]>> {
+  const reqLineIds = rfqLines.map((l) => l.requisitionLineId).filter((x): x is string => !!x);
+  const rfqLineIds = rfqLines.map((l) => l.id);
+  const or: { entityType: string; entityId: { in: string[] } }[] = [{ entityType: "RFQLine", entityId: { in: rfqLineIds } }];
+  if (reqLineIds.length) or.push({ entityType: "RequisitionLine", entityId: { in: reqLineIds } });
+
+  const atts = await prisma.attachment.findMany({
+    where: { tenantId, isInternal: false, scanStatus: { not: "INFECTED" }, mimeType: { startsWith: "image/" }, OR: or },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!atts.length) return {};
+
+  const storage = getStorage();
+  const byEntity: Record<string, LinePhoto[]> = {};
+  for (const a of atts) {
+    try {
+      const buf = await storage.get(a.storageKey);
+      (byEntity[a.entityId] ??= []).push({ id: a.id, url: `data:${a.mimeType};base64,${buf.toString("base64")}`, name: a.fileName });
+    } catch {
+      /* dosya okunamadıysa atla */
+    }
+  }
+
+  const result: Record<string, LinePhoto[]> = {};
+  for (const l of rfqLines) {
+    const photos = [...(byEntity[l.id] ?? []), ...(l.requisitionLineId ? byEntity[l.requisitionLineId] ?? [] : [])];
+    if (photos.length) result[l.id] = photos;
+  }
+  return result;
+}
 
 export interface BidContext {
   rfqSupplierId: string;
@@ -27,6 +73,7 @@ export interface BidContext {
     specs: string | null;
     quantity: string;
     uom: string | null;
+    photos: LinePhoto[];
   }[];
   existingBid: {
     id: string;
@@ -87,6 +134,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
 
   const rfq = rfqSupplier.rfq;
   const dueExpired = rfq.dueAt ? rfq.dueAt.getTime() < Date.now() : false;
+  const photosByLine = await loadLinePhotos(rfq.lines.map((l) => ({ id: l.id, requisitionLineId: l.requisitionLineId })), rfq.tenantId);
 
   let currencyOptions: string[] = ["TRY"];
   try {
@@ -143,6 +191,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
       specs: l.specs,
       quantity: l.quantity,
       uom: l.uom,
+      photos: photosByLine[l.id] ?? [],
     })),
     existingBid,
   };
@@ -167,6 +216,8 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
     /* varsayılan */
   }
 
+  const photosByLine = await loadLinePhotos(rfq.lines.map((l) => ({ id: l.id, requisitionLineId: l.requisitionLineId })), tenantId);
+
   return {
     rfqSupplierId: "preview",
     rfqId: rfq.id,
@@ -189,6 +240,7 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
       specs: l.specs,
       quantity: l.quantity,
       uom: l.uom,
+      photos: photosByLine[l.id] ?? [],
     })),
     existingBid: null,
   };
@@ -210,6 +262,7 @@ export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: st
   });
   if (!rfqSupplier) throw new AppError("Davetli tedarikçi bulunamadı.", "NOT_FOUND", 404);
   const rfq = rfqSupplier.rfq;
+  const photosByLine = await loadLinePhotos(rfq.lines.map((l) => ({ id: l.id, requisitionLineId: l.requisitionLineId })), tenantId);
 
   let currencyOptions: string[] = ["TRY"];
   try {
@@ -260,7 +313,7 @@ export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: st
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     supplierPaymentTermDays: rfqSupplier.supplier.defaultPaymentTermDays ?? null,
-    lines: rfq.lines.map((l) => ({ id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom })),
+    lines: rfq.lines.map((l) => ({ id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom, photos: photosByLine[l.id] ?? [] })),
     existingBid,
     supplierInvitedStatus: rfqSupplier.status,
   };

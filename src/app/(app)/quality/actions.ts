@@ -55,6 +55,49 @@ export async function completeInspection(input: unknown): Promise<Result<{ statu
   }
 }
 
+const coilTestSchema = z.object({
+  inspectionId: z.string(),
+  tests: z.array(
+    z.object({
+      name: z.string(),
+      method: z.string().optional().default(""),
+      spec: z.string().optional().default(""),
+      measured: z.string().optional().default(""),
+      result: z.enum(["PASS", "FAIL", "NA"]).optional().default("NA"),
+    }),
+  ),
+});
+
+/** Bobin testlerini (kullanılan testler + ölçüm/sonuç) kaydeder. */
+export async function saveInspectionTests(input: unknown): Promise<Result<{ count: number }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.QUALITY_INSPECT);
+    const data = coilTestSchema.parse(input);
+    const inspection = await prisma.qualityInspection.findFirst({
+      where: { id: data.inspectionId, receipt: { order: { tenantId: user.tenantId } } },
+    });
+    if (!inspection) throw new NotFoundError("Kalite kaydı bulunamadı.");
+    // Boş satırları at (adı olmayan)
+    const clean = data.tests.filter((t) => t.name.trim());
+    await prisma.qualityInspection.update({
+      where: { id: inspection.id },
+      data: { testsJson: clean.length ? JSON.stringify(clean) : null },
+    });
+    await writeAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: "UPDATE",
+      entityType: "QualityInspection",
+      entityId: inspection.id,
+      after: { testCount: clean.length },
+    });
+    revalidatePath(`/quality/${inspection.id}`);
+    return ok({ count: clean.length });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Uygunsuzluk (NCR) oluşturur. Tedarikçiye bağlanabilir; performans puanına etki eder. */
 export async function createNonConformance(input: unknown): Promise<Result<{ id: string }>> {
   try {

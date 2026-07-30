@@ -1,13 +1,14 @@
 "use client";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Split, Info } from "lucide-react";
+import { Loader2, Split, Info, ImagePlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { createRfqFromRequisition } from "@/app/(app)/rfqs/actions";
+import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
 
 export interface ReqLine {
   id: string;
@@ -22,11 +23,13 @@ export interface ReqLine {
 export function RequisitionLinesPanel({
   requisitionId,
   canCreateRfq,
+  canEditLines = false,
   reqStatus,
   lines,
 }: {
   requisitionId: string;
   canCreateRfq: boolean;
+  canEditLines?: boolean;
   reqStatus: string;
   lines: ReqLine[];
 }) {
@@ -34,6 +37,15 @@ export function RequisitionLinesPanel({
   const { toast } = useToast();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [openPhotos, setOpenPhotos] = useState<Set<string>>(new Set());
+
+  function togglePhotos(id: string) {
+    setOpenPhotos((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
 
   const canSplit = canCreateRfq && ["APPROVED", "ASSIGNED", "IN_RFQ"].includes(reqStatus);
   const openLines = lines.filter((l) => l.status === "OPEN");
@@ -99,28 +111,56 @@ export function RequisitionLinesPanel({
               <TH>Kategori</TH>
               <TH className="text-right">Miktar</TH>
               <TH>Durum</TH>
+              <TH>Görsel</TH>
             </TR>
           </THead>
           <TBody>
             {lines.map((l) => {
               const selectable = canSplit && l.status === "OPEN";
+              const photosOpen = openPhotos.has(l.id);
               return (
-                <TR key={l.id} className={selected.has(l.id) ? "bg-primary/5" : ""}>
-                  {canSplit && (
+                <Fragment key={l.id}>
+                  <TR className={selected.has(l.id) ? "bg-primary/5" : ""}>
+                    {canSplit && (
+                      <TD>
+                        {selectable ? (
+                          <input type="checkbox" aria-label={`Kalem ${l.lineNo} seç`} checked={selected.has(l.id)} onChange={() => toggle(l.id)} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TD>
+                    )}
+                    <TD>{l.lineNo}</TD>
+                    <TD className="font-medium">{l.description}</TD>
+                    <TD className="text-sm text-muted-foreground">{l.categoryName ?? "-"}</TD>
+                    <TD className="text-right">{l.quantity} {l.uom ?? ""}</TD>
+                    <TD>{l.status === "OPEN" ? <Badge tone="default">Açık</Badge> : <StatusBadge status={l.status} />}</TD>
                     <TD>
-                      {selectable ? (
-                        <input type="checkbox" aria-label={`Kalem ${l.lineNo} seç`} checked={selected.has(l.id)} onChange={() => toggle(l.id)} />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <Button type="button" variant={photosOpen ? "secondary" : "ghost"} size="sm" onClick={() => togglePhotos(l.id)}>
+                        <ImagePlus className="size-4" /> Foto
+                      </Button>
                     </TD>
+                  </TR>
+                  {photosOpen && (
+                    <TR>
+                      <TD colSpan={canSplit ? 7 : 6} className="bg-muted/20">
+                        <div className="px-2 py-1">
+                          <p className="mb-2 text-xs text-muted-foreground">
+                            Bu kaleme ait fotoğraf/dosya ekleyin. Yüklenen görseller <b>tedarikçinin teklif sayfasında</b> görünür.
+                          </p>
+                          <AttachmentUploader
+                            entityType="RequisitionLine"
+                            entityId={l.id}
+                            isInternal={false}
+                            canEdit={canEditLines}
+                            compact
+                            label="Kalem Görseli / Dosya"
+                          />
+                        </div>
+                      </TD>
+                    </TR>
                   )}
-                  <TD>{l.lineNo}</TD>
-                  <TD className="font-medium">{l.description}</TD>
-                  <TD className="text-sm text-muted-foreground">{l.categoryName ?? "-"}</TD>
-                  <TD className="text-right">{l.quantity} {l.uom ?? ""}</TD>
-                  <TD>{l.status === "OPEN" ? <Badge tone="default">Açık</Badge> : <StatusBadge status={l.status} />}</TD>
-                </TR>
+                </Fragment>
               );
             })}
           </TBody>

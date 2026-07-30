@@ -7,12 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { label } from "@/domain/labels";
+import { translator, type Locale } from "@/lib/i18n";
 import { InspectionPanel } from "./panel";
 import { CoilTestsPanel, type CoilTest } from "./coil-tests-panel";
 
 export default async function QualityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.QUALITY_VIEW);
+  const T = translator(user.locale as Locale);
 
   const inspection = await prisma.qualityInspection.findFirst({
     where: { id, receipt: { order: { tenantId: user.tenantId } } },
@@ -40,17 +42,17 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Kalite Kontrol</h1>
+            <h1 className="text-2xl font-semibold">{T("quality.title")}</h1>
             <StatusBadge status={inspection.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sipariş:{" "}
+            {T("quality.order")}:{" "}
             <Link href={`/orders/${inspection.receipt.orderId}`} className="text-primary hover:underline">{inspection.receipt.order.number}</Link>
-            {" "}· {inspection.receipt.order.supplier.legalName} · Mal Kabul:{" "}
+            {" "}· {inspection.receipt.order.supplier.legalName} · {T("quality.receipt")}:{" "}
             <Link href={`/receipts/${inspection.receiptId}`} className="text-primary hover:underline">{inspection.receipt.number}</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">{T("quality.backToList")}</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -65,14 +67,14 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
           <CoilTestsPanel inspectionId={inspection.id} initialTests={coilTests} canEdit={canInspect} />
 
           <Card>
-            <CardHeader><CardTitle>Uygunsuzluklar (NCR)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("quality.ncrList")}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {inspection.nonConformances.length === 0 && <p className="text-sm text-muted-foreground">Uygunsuzluk kaydı yok.</p>}
+              {inspection.nonConformances.length === 0 && <p className="text-sm text-muted-foreground">{T("quality.ncrEmpty")}</p>}
               {inspection.nonConformances.map((n) => (
                 <Link key={n.id} href={`/quality/ncr/${n.id}`} className="flex items-center justify-between rounded-md border px-3 py-2 hover:bg-accent">
                   <div>
                     <div className="font-medium">{n.code} · {n.title}</div>
-                    <div className="text-xs text-muted-foreground">{label(n.type)} · Hedef: {n.dueDate ? formatDate(n.dueDate) : "-"}</div>
+                    <div className="text-xs text-muted-foreground">{label(n.type)} · {T("quality.target")}: {n.dueDate ? formatDate(n.dueDate) : "-"}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge tone={n.severity === "CRITICAL" ? "danger" : n.severity === "MAJOR" ? "warning" : "default"}>{label(n.severity)}</Badge>
@@ -86,12 +88,12 @@ export default async function QualityDetailPage({ params }: { params: Promise<{ 
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("quality.summary")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Numune Adedı" value={inspection.sampleSize ?? "-"} />
-              <Row label="Kontrol Eden" value={inspection.inspectedBy ? (users.find((u) => u.id === inspection.inspectedBy)?.name ?? "-") : "-"} />
-              <Row label="Kontrol Tarihi" value={inspection.inspectedAt ? formatDateTime(inspection.inspectedAt) : "-"} />
-              {inspection.sampleResult && <Row label="Sonuç" value={inspection.sampleResult} />}
+              <Row label={T("quality.sampleSize")} value={inspection.sampleSize ?? "-"} />
+              <Row label={T("quality.inspectedBy")} value={inspection.inspectedBy ? (users.find((u) => u.id === inspection.inspectedBy)?.name ?? "-") : "-"} />
+              <Row label={T("quality.inspectedAt")} value={inspection.inspectedAt ? formatDateTime(inspection.inspectedAt) : "-"} />
+              {inspection.sampleResult && <Row label={T("quality.result")} value={inspection.sampleResult} />}
             </CardContent>
           </Card>
         </div>

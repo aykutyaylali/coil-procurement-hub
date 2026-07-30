@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatMoney, formatMoneyOrDash, add } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Kontrol Paneli" };
 
@@ -53,6 +54,7 @@ function Stat({
 export default async function DashboardPage() {
   const user = await requireUser();
   const tenantId = user.tenantId;
+  const T = translator(user.locale as Locale);
 
   const [
     pendingReqs,
@@ -107,24 +109,24 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Merhaba, {user.name.split(" ")[0]} 👋</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{T("dashboard.greeting", { name: user.name.split(" ")[0] ?? user.name })} 👋</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Satınalma süreçlerinizin özeti · {formatDate(new Date())}
+          {T("dashboard.subtitle")} · {formatDate(new Date())}
         </p>
       </div>
 
       {(() => {
         const tonePriority: Record<string, number> = { danger: 0, warning: 1, success: 2, default: 3 };
         const allStats = [
-          { label: "Bekleyen Onaylarım", value: pendingApprovals.length, icon: "Stamp", href: "/approvals", tone: "warning" },
-          { label: "Onay Bekleyen Talep", value: pendingReqs, icon: "FileText", href: "/requisitions?status=PENDING_APPROVAL", tone: "default" },
-          { label: "Açık Teklif Talebi", value: openRfqs, icon: "Send", href: "/rfqs", tone: "default" },
-          { label: "Değerlendirilecek Teklif", value: rfqsToEvaluate, icon: "ClipboardCheck", href: "/rfqs?filter=responded", tone: "success" },
-          { label: "Yanıt Bekleyen Tedarikçi", value: awaitingSuppliers, icon: "Clock", href: "/rfqs", tone: "warning" },
-          { label: "Açık Sipariş", value: openOrders, icon: "ShoppingCart", href: "/orders", tone: "default" },
-          { label: "Geciken Sipariş Satırı", value: lateOrders, icon: "AlertTriangle", href: "/orders", tone: "danger" },
-          { label: "Açık Fatura", value: openInvoices, icon: "Receipt", href: "/invoices", tone: "default" },
-          { label: "Bloke Fatura", value: blockedInvoices, icon: "ShieldAlert", href: "/invoices?status=BLOCKED", tone: "danger" },
+          { label: T("dashboard.kpi.pendingApprovals"), value: pendingApprovals.length, icon: "Stamp", href: "/approvals", tone: "warning" },
+          { label: T("dashboard.kpi.pendingReqs"), value: pendingReqs, icon: "FileText", href: "/requisitions?status=PENDING_APPROVAL", tone: "default" },
+          { label: T("dashboard.kpi.openRfqs"), value: openRfqs, icon: "Send", href: "/rfqs", tone: "default" },
+          { label: T("dashboard.kpi.rfqsToEvaluate"), value: rfqsToEvaluate, icon: "ClipboardCheck", href: "/rfqs?filter=responded", tone: "success" },
+          { label: T("dashboard.kpi.awaitingSuppliers"), value: awaitingSuppliers, icon: "Clock", href: "/rfqs", tone: "warning" },
+          { label: T("dashboard.kpi.openOrders"), value: openOrders, icon: "ShoppingCart", href: "/orders", tone: "default" },
+          { label: T("dashboard.kpi.lateOrders"), value: lateOrders, icon: "AlertTriangle", href: "/orders", tone: "danger" },
+          { label: T("dashboard.kpi.openInvoices"), value: openInvoices, icon: "Receipt", href: "/invoices", tone: "default" },
+          { label: T("dashboard.kpi.blockedInvoices"), value: blockedInvoices, icon: "ShieldAlert", href: "/invoices?status=BLOCKED", tone: "danger" },
         ] as const;
         // Yalnızca aksiyon gerektiren (değeri > 0) kartlar; kritik olanlar (danger/warning) önce
         const active = allStats
@@ -133,7 +135,7 @@ export default async function DashboardPage() {
         if (active.length === 0) {
           return (
             <div className="rounded-lg border bg-white p-6 text-center dark:bg-slate-900">
-              <p className="text-sm text-muted-foreground">🎉 Şu an sizi bekleyen bir işlem yok. Tüm kuyruklar temiz.</p>
+              <p className="text-sm text-muted-foreground">{T("dashboard.allClear")}</p>
             </div>
           );
         }
@@ -149,14 +151,14 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Son Talepler</CardTitle>
+            <CardTitle>{T("dashboard.recentReqs")}</CardTitle>
             <Link href="/requisitions" className="text-sm text-primary hover:underline">
-              Tümü
+              {T("action.viewAll")}
             </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {recentReqs.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">Henüz talep yok.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">{T("dashboard.noReqs")}</p>
             )}
             {recentReqs.map((r) => (
               <Link
@@ -183,19 +185,19 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Toplam Sipariş Harcaması (TRY)</CardTitle>
+            <CardTitle>{T("dashboard.totalSpend")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{formatMoney(totalSpend, "TRY")}</div>
             <p className="mt-2 text-xs text-muted-foreground">
-              İptal edilmemiş TRY siparişleri. Çoklu döviz kırılımı için Raporlar bölümüne bakınız.
+              {T("dashboard.totalSpendNote")}
             </p>
             <div className="mt-4 space-y-2">
               <Link href="/reports" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                <Icons.BarChart3 className="size-4" /> Harcama analizini görüntüle
+                <Icons.BarChart3 className="size-4" /> {T("dashboard.viewSpendAnalysis")}
               </Link>
               <Link href="/suppliers" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                <Icons.Building2 className="size-4" /> Tedarikçileri yönet
+                <Icons.Building2 className="size-4" /> {T("dashboard.manageSuppliers")}
               </Link>
             </div>
           </CardContent>

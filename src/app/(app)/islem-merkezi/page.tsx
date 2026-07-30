@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale, type TranslationKey } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Satınalma İşlem Merkezi" };
 
@@ -45,6 +46,7 @@ const QUEUES = [
 
 export default async function IslemMerkeziPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const user = await requirePermission(PERMISSIONS.REQUISITION_VIEW);
+  const T = translator(user.locale as Locale);
   const sp = await searchParams;
 
   const counts = await Promise.all(
@@ -76,10 +78,7 @@ export default async function IslemMerkeziPage({ searchParams }: { searchParams:
 
   return (
     <div>
-      <PageHeader
-        title="Satınalma İşlem Merkezi"
-        description="Her talep bir satınalma dosyasıdır. Süreci (talep → teklif → sipariş → teslimat → fatura) tek yerden yönetin."
-      />
+      <PageHeader title={T("hub.title")} description={T("hub.subtitle")} />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {QUEUES.map((q) => {
@@ -97,7 +96,7 @@ export default async function IslemMerkeziPage({ searchParams }: { searchParams:
                     : "hover:bg-accent"
               }`}
             >
-              {q.label}
+              {T(`hub.queue.${q.key}` as TranslationKey)}
               {n > 0 && <span className={`rounded-full px-1.5 text-[10px] ${isActive ? "bg-primary-foreground/20" : "bg-muted"}`}>{n}</span>}
             </Link>
           );
@@ -106,18 +105,18 @@ export default async function IslemMerkeziPage({ searchParams }: { searchParams:
 
       <Card>
         {cases.length === 0 ? (
-          <EmptyState title="Bu kuyrukta iş yok" hint="Diğer sekmelere bakın veya yeni talep bekleyin." />
+          <EmptyState title={T("hub.empty")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Talep No</TH>
-                <TH>Talep Sahibi</TH>
-                <TH>Şirket</TH>
-                <TH className="text-center">Kalem</TH>
-                <TH>Öncelik</TH>
-                <TH>Durum</TH>
-                <TH>Tarih</TH>
+                <TH>{T("req.number")}</TH>
+                <TH>{T("hub.col.requester")}</TH>
+                <TH>{T("common.company")}</TH>
+                <TH className="text-center">{T("hub.col.lines")}</TH>
+                <TH>{T("common.priority")}</TH>
+                <TH>{T("common.status")}</TH>
+                <TH>{T("common.date")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -129,7 +128,7 @@ export default async function IslemMerkeziPage({ searchParams }: { searchParams:
                   <TD className="text-sm">{c.requester.name}</TD>
                   <TD className="text-sm text-muted-foreground">{c.company.name}</TD>
                   <TD className="text-center">{c._count.lines}</TD>
-                  <TD>{c.priority === "URGENT" || c.priority === "HIGH" ? <Badge tone="warning">{c.priority === "URGENT" ? "Acil" : "Yüksek"}</Badge> : <span className="text-xs text-muted-foreground">Normal</span>}</TD>
+                  <TD>{c.priority === "URGENT" || c.priority === "HIGH" ? <Badge tone="warning">{T(`priority.${c.priority}` as TranslationKey)}</Badge> : <span className="text-xs text-muted-foreground">{T(`priority.${c.priority}` as TranslationKey)}</span>}</TD>
                   <TD><StatusBadge status={c.status} /></TD>
                   <TD className="text-sm text-muted-foreground">{formatDate(c.createdAt)}</TD>
                 </TR>

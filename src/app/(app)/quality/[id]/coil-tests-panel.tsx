@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
+import { useI18n } from "@/components/i18n-provider";
 import { saveInspectionTests } from "../actions";
 
 export interface CoilTest {
@@ -32,6 +33,7 @@ export function CoilTestsPanel({
   canEdit: boolean;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [tests, setTests] = useState<CoilTest[]>(initialTests.length ? initialTests : [{ ...BLANK }]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -67,11 +69,11 @@ export function CoilTestsPanel({
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          <FlaskConical className="size-5" /> Bobin Testleri
+          <FlaskConical className="size-5" /> {t("quality.coilTests")}
         </CardTitle>
         {canEdit && (
           <Button size="sm" onClick={save} disabled={busy}>
-            {busy ? "Kaydediliyor…" : saved ? "✓ Kaydedildi" : "Testleri Kaydet"}
+            {busy ? t("quality.saving") : saved ? t("quality.saved") : t("quality.saveTests")}
           </Button>
         )}
       </CardHeader>
@@ -97,55 +99,55 @@ export function CoilTestsPanel({
           <Table>
             <THead>
               <TR>
-                <TH className="min-w-[140px]">Test</TH>
-                <TH className="min-w-[120px]">Metot / Standart</TH>
-                <TH className="min-w-[100px]">Spesifikasyon</TH>
-                <TH className="min-w-[100px]">Ölçülen</TH>
-                <TH>Sonuç</TH>
+                <TH className="min-w-[140px]">{t("quality.col.test")}</TH>
+                <TH className="min-w-[120px]">{t("quality.col.method")}</TH>
+                <TH className="min-w-[100px]">{t("quality.col.spec")}</TH>
+                <TH className="min-w-[100px]">{t("quality.col.measured")}</TH>
+                <TH>{t("quality.result")}</TH>
                 {canEdit && <TH className="w-10"></TH>}
               </TR>
             </THead>
             <TBody>
-              {tests.map((t, i) => (
+              {tests.map((row, i) => (
                 <TR key={i}>
                   <TD>
                     {canEdit ? (
-                      <Input className="h-8" value={t.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="Örn: Sertlik" />
+                      <Input className="h-8" value={row.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="Örn: Sertlik" />
                     ) : (
-                      <span className="font-medium">{t.name || "-"}</span>
+                      <span className="font-medium">{row.name || "-"}</span>
                     )}
                   </TD>
                   <TD>
                     {canEdit ? (
-                      <Input className="h-8" value={t.method} onChange={(e) => update(i, { method: e.target.value })} placeholder="ASTM / TS / EN" />
+                      <Input className="h-8" value={row.method} onChange={(e) => update(i, { method: e.target.value })} placeholder="ASTM / TS / EN" />
                     ) : (
-                      t.method || "-"
+                      row.method || "-"
                     )}
                   </TD>
                   <TD>
                     {canEdit ? (
-                      <Input className="h-8" value={t.spec} onChange={(e) => update(i, { spec: e.target.value })} placeholder="min/maks" />
+                      <Input className="h-8" value={row.spec} onChange={(e) => update(i, { spec: e.target.value })} placeholder="min/maks" />
                     ) : (
-                      t.spec || "-"
+                      row.spec || "-"
                     )}
                   </TD>
                   <TD>
                     {canEdit ? (
-                      <Input className="h-8" value={t.measured} onChange={(e) => update(i, { measured: e.target.value })} />
+                      <Input className="h-8" value={row.measured} onChange={(e) => update(i, { measured: e.target.value })} />
                     ) : (
-                      t.measured || "-"
+                      row.measured || "-"
                     )}
                   </TD>
                   <TD>
                     {canEdit ? (
-                      <Select className="h-8 w-24" value={t.result} onChange={(e) => update(i, { result: e.target.value as CoilTest["result"] })}>
+                      <Select className="h-8 w-24" value={row.result} onChange={(e) => update(i, { result: e.target.value as CoilTest["result"] })}>
                         <option value="NA">—</option>
-                        <option value="PASS">Uygun</option>
-                        <option value="FAIL">Uygun Değil</option>
+                        <option value="PASS">{t("quality.pass")}</option>
+                        <option value="FAIL">{t("quality.fail")}</option>
                       </Select>
                     ) : (
-                      <span className={t.result === "PASS" ? "text-success" : t.result === "FAIL" ? "text-destructive" : "text-muted-foreground"}>
-                        {t.result === "PASS" ? "Uygun" : t.result === "FAIL" ? "Uygun Değil" : "—"}
+                      <span className={row.result === "PASS" ? "text-success" : row.result === "FAIL" ? "text-destructive" : "text-muted-foreground"}>
+                        {row.result === "PASS" ? t("quality.pass") : row.result === "FAIL" ? t("quality.fail") : "—"}
                       </span>
                     )}
                   </TD>
@@ -164,21 +166,21 @@ export function CoilTestsPanel({
 
         {canEdit && (
           <Button type="button" variant="outline" size="sm" onClick={() => addRow()}>
-            <Plus className="size-4" /> Satır Ekle
+            <Plus className="size-4" /> {t("quality.addRow")}
           </Button>
         )}
 
         <div className="border-t pt-4">
-          <p className="mb-2 text-sm font-medium">Test Kanıtları (rapor / görsel)</p>
+          <p className="mb-2 text-sm font-medium">{t("quality.testEvidence")}</p>
           <p className="mb-2 text-xs text-muted-foreground">
-            Test raporlarını (PDF) ve bobin/numune fotoğraflarını buraya ekleyin. Bu belgeler yalnızca iç kullanım içindir.
+            {t("quality.testEvidenceHint")}
           </p>
           <AttachmentUploader
             entityType="QualityInspection"
             entityId={inspectionId}
             isInternal
             canEdit={canEdit}
-            label="Test Raporu / Fotoğraf"
+            label={t("quality.testEvidence")}
           />
         </div>
       </CardContent>

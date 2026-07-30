@@ -8,11 +8,13 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Kalite" };
 
 export default async function QualityPage() {
   const user = await requirePermission(PERMISSIONS.QUALITY_VIEW);
+  const T = translator(user.locale as Locale);
   const inspections = await prisma.qualityInspection.findMany({
     where: { receipt: { order: { tenantId: user.tenantId } } },
     orderBy: { createdAt: "desc" },
@@ -21,13 +23,13 @@ export default async function QualityPage() {
   });
   return (
     <div>
-      <PageHeader title="Kalite Kontrol" description="Giriş kalite kontrol, uygunsuzluk (NCR), 8D ve CAPA takibi." />
+      <PageHeader title={T("quality.title")} description={T("quality.list.desc")} />
       <Card>
         {inspections.length === 0 ? (
-          <EmptyState title="Kalite kaydı yok" hint="Kalite gerektiren mal kabuller otomatik olarak buraya düşer." />
+          <EmptyState title={T("quality.list.empty")} hint={T("quality.list.emptyHint")} />
         ) : (
           <Table>
-            <THead><TR><TH>Sipariş</TH><TH>Tedarikçi</TH><TH className="text-center">Uygunsuzluk</TH><TH>Sonuç</TH><TH>Tarih</TH></TR></THead>
+            <THead><TR><TH>{T("quality.order")}</TH><TH>{T("common.supplier")}</TH><TH className="text-center">{T("quality.ncrCount")}</TH><TH>{T("quality.result")}</TH><TH>{T("common.date")}</TH></TR></THead>
             <TBody>
               {inspections.map((q) => (
                 <TR key={q.id}>

@@ -11,21 +11,24 @@ import { formatDate, formatDateTime } from "@/lib/dates";
 import { translator, type Locale, type TranslationKey } from "@/lib/i18n";
 import { loadPOTimeline, loadProductionHistory } from "@/domain/po-workspace";
 import { loadDiscussion, unreadCommentCount } from "@/domain/discussion";
+import { loadTechnicalReviews } from "@/domain/technical-review";
 import { PRODUCTION_STAGES, allowedProductionTargets } from "@/domain/state-machines";
 import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
 import { DiscussionFeed } from "./discussion";
 import { ProductionPanel } from "./production";
+import { TechnicalReviewPanel } from "./technical-review";
 import { OrderActionsPanel } from "./actions-panel";
 
 const TABS = [
   { key: "genel", labelKey: "po.workspace.tab.genel" },
   { key: "uretim", labelKey: "po.workspace.tab.uretim" },
+  { key: "teknik-incelemeler", labelKey: "po.workspace.tab.teknik" },
   { key: "belgeler", labelKey: "po.workspace.tab.belgeler" },
   { key: "discussion", labelKey: "po.workspace.tab.discussion" },
   { key: "zaman", labelKey: "po.workspace.tab.zaman" },
 ] as const;
 
-const KNOWN_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "APPROVE", "DELETE", "PRODUCTION_UPDATE"];
+const KNOWN_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "APPROVE", "DELETE", "PRODUCTION_UPDATE", "TECH_REVIEW_CREATED", "TECH_REVIEW_DECISION"];
 
 export default async function OrderDetailPage({
   params,
@@ -68,12 +71,21 @@ export default async function OrderDetailPage({
   const canComment = userCan(user, PERMISSIONS.PO_WORKSPACE_COMMENT);
   const canInternalComment = userCan(user, PERMISSIONS.PO_INTERNAL_COMMENT);
   const canProductionUpdate = userCan(user, PERMISSIONS.PO_PRODUCTION_UPDATE);
+  const canTechCreate = userCan(user, PERMISSIONS.TECH_REVIEW_CREATE);
+  const canTechDecide = userCan(user, PERMISSIONS.TECH_REVIEW_DECIDE);
   const stageLabels = Object.fromEntries(PRODUCTION_STAGES.map((s) => [s, T(`po.production.stage.${s}` as TranslationKey)]));
 
   const timeline = activeTab === "zaman" ? await loadPOTimeline(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
   const unreadComments = await unreadCommentCount("PurchaseOrder", po.id, user.id, { forSupplier: !canSeeInternal });
   const discussion = activeTab === "discussion" ? await loadDiscussion("PurchaseOrder", po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
   const productionHistory = activeTab === "uretim" ? await loadProductionHistory(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
+  const techReviews = activeTab === "teknik-incelemeler" ? await loadTechnicalReviews(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
+  const trDiscussions: Record<string, Awaited<ReturnType<typeof loadDiscussion>>> = {};
+  if (activeTab === "teknik-incelemeler") {
+    for (const r of techReviews) {
+      trDiscussions[r.id] = await loadDiscussion("TechnicalReview", r.id, user.tenantId, { forSupplier: !canSeeInternal });
+    }
+  }
 
   return (
     <div>
@@ -202,6 +214,19 @@ export default async function OrderDetailPage({
             </div>
           )}
 
+          {activeTab === "teknik-incelemeler" && (
+            <TechnicalReviewPanel
+              orderId={po.id}
+              reviews={techReviews}
+              discussionsByReview={trDiscussions}
+              canCreate={canTechCreate}
+              canDecide={canTechDecide}
+              canComment={canComment}
+              canInternal={canInternalComment}
+              currentUserId={user.id}
+            />
+          )}
+
           {activeTab === "belgeler" && (
             <Card>
               <CardHeader>
@@ -231,7 +256,8 @@ export default async function OrderDetailPage({
               </CardHeader>
               <CardContent>
                 <DiscussionFeed
-                  orderId={po.id}
+                  entityType="PurchaseOrder"
+                  entityId={po.id}
                   comments={discussion}
                   currentUserId={user.id}
                   canInternal={canInternalComment}

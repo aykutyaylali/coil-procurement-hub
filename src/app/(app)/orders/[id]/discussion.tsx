@@ -13,13 +13,15 @@ interface MentionUser { id: string; name: string; email: string }
 
 /** Yorum yazma bileşeni: metin + @mention otomatik tamamlama + ek + iç-not + gönder. */
 function Composer({
-  orderId,
+  entityType,
+  entityId,
   parentId,
   canInternal,
   placeholder,
   onDone,
 }: {
-  orderId: string;
+  entityType: string;
+  entityId: string;
   parentId?: string;
   canInternal: boolean;
   placeholder: string;
@@ -56,7 +58,7 @@ function Composer({
     if (!body.trim() || busy) return;
     setBusy(true);
     setError("");
-    const res = await postComment({ orderId, body, isInternal, parentId, mentionedUserIds: [...mentions.keys()] });
+    const res = await postComment({ entityType, entityId, body, isInternal, parentId, mentionedUserIds: [...mentions.keys()] });
     if (!res.ok) {
       setBusy(false);
       setError(res.error);
@@ -124,7 +126,8 @@ function Composer({
 
 function CommentCard({
   c,
-  orderId,
+  entityType,
+  entityId,
   currentUserId,
   canInternal,
   canComment,
@@ -132,7 +135,8 @@ function CommentCard({
   onDone,
 }: {
   c: DiscComment;
-  orderId: string;
+  entityType: string;
+  entityId: string;
   currentUserId: string;
   canInternal: boolean;
   canComment: boolean;
@@ -201,14 +205,14 @@ function CommentCard({
 
       {replying && (
         <div className="mt-2">
-          <Composer orderId={orderId} parentId={c.id} canInternal={canInternal} placeholder={t("po.workspace.discussion.replyPlaceholder")} onDone={() => { setReplying(false); onDone(); }} />
+          <Composer entityType={entityType} entityId={entityId} parentId={c.id} canInternal={canInternal} placeholder={t("po.workspace.discussion.replyPlaceholder")} onDone={() => { setReplying(false); onDone(); }} />
         </div>
       )}
 
       {!isReply && showReplies && c.replies.length > 0 && (
         <div className="mt-3 space-y-3">
           {c.replies.map((r) => (
-            <CommentCard key={r.id} c={r} orderId={orderId} currentUserId={currentUserId} canInternal={canInternal} canComment={canComment} isReply onDone={onDone} />
+            <CommentCard key={r.id} c={r} entityType={entityType} entityId={entityId} currentUserId={currentUserId} canInternal={canInternal} canComment={canComment} isReply onDone={onDone} />
           ))}
         </div>
       )}
@@ -217,13 +221,15 @@ function CommentCard({
 }
 
 export function DiscussionFeed({
-  orderId,
+  entityType = "PurchaseOrder",
+  entityId,
   comments,
   currentUserId,
   canInternal,
   canComment,
 }: {
-  orderId: string;
+  entityType?: string;
+  entityId: string;
   comments: DiscComment[];
   currentUserId: string;
   canInternal: boolean;
@@ -235,12 +241,12 @@ export function DiscussionFeed({
 
   // Görüntülenince "okundu" işaretle
   useEffect(() => {
-    void markThreadRead(orderId);
-  }, [orderId]);
+    void markThreadRead(entityType, entityId);
+  }, [entityType, entityId]);
 
   return (
     <div className="space-y-4">
-      {canComment && <Composer orderId={orderId} canInternal={canInternal} placeholder={t("po.workspace.discussion.newMessage")} onDone={refresh} />}
+      {canComment && <Composer entityType={entityType} entityId={entityId} canInternal={canInternal} placeholder={t("po.workspace.discussion.newMessage")} onDone={refresh} />}
       {comments.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
           <MessageSquare className="size-8 opacity-40" />
@@ -249,7 +255,7 @@ export function DiscussionFeed({
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
-            <CommentCard key={c.id} c={c} orderId={orderId} currentUserId={currentUserId} canInternal={canInternal} canComment={canComment} onDone={refresh} />
+            <CommentCard key={c.id} c={c} entityType={entityType} entityId={entityId} currentUserId={currentUserId} canInternal={canInternal} canComment={canComment} onDone={refresh} />
           ))}
         </div>
       )}

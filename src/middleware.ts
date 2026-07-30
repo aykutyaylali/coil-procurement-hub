@@ -34,7 +34,32 @@ export function middleware(req: NextRequest) {
   res.headers.set("X-Frame-Options", "SAMEORIGIN");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.headers.set("Content-Security-Policy", buildCsp());
   return res;
+}
+
+/**
+ * İçerik Güvenlik Politikası (CSP). Uygulamayı bozmayacak makul sıkılıkta:
+ * - img-src'de data:/blob: → base64 kalem fotoğrafları ve PDF önizlemeleri çalışır
+ * - style-src 'unsafe-inline' → Tailwind/Next satır içi stilleri
+ * - dev'de HMR için 'unsafe-eval' + ws: gevşetilir (prod'da kapalı)
+ */
+function buildCsp(): string {
+  const dev = process.env.NODE_ENV !== "production";
+  const script = dev ? "'self' 'unsafe-inline' 'unsafe-eval'" : "'self' 'unsafe-inline'";
+  const connect = dev ? "'self' ws: wss:" : "'self'";
+  return [
+    "default-src 'self'",
+    `script-src ${script}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    `connect-src ${connect}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+  ].join("; ");
 }
 
 export const config = {

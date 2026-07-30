@@ -1152,6 +1152,10 @@ model PurchaseOrder {
   sourceRowNo     Int?
   requesterName   String?
   requisitionNumber String?
+  // PO Workspace: üretim aşaması (finansal `status`'tan AYRI boyut). Güncel aşama;
+  // geçmiş POProductionUpdate'te. enum: PLANNING | WAITING_RAW_MATERIAL | PRODUCTION_STARTED
+  //  | QUALITY_INSPECTION | READY_FOR_SHIPMENT | LOADED | SHIPPED | COMPLETED
+  productionStage String?
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -1164,6 +1168,9 @@ model PurchaseOrder {
   goodsReceipts GoodsReceipt[]
   invoices      Invoice[]
   landedCosts   LandedCostItem[]
+  workspaceParticipants POParticipant[]
+  productionUpdates     POProductionUpdate[]
+  technicalReviews      TechnicalReview[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -1496,14 +1503,132 @@ model BudgetTransaction {
 
 model Comment {
   id         String   @id @default(cuid())
+  tenantId   String?  // PO Workspace scoping (additive; eski kayıtlarda null)
   entityType String
   entityId   String
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   body       String
   isInternal Boolean  @default(true) // true => tedarikçi göremez
+  // Threaded discussion: yanıt zinciri (self-relation)
+  parentId   String?
+  parent     Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies    Comment[] @relation("CommentThread")
+  mentions   CommentMention[]
   createdAt  DateTime @default(now())
 
+  @@index([entityType, entityId])
+  @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// PO WORKSPACE (Tedarikçi İşbirliği Portalı) — additive; mevcut akışları bozmaz.
+// Görünürlük `isInternal` ile: tedarikçi yalnızca isInternal=false içerik görür.
+// userId alanları PurchaseOrder.createdById gibi düz String'tir (User relation yok).
+// ---------------------------------------------------------------------------
+
+// PO çalışma alanı katılımcıları — mention hedefi + bildirim yönlendirme + açık davet.
+model POParticipant {
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  // rol: PURCHASING | PLANNING | TECHNICAL | QUALITY | WAREHOUSE | MANAGEMENT | SUPPLIER
+  role      String
+  addedById String?
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+// Üretim ilerleme günlüğü (Master §6) — finansal PO durumundan AYRI. Güncel aşama
+// PurchaseOrder.productionStage'te; bu tablo tarihçedir.
+model POProductionUpdate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // aşama: PLANNING | WAITING_RAW_MATERIAL | PRODUCTION_STARTED | QUALITY_INSPECTION
+  //  | READY_FOR_SHIPMENT | LOADED | SHIPPED | COMPLETED
+  stage      String
+  note       String?
+  estDate    DateTime?
+  updatedById String  // tedarikçi VEYA iç kullanıcı
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+  @@index([tenantId])
+}
+
+// Teknik İnceleme (Master §7) — tedarikçinin yapılandırılmış talebi + Coil kararı.
+model TechnicalReview {
+  id          String   @id @default(cuid())
+  tenantId    String
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderLineId String?
+  supplierId  String
+  createdById String   // tedarikçi kullanıcısı
+  reviewType  String   // DIMENSION | MATERIAL | PROCESS | TOLERANCE | SUBSTITUTION | OTHER
+  currentValue  String?
+  proposedValue String?
+  reason        String?
+  technicalExplanation String?
+  impact      String?
+  risk        String?  // LOW | MEDIUM | HIGH
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  deadline    DateTime?
+  // OPEN | APPROVED | REJECTED | INFO_REQUESTED | ALTERNATIVE_SUGGESTED | FORWARDED | CLOSED
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  actions     TechnicalReviewAction[]
+
+  @@index([orderId])
+  @@index([tenantId])
+  @@index([supplierId])
+}
+
+// Teknik İnceleme karar geçmişi (kalıcı) — Approve/Reject/Info/Alternative/Forward/Internal.
+model TechnicalReviewAction {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    TechnicalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  // APPROVE | REJECT | REQUEST_INFO | SUGGEST_ALTERNATIVE | FORWARD | INTERNAL_NOTE
+  action    String
+  byUserId  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+}
+
+// Yorumlarda @mention (threaded discussion).
+model CommentMention {
+  id              String   @id @default(cuid())
+  commentId       String
+  comment         Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  @@unique([commentId, mentionedUserId])
+  @@index([mentionedUserId])
+}
+
+// Okundu-işareti (kullanıcı × varlık son-okuma damgası) — verimli okunmamış sayacı.
+model ThreadRead {
+  id         String   @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  lastReadAt DateTime
+
+  @@unique([userId, entityType, entityId])
   @@index([entityType, entityId])
 }
 

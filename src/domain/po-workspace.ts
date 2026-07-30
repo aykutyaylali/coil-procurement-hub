@@ -59,3 +59,37 @@ export async function loadPOTimeline(
       after: parse(l.after),
     }));
 }
+
+export interface ProductionUpdateEntry {
+  id: string;
+  stage: string;
+  note: string | null;
+  estDate: string | null;
+  updaterName: string;
+  createdAt: string;
+}
+
+/** PO üretim güncelleme geçmişi (kronolojik, en yeni önce). forSupplier → iç kayıtlar hariç. */
+export async function loadProductionHistory(
+  orderId: string,
+  tenantId: string,
+  opts: { forSupplier?: boolean } = {},
+): Promise<ProductionUpdateEntry[]> {
+  const rows = await prisma.pOProductionUpdate.findMany({
+    where: { tenantId, orderId, ...(opts.forSupplier ? { isInternal: false } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  if (rows.length === 0) return [];
+  const userIds = [...new Set(rows.map((r) => r.updatedById))];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } });
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
+  return rows.map((r) => ({
+    id: r.id,
+    stage: r.stage,
+    note: r.note,
+    estDate: r.estDate ? r.estDate.toISOString() : null,
+    updaterName: nameById.get(r.updatedById) ?? "—",
+    createdAt: r.createdAt.toISOString(),
+  }));
+}

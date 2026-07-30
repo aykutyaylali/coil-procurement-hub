@@ -70,6 +70,42 @@ export const SUPPLIER_TRANSITIONS: Transitions = {
   INACTIVE: ["ACTIVE"],
 };
 
+/**
+ * PO ÜRETİM aşamaları (Master §6) — finansal ORDER_TRANSITIONS'tan BAĞIMSIZ ayrı boyut.
+ * Sıralı ilerleme + bir adım geri düzeltme desteklenir.
+ */
+export const PRODUCTION_STAGES = [
+  "PLANNING",
+  "WAITING_RAW_MATERIAL",
+  "PRODUCTION_STARTED",
+  "QUALITY_INSPECTION",
+  "READY_FOR_SHIPMENT",
+  "LOADED",
+  "SHIPPED",
+  "COMPLETED",
+] as const;
+export type ProductionStage = (typeof PRODUCTION_STAGES)[number];
+
+export const PO_PRODUCTION_TRANSITIONS: Transitions = {
+  PLANNING: ["WAITING_RAW_MATERIAL", "PRODUCTION_STARTED"],
+  WAITING_RAW_MATERIAL: ["PRODUCTION_STARTED", "PLANNING"],
+  PRODUCTION_STARTED: ["QUALITY_INSPECTION", "WAITING_RAW_MATERIAL"],
+  QUALITY_INSPECTION: ["READY_FOR_SHIPMENT", "PRODUCTION_STARTED"],
+  READY_FOR_SHIPMENT: ["LOADED", "QUALITY_INSPECTION"],
+  LOADED: ["SHIPPED", "READY_FOR_SHIPMENT"],
+  SHIPPED: ["COMPLETED", "LOADED"],
+  COMPLETED: [],
+};
+
+/**
+ * Bir üretim aşamasından geçilebilecek hedefler. current null ise (henüz
+ * başlamamış) ilk kez herhangi bir aşama seçilebilir (gerçek durumu işaretlemek için).
+ */
+export function allowedProductionTargets(current: string | null): string[] {
+  if (!current) return [...PRODUCTION_STAGES];
+  return PO_PRODUCTION_TRANSITIONS[current] ?? [];
+}
+
 export function canTransition(map: Transitions, from: string, to: string): boolean {
   return map[from]?.includes(to) ?? false;
 }

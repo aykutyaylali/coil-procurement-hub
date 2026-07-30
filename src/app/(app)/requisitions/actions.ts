@@ -26,8 +26,9 @@ async function persistDraft(
   if (clientRequestId) {
     const existing = await tx.purchaseRequisition.findFirst({
       where: { tenantId: user.tenantId, clientRequestId },
+      include: { lines: { orderBy: { lineNo: "asc" }, select: { id: true } } },
     });
-    if (existing) return { req: existing, deduped: true as const };
+    if (existing) return { req: existing, deduped: true as const, lineIds: existing.lines.map((l) => l.id) };
   }
 
   const lines = meaningfulLines(data.lines);
@@ -68,19 +69,20 @@ async function persistDraft(
         })),
       },
     },
+    include: { lines: { orderBy: { lineNo: "asc" }, select: { id: true } } },
   });
   await writeAudit(
     { tenantId: user.tenantId, userId: user.id, action: "CREATE", entityType: "PurchaseRequisition", entityId: req.id, after: { number, status: "DRAFT", estimatedTotal: toStr(estimatedTotal, 2) } },
     tx,
   );
-  return { req, deduped: false as const };
+  return { req, deduped: false as const, lineIds: req.lines.map((l) => l.id) };
 }
 
 /**
  * TASLAK KAYDET — minimal doğrulama. Açıklama/kalem/fiyat/tarih eksik olabilir;
  * eksik alan hata vermez. Her zaman DRAFT olarak kaydeder ve numara üretir.
  */
-export async function createRequisition(input: unknown): Promise<Result<{ id: string }>> {
+export async function createRequisition(input: unknown): Promise<Result<{ id: string; lineIds: string[] }>> {
   try {
     const user = await requirePermission(PERMISSIONS.REQUISITION_CREATE);
     const parsed = draftSchema.safeParse(input);
@@ -89,7 +91,7 @@ export async function createRequisition(input: unknown): Promise<Result<{ id: st
 
     const created = await prisma.$transaction((tx) => persistDraft(tx, user, parsed.data, clientRequestId));
     revalidatePath("/requisitions");
-    return ok({ id: created.req.id });
+    return ok({ id: created.req.id, lineIds: created.lineIds });
   } catch (e) {
     return fail(e);
   }
@@ -165,7 +167,7 @@ async function doSubmit(tx: Tx, user: { tenantId: string; id: string }, reqId: s
  * bazlı iki dilli hatalar döner. Doğrulama geçerse taslak oluşturulur ve tek
  * transaction içinde onaya gönderilir (idempotency korumalı).
  */
-export async function createAndSubmitRequisition(input: unknown): Promise<Result<{ id: string; status: string }>> {
+export async function createAndSubmitRequisition(input: unknown): Promise<Result<{ id: string; status: string; lineIds: string[] }>> {
   try {
     const user = await requirePermission(PERMISSIONS.REQUISITION_CREATE);
     const parsed = draftSchema.safeParse(input);
@@ -180,13 +182,13 @@ export async function createAndSubmitRequisition(input: unknown): Promise<Result
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const { req, deduped } = await persistDraft(tx, user, parsed.data, clientRequestId);
+      const { req, deduped, lineIds } = await persistDraft(tx, user, parsed.data, clientRequestId);
       // Idempotency: bu istek zaten işlenmiş ve gönderilmişse tekrar gönderme
       if (deduped && req.status !== "DRAFT") {
-        return { id: req.id, status: req.status };
+        return { id: req.id, status: req.status, lineIds };
       }
       const { status } = await doSubmit(tx, user, req.id);
-      return { id: req.id, status };
+      return { id: req.id, status, lineIds };
     });
 
     revalidatePath("/requisitions");

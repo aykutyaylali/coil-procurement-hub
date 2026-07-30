@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { Trash2, Plus, Loader2, AlertCircle, Sparkles, ImagePlus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { createRequisition, createAndSubmitRequisition } from "../actions";
 import { suggestCategory } from "../ai-actions";
+import { uploadAttachment } from "@/app/actions/attachments";
 
 interface Opt {
   id: string;
@@ -22,9 +23,12 @@ interface Line {
   estUnitPrice: string;
   taxRate: string;
   categoryId: string;
+  photos: File[];
 }
 
-const emptyLine: Line = { description: "", quantity: "1", uom: "", estUnitPrice: "0", taxRate: "20", categoryId: "" };
+function newLine(): Line {
+  return { description: "", quantity: "1", uom: "", estUnitPrice: "0", taxRate: "20", categoryId: "", photos: [] };
+}
 
 const TXT = {
   tr: {
@@ -85,7 +89,7 @@ export function NewRequisitionForm({
   const [neededBy, setNeededBy] = useState("");
   const [justification, setJustification] = useState("");
   const [internalNote, setInternalNote] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ ...emptyLine }]);
+  const [lines, setLines] = useState<Line[]>([newLine()]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState<null | "draft" | "submit">(null);
@@ -118,11 +122,36 @@ export function NewRequisitionForm({
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
   function addLine() {
-    setLines((prev) => [...prev, { ...emptyLine }]);
+    setLines((prev) => [...prev, newLine()]);
   }
   function removeLine(i: number) {
     setLines((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
   }
+  function addPhotos(i: number, files: FileList | null) {
+    if (!files || !files.length) return;
+    const incoming = Array.from(files);
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, photos: [...l.photos, ...incoming] } : l)));
+  }
+  function removePhoto(i: number, pIdx: number) {
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, photos: l.photos.filter((_, k) => k !== pIdx) } : l)));
+  }
+
+  /** Kayıt sonrası: staged kalem fotoğraflarını oluşan kalem ID'lerine yükler. */
+  async function uploadStagedPhotos(lineIds: string[]) {
+    const meaningful = lines.filter((l) => l.description.trim().length > 0);
+    for (let j = 0; j < meaningful.length && j < lineIds.length; j++) {
+      for (const file of meaningful[j]!.photos) {
+        const fd = new FormData();
+        fd.set("file", file);
+        fd.set("entityType", "RequisitionLine");
+        fd.set("entityId", lineIds[j]!);
+        fd.set("isInternal", "false");
+        await uploadAttachment(fd);
+      }
+    }
+  }
+
+  const hasPhotos = lines.some((l) => l.photos.length > 0);
 
   function fieldId(path: string) {
     return `field-${path.replace(/\./g, "-")}`;
@@ -188,6 +217,7 @@ export function NewRequisitionForm({
       return;
     }
     requestIdRef.current = null;
+    if (hasPhotos) await uploadStagedPhotos(res.data.lineIds);
     toast({ type: "success", title: t.draftSaved });
     router.push(`/requisitions/${res.data.id}`);
   }
@@ -207,6 +237,7 @@ export function NewRequisitionForm({
       return;
     }
     requestIdRef.current = null;
+    if (hasPhotos) await uploadStagedPhotos(res.data.lineIds);
     toast({ type: "success", title: res.data.status === "PENDING_APPROVAL" ? t.submittedApproval : t.submitted });
     router.push(`/requisitions/${res.data.id}`);
   }
@@ -406,6 +437,41 @@ export function NewRequisitionForm({
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(i)}>
                   <Trash2 className="size-4 text-destructive" />
                 </Button>
+              </div>
+
+              <div className="sm:col-span-12">
+                {l.photos.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {l.photos.map((f, pIdx) => (
+                      <div key={pIdx} className="group relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={URL.createObjectURL(f)} alt={f.name} className="size-14 rounded border object-cover" title={f.name} />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(i, pIdx)}
+                          className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full bg-destructive text-white group-hover:flex"
+                          title="Kaldır"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-accent">
+                  <ImagePlus className="size-4" /> Fotoğraf / Görsel Ekle
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      addPhotos(i, e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <span className="ml-2 text-[11px] text-muted-foreground">Yüklenen görseller tedarikçinin teklif sayfasında görünür.</span>
               </div>
             </div>
           ))}

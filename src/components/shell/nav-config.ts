@@ -16,12 +16,12 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", labelKey: "nav.tasks", label: "Görevlerim", icon: "CheckSquare", group: "main" },
   { href: "/approvals", labelKey: "nav.approvals", label: "Onaylarım", icon: "Stamp", group: "main" },
 
-  // İşlem Merkezi birincil hub'dır; ayrık modül listeleri (RFQ, Siparişler)
-  // "İleri" altında toplanır. Talepler oluşturma girişi olduğu için birincil kalır.
+  // İşlem Merkezi birincil hub'dır; yalnızca ayrık RFQ listesi "İleri" altında
+  // toplanır. Talepler ve Siparişler günlük kullanımda birincil kalır.
   { href: "/islem-merkezi", labelKey: "nav.islemMerkezi", label: "Satınalma İşlem Merkezi", icon: "LayoutList", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/requisitions", labelKey: "nav.requisitions", label: "Talepler", icon: "FileText", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
+  { href: "/orders", labelKey: "nav.orders", label: "Siparişler", icon: "ShoppingCart", permission: PERMISSIONS.ORDER_VIEW, group: "procurement" },
   { href: "/rfqs", labelKey: "nav.rfqs", label: "Teklif Talepleri", icon: "Send", permission: PERMISSIONS.RFQ_VIEW, group: "procurement", secondary: true },
-  { href: "/orders", labelKey: "nav.orders", label: "Siparişler", icon: "ShoppingCart", permission: PERMISSIONS.ORDER_VIEW, group: "procurement", secondary: true },
 
   { href: "/receipts", labelKey: "nav.receipts", label: "Mal Kabul", icon: "PackageCheck", permission: PERMISSIONS.RECEIPT_VIEW, group: "supply" },
   { href: "/quality", labelKey: "nav.quality", label: "Kalite", icon: "BadgeCheck", permission: PERMISSIONS.QUALITY_VIEW, group: "supply" },

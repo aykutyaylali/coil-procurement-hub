@@ -202,6 +202,7 @@ Yedekleme/geri yükleme: [`docs/backup-restore.md`](docs/backup-restore.md).
 | [`docs/erp-adapter.md`](docs/erp-adapter.md) | ERP adapter geliştirme kılavuzu |
 | [`docs/security-checklist.md`](docs/security-checklist.md) | Güvenlik kontrol listesi |
 | [`docs/deployment.md`](docs/deployment.md) | Üretim dağıtım kılavuzu |
+| [`docs/postgres-migration.md`](docs/postgres-migration.md) | SQLite → PostgreSQL geçiş ve yapılandırma kılavuzu |
 | [`docs/backup-restore.md`](docs/backup-restore.md) | Yedekleme / geri yükleme |
 | [`docs/test-report.md`](docs/test-report.md) | Test raporu |
 

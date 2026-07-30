@@ -9,6 +9,7 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { opLabel } from "@/domain/operations";
+import { OnboardingLinkCard } from "./onboarding-link";
 
 export default async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -94,6 +95,9 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-6">
+          {canEdit && (
+            <OnboardingLinkCard supplierId={s.id} tokenActive={!!s.onboardingTokenExpiresAt && s.onboardingTokenExpiresAt.getTime() > Date.now()} />
+          )}
           <Card>
             <CardHeader><CardTitle>Ticari Bilgiler</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">

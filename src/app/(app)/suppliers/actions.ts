@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { nextNumber } from "@/domain/numbering";
 import { writeAudit } from "@/lib/audit";
+import { env } from "@/lib/env";
+import { secureToken, hashToken } from "@/lib/ids";
 import { ok, fail, type Result, NotFoundError } from "@/lib/errors";
 
 const OPERATION_TYPES = ["DOMESTIC_PURCHASE", "IMPORT_PURCHASE", "EXPORT_RELATED_PURCHASE"] as const;
@@ -149,6 +151,34 @@ export async function setSupplierStatus(input: { id: string; status: string; rea
     await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "STATUS_CHANGE", entityType: "Supplier", entityId: s.id, before: { status: s.status }, after: { status: input.status } });
     revalidatePath(`/suppliers/${s.id}`);
     return ok({ status: input.status });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Tedarikçiye self-servis onboarding bağlantısı üretir (14 gün geçerli, tek
+ * kullanımlık). Ham token yalnızca URL'de döner; DB'de hash'i saklanır.
+ * Tedarikçi bu linkle şirket/vergi/iletişim/banka bilgilerini kendisi doldurur.
+ */
+export async function generateOnboardingLink(supplierId: string): Promise<Result<{ url: string; expiresAt: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.SUPPLIER_EDIT);
+    const s = await prisma.supplier.findFirst({ where: { id: supplierId, tenantId: user.tenantId, deletedAt: null } });
+    if (!s) throw new NotFoundError("Tedarikçi bulunamadı.");
+    const raw = secureToken(24);
+    const expiresAt = new Date(Date.now() + 14 * 864e5); // 14 gün
+    await prisma.supplier.update({
+      where: { id: s.id },
+      data: {
+        onboardingToken: hashToken(raw),
+        onboardingTokenExpiresAt: expiresAt,
+        status: s.status === "DRAFT" ? "ONBOARDING" : s.status,
+      },
+    });
+    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "Supplier", entityId: s.id, after: { onboarding: "LINK_GENERATED", expiresAt: expiresAt.toISOString() } });
+    revalidatePath(`/suppliers/${s.id}`);
+    return ok({ url: `${env.APP_URL}/onboarding/${raw}`, expiresAt: expiresAt.toISOString() });
   } catch (e) {
     return fail(e);
   }

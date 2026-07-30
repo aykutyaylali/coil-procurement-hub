@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/context";
 import { getStorage, generateStorageKey, validateUpload, scanBuffer } from "@/lib/storage";
 import { writeAudit } from "@/lib/audit";
+import { notify, resolvePoTargets } from "@/domain/notify";
 import { ok, fail, type Result } from "@/lib/errors";
 
 /**
@@ -54,6 +55,15 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
       entityId: attachment.id,
       after: { fileName: file.name, entityType, entityId },
     });
+
+    // PO'ya yüklenen AÇIK belgeler için katılımcılara bildirim (iç belgeler sessiz)
+    if (entityType === "PurchaseOrder" && !isInternal) {
+      const po = await prisma.purchaseOrder.findFirst({ where: { id: entityId, tenantId: user.tenantId }, select: { id: true, number: true, supplierId: true } });
+      if (po) {
+        const targets = await resolvePoTargets(po.id, po.supplierId, user.tenantId);
+        await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: targets, type: "DOCUMENT_UPLOADED", titleKey: "notif.document.title", params: { actor: user.name, order: po.number }, linkInternal: `/orders/${po.id}?tab=belgeler`, linkPortal: `/portal/orders/${po.id}?tab=belgeler` });
+      }
+    }
 
     return ok({ id: attachment.id, fileName: file.name });
   } catch (e) {

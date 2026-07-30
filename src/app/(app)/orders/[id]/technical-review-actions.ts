@@ -5,8 +5,11 @@ import { prisma } from "@/lib/db";
 import { requirePermission, assertPoAccess } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { notify, resolvePoTargets, ensureParticipant } from "@/domain/notify";
 import { REVIEW_TYPES, REVIEW_ACTIONS, REVIEW_RISKS, STATUS_BY_ACTION } from "@/domain/technical-review-constants";
 import { ok, fail, type Result, NotFoundError, ValidationError } from "@/lib/errors";
+
+const TR_LINK = (id: string) => ({ linkInternal: `/orders/${id}?tab=teknik-incelemeler`, linkPortal: `/portal/orders/${id}?tab=teknik-incelemeler` });
 
 const createSchema = z.object({
   orderId: z.string(),
@@ -31,7 +34,7 @@ export async function createTechnicalReview(input: unknown): Promise<Result<{ id
 
     const po = await prisma.purchaseOrder.findFirst({
       where: { id: data.orderId, tenantId: user.tenantId },
-      select: { id: true, tenantId: true, supplierId: true },
+      select: { id: true, tenantId: true, supplierId: true, number: true },
     });
     if (!po) throw new NotFoundError("Sipariş bulunamadı.");
     assertPoAccess(po, user);
@@ -63,6 +66,9 @@ export async function createTechnicalReview(input: unknown): Promise<Result<{ id
       after: { reviewType: data.reviewType },
       reason: data.reason || null,
     });
+    await ensureParticipant(user.tenantId, po.id, user.id, user.supplierId ? "SUPPLIER" : "INTERNAL");
+    const targets = await resolvePoTargets(po.id, po.supplierId, user.tenantId);
+    await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: targets, type: "TECH_REVIEW_CREATED", titleKey: "notif.techReviewCreated.title", params: { actor: user.name, order: po.number }, ...TR_LINK(po.id) });
     revalidatePath(`/orders/${po.id}`);
     return ok({ id: tr.id });
   } catch (e) {
@@ -90,7 +96,7 @@ export async function decideTechnicalReview(input: unknown): Promise<Result<{ st
     if (!tr) throw new NotFoundError("Teknik inceleme bulunamadı.");
     const po = await prisma.purchaseOrder.findFirst({
       where: { id: tr.orderId, tenantId: user.tenantId },
-      select: { id: true, tenantId: true, supplierId: true },
+      select: { id: true, tenantId: true, supplierId: true, number: true },
     });
     if (!po) throw new NotFoundError("Sipariş bulunamadı.");
     assertPoAccess(po, user);
@@ -118,6 +124,10 @@ export async function decideTechnicalReview(input: unknown): Promise<Result<{ st
       );
     });
 
+    await ensureParticipant(user.tenantId, po.id, user.id, "INTERNAL");
+    const targets = await resolvePoTargets(po.id, po.supplierId, user.tenantId);
+    // INTERNAL_NOTE iç kalır (tedarikçiye bildirim gitmez)
+    await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: targets, type: "TECH_REVIEW_DECISION", titleKey: "notif.techReviewDecision.title", params: { actor: user.name, order: po.number }, excludeSuppliers: data.action === "INTERNAL_NOTE", ...TR_LINK(po.id) });
     revalidatePath(`/orders/${po.id}`);
     return ok({ status: newStatus });
   } catch (e) {

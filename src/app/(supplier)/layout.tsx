@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
+import { Bell } from "lucide-react";
 import { getCurrentUser, isSupplierUser } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
 import { I18nProvider } from "@/components/i18n-provider";
@@ -16,9 +18,10 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   if (!user) redirect("/login");
   if (!isSupplierUser(user)) redirect("/dashboard");
 
-  const supplier = user.supplierId
-    ? await prisma.supplier.findUnique({ where: { id: user.supplierId }, select: { legalName: true } })
-    : null;
+  const [supplier, unread] = await Promise.all([
+    user.supplierId ? prisma.supplier.findUnique({ where: { id: user.supplierId }, select: { legalName: true } }) : Promise.resolve(null),
+    prisma.notification.count({ where: { userId: user.id, isRead: false } }),
+  ]);
   const locale: Locale = isLocale(user.locale) ? user.locale : DEFAULT_LOCALE;
   const T = translator(locale);
 
@@ -37,9 +40,17 @@ export default async function SupplierLayout({ children }: { children: React.Rea
                   <div className="text-xs text-muted-foreground">{supplier?.legalName ?? user.name}</div>
                 </div>
               </div>
-              <form action={logoutAction}>
-                <button type="submit" className="text-sm text-primary hover:underline">{T("action.logout")}</button>
-              </form>
+              <div className="flex items-center gap-4">
+                <Link href="/portal/notifications" className="relative text-muted-foreground hover:text-foreground" title={T("portal.notifications")}>
+                  <Bell className="size-5" />
+                  {unread > 0 && (
+                    <span className="absolute -right-2 -top-2 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">{unread}</span>
+                  )}
+                </Link>
+                <form action={logoutAction}>
+                  <button type="submit" className="text-sm text-primary hover:underline">{T("action.logout")}</button>
+                </form>
+              </div>
             </div>
           </header>
           <main className="mx-auto max-w-5xl p-6">{children}</main>

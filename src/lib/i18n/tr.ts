@@ -178,6 +178,9 @@ export const tr = {
   "portal.orderNo": "Sipariş No",
   "portal.production": "Üretim",
   "portal.backToOrders": "← Siparişlerim",
+  "portal.notifications": "Bildirimler",
+  "portal.markAllRead": "Tümünü okundu işaretle",
+  "portal.noNotif": "Bildirim yok.",
 
   // Portal kullanıcısı daveti (admin)
   "supplier.invitePortal": "Portal Kullanıcısı Davet Et",
@@ -198,6 +201,16 @@ export const tr = {
   "setpw.invalid": "Geçersiz veya süresi dolmuş bağlantı.",
   "setpw.done": "Parolanız belirlendi. Giriş yapabilirsiniz.",
   "setpw.goLogin": "Giriş Yap",
+
+  // Bildirimler (Master §11) — başlıklar alıcının diline göre üretilir
+  "notif.mention.title": "{actor} sizi etiketledi ({order})",
+  "notif.comment.title": "{actor} yeni yorum yaptı ({order})",
+  "notif.techReviewCreated.title": "{actor} teknik inceleme açtı ({order})",
+  "notif.techReviewDecision.title": "Teknik inceleme kararı verildi ({order})",
+  "notif.production.title": "Üretim aşaması güncellendi ({order})",
+  "notif.shipmentReady.title": "Sevke hazır ({order})",
+  "notif.delay.title": "Üretim aşaması geri alındı — gecikme ({order})",
+  "notif.document.title": "{actor} yeni belge yükledi ({order})",
 
   // PO Workspace — Tartışma
   "po.workspace.tab.discussion": "Tartışma",

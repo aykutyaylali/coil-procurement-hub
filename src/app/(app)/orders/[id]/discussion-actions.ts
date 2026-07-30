@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, requirePermission, assertPoAccess, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
+import { notify, resolvePoTargets, ensureParticipant } from "@/domain/notify";
 import { ok, fail, type Result, NotFoundError } from "@/lib/errors";
 
 /** @mention için tenant içi aktif kullanıcı araması. */
@@ -46,12 +47,12 @@ export async function postComment(input: unknown): Promise<Result<{ id: string }
     const data = postSchema.parse(input);
 
     // Erişim çıpası: her iki durumda da bağlı satınalma siparişi
-    let po: { id: string; tenantId: string; supplierId: string } | null = null;
+    let po: { id: string; tenantId: string; supplierId: string; number: string } | null = null;
     if (data.entityType === "PurchaseOrder") {
-      po = await prisma.purchaseOrder.findFirst({ where: { id: data.entityId, tenantId: user.tenantId }, select: { id: true, tenantId: true, supplierId: true } });
+      po = await prisma.purchaseOrder.findFirst({ where: { id: data.entityId, tenantId: user.tenantId }, select: { id: true, tenantId: true, supplierId: true, number: true } });
     } else {
       const tr = await prisma.technicalReview.findFirst({ where: { id: data.entityId, tenantId: user.tenantId }, select: { orderId: true } });
-      if (tr) po = await prisma.purchaseOrder.findFirst({ where: { id: tr.orderId, tenantId: user.tenantId }, select: { id: true, tenantId: true, supplierId: true } });
+      if (tr) po = await prisma.purchaseOrder.findFirst({ where: { id: tr.orderId, tenantId: user.tenantId }, select: { id: true, tenantId: true, supplierId: true, number: true } });
     }
     if (!po) throw new NotFoundError("Kayıt bulunamadı.");
     assertPoAccess(po, user); // tedarikçi yalnız kendi PO'suna yazabilir
@@ -76,6 +77,11 @@ export async function postComment(input: unknown): Promise<Result<{ id: string }
       : [];
 
     const poId = po.id;
+    const poNumber = po.number;
+    const poSupplierId = po.supplierId;
+    const mentionedIds = validMentions.map((m) => m.id);
+    const link = { linkInternal: `/orders/${poId}?tab=${linkTab}`, linkPortal: `/portal/orders/${poId}?tab=${linkTab}` };
+
     const comment = await prisma.$transaction(async (tx) => {
       const c = await tx.comment.create({
         data: {
@@ -90,24 +96,20 @@ export async function postComment(input: unknown): Promise<Result<{ id: string }
       });
       if (validMentions.length) {
         await tx.commentMention.createMany({ data: validMentions.map((m) => ({ commentId: c.id, mentionedUserId: m.id })) });
-        const targets = validMentions.filter((m) => m.id !== user.id);
-        if (targets.length) {
-          await tx.notification.createMany({
-            data: targets.map((m) => ({
-              tenantId: user.tenantId,
-              userId: m.id,
-              type: "MENTION",
-              title: `${user.name} sizi bir siparişte etiketledi`,
-              body: data.body.slice(0, 140),
-              link: `/orders/${poId}?tab=${linkTab}`,
-            })),
-          });
-        }
       }
+      // Yazar çalışma alanı katılımcısı olur (bildirim yönlendirmesi için)
+      await ensureParticipant(user.tenantId, poId, user.id, user.supplierId ? "SUPPLIER" : "INTERNAL", tx);
       // Yazarın kendi mesajı → thread'i okunmuş say
       const read = await tx.threadRead.findFirst({ where: { userId: user.id, entityType: data.entityType, entityId: data.entityId } });
       if (read) await tx.threadRead.update({ where: { id: read.id }, data: { lastReadAt: new Date() } });
       else await tx.threadRead.create({ data: { userId: user.id, entityType: data.entityType, entityId: data.entityId, lastReadAt: new Date() } });
+
+      // Bildirimler: (1) mention'lananlar (2) diğer katılımcılar. İç notta tedarikçiler hariç.
+      const bodyPreview = c.body.slice(0, 140);
+      await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: mentionedIds, type: "MENTION", titleKey: "notif.mention.title", params: { actor: user.name, order: poNumber }, bodyText: bodyPreview, excludeSuppliers: isInternal, ...link }, tx);
+      const allTargets = await resolvePoTargets(poId, poSupplierId, user.tenantId, tx);
+      const others = allTargets.filter((id) => !mentionedIds.includes(id));
+      await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: others, type: "PO_COMMENT", titleKey: "notif.comment.title", params: { actor: user.name, order: poNumber }, bodyText: bodyPreview, excludeSuppliers: isInternal, ...link }, tx);
       return c;
     });
 

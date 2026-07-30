@@ -177,6 +177,9 @@ export const en: Record<keyof typeof tr, string> = {
   "portal.orderNo": "Order No",
   "portal.production": "Production",
   "portal.backToOrders": "← My Orders",
+  "portal.notifications": "Notifications",
+  "portal.markAllRead": "Mark all read",
+  "portal.noNotif": "No notifications.",
 
   // Portal user invite (admin)
   "supplier.invitePortal": "Invite Portal User",
@@ -197,6 +200,16 @@ export const en: Record<keyof typeof tr, string> = {
   "setpw.invalid": "Invalid or expired link.",
   "setpw.done": "Your password is set. You can log in now.",
   "setpw.goLogin": "Log In",
+
+  // Notifications (Master §11) — titles generated in the recipient's language
+  "notif.mention.title": "{actor} mentioned you ({order})",
+  "notif.comment.title": "{actor} added a comment ({order})",
+  "notif.techReviewCreated.title": "{actor} opened a technical review ({order})",
+  "notif.techReviewDecision.title": "Technical review decided ({order})",
+  "notif.production.title": "Production stage updated ({order})",
+  "notif.shipmentReady.title": "Ready for shipment ({order})",
+  "notif.delay.title": "Production stage reverted — delay ({order})",
+  "notif.document.title": "{actor} uploaded a document ({order})",
 
   // PO Workspace — Discussion
   "po.workspace.tab.discussion": "Discussion",

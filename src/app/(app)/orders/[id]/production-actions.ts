@@ -6,6 +6,7 @@ import { requirePermission, assertPoAccess } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { assertTransition, PO_PRODUCTION_TRANSITIONS, PRODUCTION_STAGES } from "@/domain/state-machines";
 import { writeAudit } from "@/lib/audit";
+import { notify, resolvePoTargets, ensureParticipant } from "@/domain/notify";
 import { ok, fail, type Result, NotFoundError, ValidationError } from "@/lib/errors";
 
 const schema = z.object({
@@ -31,7 +32,7 @@ export async function updateProductionStage(input: unknown): Promise<Result<{ st
 
     const po = await prisma.purchaseOrder.findFirst({
       where: { id: data.orderId, tenantId: user.tenantId },
-      select: { id: true, tenantId: true, supplierId: true, productionStage: true },
+      select: { id: true, tenantId: true, supplierId: true, productionStage: true, number: true },
     });
     if (!po) throw new NotFoundError("Sipariş bulunamadı.");
     assertPoAccess(po, user); // tedarikçi yalnız kendi PO'sunu günceller
@@ -71,6 +72,23 @@ export async function updateProductionStage(input: unknown): Promise<Result<{ st
       );
     });
 
+    // Bildirim: Sevke Hazır / Gecikme (geri alma) / normal üretim güncellemesi
+    const oldIdx = po.productionStage ? PRODUCTION_STAGES.indexOf(po.productionStage as (typeof PRODUCTION_STAGES)[number]) : -1;
+    const newIdx = PRODUCTION_STAGES.indexOf(data.stage as (typeof PRODUCTION_STAGES)[number]);
+    const titleKey =
+      data.stage === "READY_FOR_SHIPMENT" ? "notif.shipmentReady.title" : oldIdx >= 0 && newIdx < oldIdx ? "notif.delay.title" : "notif.production.title";
+    await ensureParticipant(user.tenantId, po.id, user.id, user.supplierId ? "SUPPLIER" : "INTERNAL");
+    const targets = await resolvePoTargets(po.id, po.supplierId, user.tenantId);
+    await notify({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      targetUserIds: targets,
+      type: "PRODUCTION_UPDATE",
+      titleKey,
+      params: { actor: user.name, order: po.number },
+      linkInternal: `/orders/${po.id}?tab=uretim`,
+      linkPortal: `/portal/orders/${po.id}?tab=uretim`,
+    });
     revalidatePath(`/orders/${po.id}`);
     return ok({ stage: data.stage });
   } catch (e) {

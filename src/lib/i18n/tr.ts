@@ -74,6 +74,28 @@ export const tr = {
   "common.operationType": "Operasyon Türü",
   "common.project": "Proje",
   "common.category": "Kategori",
+  "common.summary": "Özet",
+
+  // PO Workspace (sipariş çalışma alanı)
+  "po.workspace.tab.genel": "Genel",
+  "po.workspace.tab.belgeler": "Belgeler",
+  "po.workspace.tab.zaman": "Zaman Çizelgesi",
+  "po.workspace.orderLines": "Sipariş Kalemleri",
+  "po.workspace.lineTotal": "Satır Toplam",
+  "po.workspace.actions": "İşlemler",
+  "po.workspace.doDelivery": "Mal Kabul Yap",
+  "po.workspace.createInvoice": "Fatura Oluştur",
+  "po.workspace.paymentTerm": "Ödeme Koşulu",
+  "po.workspace.uploadLabel": "Belge Ekle",
+  "po.workspace.documentsHint": "PO belgeleri, paketleme listesi, sertifikalar, çizimler. \"İç belge\" işaretli olanlar tedarikçiye kapalıdır.",
+  "po.workspace.internalBadge": "İç",
+  "po.workspace.internalToggle": "İç belge (tedarikçi görmez)",
+  "po.workspace.timelineEmpty": "Henüz kayıt yok.",
+  "po.workspace.act.CREATE": "Oluşturuldu",
+  "po.workspace.act.UPDATE": "Güncellendi",
+  "po.workspace.act.STATUS_CHANGE": "Durum değişti",
+  "po.workspace.act.APPROVE": "Onaylandı",
+  "po.workspace.act.DELETE": "Silindi",
 
   // Auth
   "auth.login": "Giriş Yap",

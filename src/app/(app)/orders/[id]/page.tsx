@@ -1,28 +1,48 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { requireUser, userCan } from "@/lib/auth/context";
+import { requireUser, userCan, assertPoAccess, isSupplierUser } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatMoney, formatQty } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
+import { translator, type Locale, type TranslationKey } from "@/lib/i18n";
+import { loadPOTimeline } from "@/domain/po-workspace";
+import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
 import { OrderActionsPanel } from "./actions-panel";
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const TABS = [
+  { key: "genel", labelKey: "po.workspace.tab.genel" },
+  { key: "belgeler", labelKey: "po.workspace.tab.belgeler" },
+  { key: "zaman", labelKey: "po.workspace.tab.zaman" },
+] as const;
+
+const KNOWN_ACTIONS = ["CREATE", "UPDATE", "STATUS_CHANGE", "APPROVE", "DELETE"];
+
+export default async function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const user = await requireUser();
+  const T = translator(user.locale as Locale);
 
   const po = await prisma.purchaseOrder.findFirst({
     where: { id, tenantId: user.tenantId },
-    include: {
-      supplier: true,
-      company: true,
-      lines: { orderBy: { lineNo: "asc" } },
-    },
+    include: { supplier: true, company: true, lines: { orderBy: { lineNo: "asc" } } },
   });
   if (!po) notFound();
+  // PO Workspace veri izolasyonu (iç: tenant; tedarikçi: yalnız kendi PO'su)
+  assertPoAccess(po, user);
+  const canSeeInternal = !isSupplierUser(user);
+  const canEditDocs = userCan(user, PERMISSIONS.ORDER_EDIT);
+  const activeTab = TABS.some((t) => t.key === tab) ? tab! : "genel";
 
   const instance = await prisma.approvalInstance.findFirst({
     where: { documentType: "PURCHASE_ORDER", documentId: po.id, status: "PENDING" },
@@ -40,9 +60,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const canSend = userCan(user, PERMISSIONS.ORDER_SEND);
   const canApprove = userCan(user, PERMISSIONS.ORDER_APPROVE);
 
+  const timeline = activeTab === "zaman" ? await loadPOTimeline(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
+
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-4 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold">{po.number}</h1>
@@ -55,90 +77,151 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex items-center gap-3">
           <a href={`/orders/${po.id}/pdf`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF (TR)</a>
           <a href={`/orders/${po.id}/pdf?lang=en`} target="_blank" rel="noopener" className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF (EN)</a>
-          <Link href="/orders" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+          <Link href="/orders" className="text-sm text-primary hover:underline">{T("quality.backToList")}</Link>
         </div>
+      </div>
+
+      {/* Workspace sekmeleri */}
+      <div className="mb-4 flex flex-wrap gap-1 border-b">
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={`/orders/${po.id}?tab=${t.key}`}
+            className={`rounded-t-md px-3 py-2 text-sm ${
+              activeTab === t.key ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {T(t.labelKey as TranslationKey)}
+          </Link>
+        ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sipariş Kalemleri</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>#</TH>
-                    <TH>Açıklama</TH>
-                    <TH className="text-right">Miktar</TH>
-                    <TH className="text-right">Birim Fiyat</TH>
-                    <TH className="text-right">KDV%</TH>
-                    <TH className="text-right">Satır Toplam</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {po.lines.map((l) => (
-                    <TR key={l.id}>
-                      <TD>{l.lineNo}</TD>
-                      <TD className="font-medium">{l.description}</TD>
-                      <TD className="text-right">
-                        {formatQty(l.quantity)} {l.uom ?? ""}
-                      </TD>
-                      <TD className="text-right">{formatMoney(l.unitPrice, po.currency)}</TD>
-                      <TD className="text-right">{l.taxRate}</TD>
-                      <TD className="text-right font-medium">{formatMoney(l.lineTotal, po.currency)}</TD>
+          {activeTab === "genel" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{T("po.workspace.orderLines")}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH>#</TH>
+                      <TH>{T("common.description")}</TH>
+                      <TH className="text-right">{T("common.quantity")}</TH>
+                      <TH className="text-right">{T("common.unitPrice")}</TH>
+                      <TH className="text-right">{T("common.tax")}%</TH>
+                      <TH className="text-right">{T("po.workspace.lineTotal")}</TH>
                     </TR>
-                  ))}
-                </TBody>
-              </Table>
-              <div className="space-y-1 border-t p-4 text-sm">
-                <div className="flex justify-end gap-8">
-                  <span className="text-muted-foreground">Ara Toplam</span>
-                  <span className="w-32 text-right">{formatMoney(po.subtotal, po.currency)}</span>
+                  </THead>
+                  <TBody>
+                    {po.lines.map((l) => (
+                      <TR key={l.id}>
+                        <TD>{l.lineNo}</TD>
+                        <TD className="font-medium">{l.description}</TD>
+                        <TD className="text-right">{formatQty(l.quantity)} {l.uom ?? ""}</TD>
+                        <TD className="text-right">{formatMoney(l.unitPrice, po.currency)}</TD>
+                        <TD className="text-right">{l.taxRate}</TD>
+                        <TD className="text-right font-medium">{formatMoney(l.lineTotal, po.currency)}</TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+                <div className="space-y-1 border-t p-4 text-sm">
+                  <div className="flex justify-end gap-8">
+                    <span className="text-muted-foreground">{T("common.subtotal")}</span>
+                    <span className="w-32 text-right">{formatMoney(po.subtotal, po.currency)}</span>
+                  </div>
+                  <div className="flex justify-end gap-8">
+                    <span className="text-muted-foreground">{T("common.tax")}</span>
+                    <span className="w-32 text-right">{formatMoney(po.taxTotal, po.currency)}</span>
+                  </div>
+                  <div className="flex justify-end gap-8 font-semibold">
+                    <span>{T("common.grandTotal")}</span>
+                    <span className="w-32 text-right">{formatMoney(po.grandTotal, po.currency)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-8">
-                  <span className="text-muted-foreground">KDV</span>
-                  <span className="w-32 text-right">{formatMoney(po.taxTotal, po.currency)}</span>
-                </div>
-                <div className="flex justify-end gap-8 font-semibold">
-                  <span>Genel Toplam</span>
-                  <span className="w-32 text-right">{formatMoney(po.grandTotal, po.currency)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "belgeler" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{T("po.workspace.tab.belgeler")}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">{T("po.workspace.documentsHint")}</p>
+                <AttachmentUploader
+                  entityType="PurchaseOrder"
+                  entityId={po.id}
+                  label={T("po.workspace.uploadLabel")}
+                  accept="image/png,image/jpeg,image/webp,application/pdf"
+                  isInternal={false}
+                  includeInternal={canSeeInternal}
+                  showInternalToggle={canSeeInternal}
+                  internalToggleLabel={T("po.workspace.internalToggle")}
+                  canEdit={canEditDocs}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "zaman" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{T("po.workspace.tab.zaman")}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {timeline.length === 0 && <p className="text-muted-foreground">{T("po.workspace.timelineEmpty")}</p>}
+                {timeline.map((e) => (
+                  <div key={e.id} className="flex gap-3 border-l-2 border-primary/30 pl-3">
+                    <div className="w-36 shrink-0 text-xs text-muted-foreground">{formatDateTime(e.at)}</div>
+                    <div>
+                      <div>
+                        <span className="font-medium">{e.userName}</span>{" "}
+                        {KNOWN_ACTIONS.includes(e.action) ? T(`po.workspace.act.${e.action}` as TranslationKey) : e.action}
+                        {e.after?.status ? <> · <Badge tone="info">{String(e.after.status)}</Badge></> : null}
+                      </div>
+                      {e.reason && <div className="text-xs text-muted-foreground">{e.reason}</div>}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>İşlemler</CardTitle>
+              <CardTitle>{T("po.workspace.actions")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <OrderActionsPanel id={po.id} status={po.status} canDecide={canDecide} canSend={canSend} canApprove={canApprove} />
               {["SENT", "ACKNOWLEDGED", "PARTIALLY_CONFIRMED", "CONFIRMED", "PARTIALLY_SHIPPED", "SHIPPED", "PARTIALLY_RECEIVED"].includes(po.status) && (
                 <Link href={`/receipts/new?orderId=${po.id}`} className="block rounded-md border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-accent">
-                  Mal Kabul Yap
+                  {T("po.workspace.doDelivery")}
                 </Link>
               )}
               {["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED", "SHIPPED", "INVOICED"].includes(po.status) && (
                 <Link href={`/invoices/new?orderId=${po.id}`} className="block rounded-md border px-3 py-2 text-center text-sm font-medium text-primary hover:bg-accent">
-                  Fatura Oluştur
+                  {T("po.workspace.createInvoice")}
                 </Link>
               )}
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Özet</CardTitle>
+              <CardTitle>{T("common.summary")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Tedarikçi" value={po.supplier.legalName} />
-              <Row label="Para Birimi" value={po.currency} />
-              <Row label="Ödeme Koşulu" value={po.paymentTerms ?? "-"} />
+              <Row label={T("common.supplier")} value={po.supplier.legalName} />
+              <Row label={T("common.currency")} value={po.currency} />
+              <Row label={T("po.workspace.paymentTerm")} value={po.paymentTerms ?? "-"} />
               <Row label="Incoterm" value={po.incoterm ?? "-"} />
-              <Row label="Oluşturulma" value={formatDateTime(po.createdAt)} />
+              <Row label={T("hub.detail.created")} value={formatDateTime(po.createdAt)} />
             </CardContent>
           </Card>
         </div>

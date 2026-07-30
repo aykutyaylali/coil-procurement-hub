@@ -72,12 +72,16 @@ export interface AttachmentMeta {
   createdAt: string;
 }
 
-/** Bir varlığa (entityType/entityId) bağlı ekleri listeler (görsellerde önizleme dahil). */
-export async function listAttachments(entityType: string, entityId: string): Promise<Result<AttachmentMeta[]>> {
+/**
+ * Bir varlığa (entityType/entityId) bağlı ekleri listeler (görsellerde önizleme dahil).
+ * includeInternal=false ise yalnız tedarikçiye açık (isInternal=false) ekler döner —
+ * tedarikçi yüzeyinde iç belgelerin sızmaması için.
+ */
+export async function listAttachments(entityType: string, entityId: string, includeInternal = true): Promise<Result<AttachmentMeta[]>> {
   try {
     const user = await requireUser();
     const rows = await prisma.attachment.findMany({
-      where: { tenantId: user.tenantId, entityType, entityId },
+      where: { tenantId: user.tenantId, entityType, entityId, ...(includeInternal ? {} : { isInternal: false }) },
       orderBy: { createdAt: "asc" },
     });
     const storage = getStorage();

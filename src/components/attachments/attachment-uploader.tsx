@@ -30,6 +30,9 @@ export function AttachmentUploader({
   accept = "image/png,image/jpeg,image/webp,application/pdf",
   canEdit = true,
   compact = false,
+  includeInternal = true,
+  showInternalToggle = false,
+  internalToggleLabel = "İç belge (tedarikçi görmez)",
 }: {
   entityType: string;
   entityId: string;
@@ -38,18 +41,24 @@ export function AttachmentUploader({
   accept?: string;
   canEdit?: boolean;
   compact?: boolean;
+  /** false ise yalnız isInternal=false ekler listelenir (tedarikçi yüzeyi). */
+  includeInternal?: boolean;
+  /** true ise yüklerken "iç belge" onay kutusu gösterilir (iç kullanıcı seçebilir). */
+  showInternalToggle?: boolean;
+  internalToggleLabel?: string;
 }) {
   const [items, setItems] = useState<AttachmentMeta[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [uploadInternal, setUploadInternal] = useState(isInternal);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
-    const res = await listAttachments(entityType, entityId);
+    const res = await listAttachments(entityType, entityId, includeInternal);
     if (res.ok) setItems(res.data);
     setLoaded(true);
-  }, [entityType, entityId]);
+  }, [entityType, entityId, includeInternal]);
 
   useEffect(() => {
     void reload();
@@ -64,7 +73,7 @@ export function AttachmentUploader({
       fd.set("file", file);
       fd.set("entityType", entityType);
       fd.set("entityId", entityId);
-      fd.set("isInternal", String(isInternal));
+      fd.set("isInternal", String(showInternalToggle ? uploadInternal : isInternal));
       const res = await uploadAttachment(fd);
       if (!res.ok) {
         setError(res.error);
@@ -152,7 +161,7 @@ export function AttachmentUploader({
       )}
 
       {canEdit && (
-        <div>
+        <div className="flex flex-wrap items-center gap-3">
           <input
             ref={inputRef}
             type="file"
@@ -164,6 +173,12 @@ export function AttachmentUploader({
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
             {busy ? "Yükleniyor…" : `＋ ${label}`}
           </Button>
+          {showInternalToggle && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <input type="checkbox" checked={uploadInternal} onChange={(e) => setUploadInternal(e.target.checked)} />
+              {internalToggleLabel}
+            </label>
+          )}
         </div>
       )}
     </div>

@@ -183,3 +183,57 @@ export async function generateOnboardingLink(supplierId: string): Promise<Result
     return fail(e);
   }
 }
+
+/**
+ * Tedarikçi PORTAL kullanıcısı daveti (Master §5, Faz 6). Birincil iletişim kişisi
+ * için oturumlu bir kullanıcı (SUPPLIER_USER) hazırlar ve parola-belirleme linki üretir.
+ * Kullanıcı isActive=false başlar; parola belirlenince aktifleşir (setPasswordWithToken).
+ */
+export async function invitePortalUser(supplierId: string): Promise<Result<{ url: string; email: string }>> {
+  try {
+    const admin = await requirePermission(PERMISSIONS.SUPPLIER_EDIT);
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: supplierId, tenantId: admin.tenantId, deletedAt: null },
+      include: { contacts: { where: { isPrimary: true }, take: 1 } },
+    });
+    if (!supplier) throw new NotFoundError("Tedarikçi bulunamadı.");
+    const contact = supplier.contacts[0];
+    if (!contact?.email) return fail(new Error("Önce e-postalı birincil iletişim kişisi ekleyin."));
+    const email = contact.email.toLowerCase();
+
+    // Kullanıcı: mevcut portal kullanıcısı varsa yeniden davet; yoksa oluştur
+    let userId = contact.userId ?? null;
+    if (!userId) {
+      const dup = await prisma.user.findFirst({ where: { tenantId: admin.tenantId, email } });
+      if (dup) return fail(new Error("Bu e-posta zaten kullanımda."));
+      const created = await prisma.user.create({
+        data: { tenantId: admin.tenantId, email, name: contact.name, isActive: false },
+      });
+      userId = created.id;
+      await prisma.supplierContact.update({ where: { id: contact.id }, data: { userId } });
+    }
+
+    // SUPPLIER_USER rolü (tenant için) + kullanıcıya ata
+    const role = await prisma.role.upsert({
+      where: { tenantId_key: { tenantId: admin.tenantId, key: "SUPPLIER_USER" } },
+      create: { tenantId: admin.tenantId, key: "SUPPLIER_USER", name: "Tedarikçi Kullanıcısı", permissions: "[]" },
+      update: {},
+    });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId, roleId: role.id } },
+      create: { userId, roleId: role.id },
+      update: {},
+    });
+
+    // Parola-belirleme token'ı (7 gün)
+    const raw = secureToken(32);
+    await prisma.passwordResetToken.create({
+      data: { userId, tokenHash: hashToken(raw), expiresAt: new Date(Date.now() + 7 * 864e5) },
+    });
+    await writeAudit({ tenantId: admin.tenantId, userId: admin.id, action: "UPDATE", entityType: "Supplier", entityId: supplier.id, after: { portalInvite: email } });
+    revalidatePath(`/suppliers/${supplier.id}`);
+    return ok({ url: `${env.APP_URL}/reset-password/${raw}`, email });
+  } catch (e) {
+    return fail(e);
+  }
+}

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, userCan } from "@/lib/auth/context";
+import { getCurrentUser, userCan, isSupplierUser } from "@/lib/auth/context";
 import { prisma } from "@/lib/db";
 import { getMyPendingApprovals } from "@/lib/pending";
 import { NAV_ITEMS } from "@/components/shell/nav-config";
@@ -13,6 +13,8 @@ import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  // Tedarikçi portal kullanıcıları iç uygulamaya erişemez → kendi portallarına
+  if (isSupplierUser(user)) redirect("/portal/orders");
 
   const visibleNav = NAV_ITEMS.filter((item) => !item.permission || userCan(user, item.permission));
 

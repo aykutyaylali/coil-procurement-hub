@@ -86,7 +86,9 @@ export async function loginAction(
     userAgent: hdrs.get("user-agent") ?? null,
   });
 
-  redirect("/dashboard");
+  // Tedarikçi portal kullanıcısı → portal; iç kullanıcı → dashboard
+  const supplierLink = await prisma.supplierContact.findFirst({ where: { userId: user.id }, select: { id: true } });
+  redirect(supplierLink ? "/portal/orders" : "/dashboard");
 }
 
 export async function logoutAction(): Promise<void> {

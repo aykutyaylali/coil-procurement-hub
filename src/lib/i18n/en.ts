@@ -170,6 +170,34 @@ export const en: Record<keyof typeof tr, string> = {
   "techreview.action.FORWARD": "Forward",
   "techreview.action.INTERNAL_NOTE": "Internal Note",
 
+  // Supplier Portal (Master §5)
+  "portal.title": "Supplier Portal",
+  "portal.myOrders": "My Orders",
+  "portal.ordersEmpty": "You have no orders.",
+  "portal.orderNo": "Order No",
+  "portal.production": "Production",
+  "portal.backToOrders": "← My Orders",
+
+  // Portal user invite (admin)
+  "supplier.invitePortal": "Invite Portal User",
+  "supplier.inviteHint": "Creates a password-set invite for the primary contact; the supplier can log in and see their own orders.",
+  "supplier.inviteSent": "Portal invite created.",
+  "supplier.inviteNoContact": "Add a primary contact with an email first.",
+  "supplier.inviteLinkHint": "Send this link to the supplier (valid for 7 days).",
+
+  // Set password (shared: invite + reset)
+  "setpw.title": "Set Password",
+  "setpw.intro": "Set a password for your account.",
+  "setpw.password": "New Password",
+  "setpw.confirm": "Password (again)",
+  "setpw.submit": "Save Password",
+  "setpw.saving": "Saving…",
+  "setpw.mismatch": "Passwords do not match.",
+  "setpw.tooShort": "Password must be at least 8 characters.",
+  "setpw.invalid": "Invalid or expired link.",
+  "setpw.done": "Your password is set. You can log in now.",
+  "setpw.goLogin": "Log In",
+
   // PO Workspace — Discussion
   "po.workspace.tab.discussion": "Discussion",
   "po.workspace.discussion.title": "Discussion",

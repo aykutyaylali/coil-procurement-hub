@@ -171,6 +171,34 @@ export const tr = {
   "techreview.action.FORWARD": "Yönlendir",
   "techreview.action.INTERNAL_NOTE": "İç Not",
 
+  // Tedarikçi Portalı (Master §5)
+  "portal.title": "Tedarikçi Portalı",
+  "portal.myOrders": "Siparişlerim",
+  "portal.ordersEmpty": "Size ait sipariş bulunmuyor.",
+  "portal.orderNo": "Sipariş No",
+  "portal.production": "Üretim",
+  "portal.backToOrders": "← Siparişlerim",
+
+  // Portal kullanıcısı daveti (admin)
+  "supplier.invitePortal": "Portal Kullanıcısı Davet Et",
+  "supplier.inviteHint": "Birincil iletişim kişisine parola belirleme daveti oluşturulur; tedarikçi giriş yapıp kendi siparişlerini görebilir.",
+  "supplier.inviteSent": "Portal daveti oluşturuldu.",
+  "supplier.inviteNoContact": "Önce e-postalı birincil iletişim kişisi ekleyin.",
+  "supplier.inviteLinkHint": "Bu bağlantıyı tedarikçiye iletin (7 gün geçerli).",
+
+  // Parola belirleme (davet + parola sıfırlama ortak)
+  "setpw.title": "Parola Belirle",
+  "setpw.intro": "Hesabınız için bir parola belirleyin.",
+  "setpw.password": "Yeni Parola",
+  "setpw.confirm": "Parola (tekrar)",
+  "setpw.submit": "Parolayı Kaydet",
+  "setpw.saving": "Kaydediliyor…",
+  "setpw.mismatch": "Parolalar eşleşmiyor.",
+  "setpw.tooShort": "Parola en az 8 karakter olmalı.",
+  "setpw.invalid": "Geçersiz veya süresi dolmuş bağlantı.",
+  "setpw.done": "Parolanız belirlendi. Giriş yapabilirsiniz.",
+  "setpw.goLogin": "Giriş Yap",
+
   // PO Workspace — Tartışma
   "po.workspace.tab.discussion": "Tartışma",
   "po.workspace.discussion.title": "Tartışma",

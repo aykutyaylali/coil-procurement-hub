@@ -74,9 +74,13 @@ export function fail(error: unknown): Result<never> {
       const key = Array.isArray(issue.path) ? issue.path.join(".") : "";
       if (key && !fields[key]) fields[key] = issue.message || "Bu alan geçersiz.";
     }
+    // Kullanıcı HANGİ alanın sorunlu olduğunu görsün: ilk spesifik mesajı yüzeye çıkar.
+    const firstMsg = Object.values(fields)[0];
     return {
       ok: false,
-      error: "Girdiğiniz bilgilerde eksik veya hatalı alanlar var. Lütfen işaretli alanları kontrol edin.",
+      error: firstMsg
+        ? `Eksik/hatalı alan: ${firstMsg}`
+        : "Girdiğiniz bilgilerde eksik veya hatalı alanlar var. Lütfen işaretli alanları kontrol edin.",
       code: "VALIDATION",
       fields: Object.keys(fields).length ? fields : undefined,
     };

@@ -11,7 +11,7 @@ import { ok, fail, type Result, NotFoundError, ValidationError } from "@/lib/err
 
 const awardSchema = z.object({
   rfqId: z.string(),
-  justification: z.string().min(3, "Seçim gerekçesi zorunludur."),
+  justification: z.string().trim().min(1, "Seçim gerekçesi zorunludur."),
   lowestNotChosenReason: z.string().optional(),
   awards: z
     .array(

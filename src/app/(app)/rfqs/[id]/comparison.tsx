@@ -188,6 +188,13 @@ export function Comparison({
           </div>
         )}
 
+        {canSelect && (
+          <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+            <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+            <span>Her kalem için, sipariş vermek istediğin tedarikçinin hücresindeki <b>“Seç”</b> rozetine tıkla. Farklı kalemler farklı tedarikçilere verilebilir (split award). Seçtikten sonra aşağıya gerekçe yazıp <b>“Kararı Onayla ve Sipariş Oluştur”</b>a bas.</span>
+          </div>
+        )}
+
         {/* Sütun bazlı karşılaştırma — ilk sütun sabit */}
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full border-collapse text-sm">
@@ -229,12 +236,17 @@ export function Comparison({
                     const isBest = bestPerLine[line.id] === bid.id;
                     const isSel = selection[line.id] === bid.id;
                     return (
-                      <td key={bid.id} className={`px-2 py-1.5 ${isSel ? "ring-2 ring-primary ring-inset" : isBest ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}>
-                        <button disabled={!canSelect} onClick={() => select(line.id, bid.id)} className="w-full rounded p-1 text-left disabled:cursor-default" title={canSelect ? "Bu tedarikçiyi bu kalem için seç" : ""}>
+                      <td key={bid.id} className={`px-2 py-1.5 align-top ${isSel ? "bg-primary/5 ring-2 ring-primary ring-inset" : isBest ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""}`}>
+                        <button disabled={!canSelect} onClick={() => select(line.id, bid.id)} className="flex w-full flex-col gap-1 rounded p-1.5 text-left transition hover:bg-accent/40 disabled:cursor-default disabled:hover:bg-transparent" title={canSelect ? "Bu tedarikçiyi bu kalem için seç" : ""}>
+                          {canSelect && (
+                            <span className={`inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isSel ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+                              <span className={`inline-block size-2.5 rounded-full ${isSel ? "bg-white ring-2 ring-white/40" : "border border-muted-foreground"}`} />
+                              {isSel ? "Seçildi" : "Seç"}
+                            </span>
+                          )}
                           <div className="font-medium">{formatMoney(lt, cur)}</div>
                           <div className="text-[11px] text-muted-foreground">Birim {formatMoney(bl.unitPrice, cur)}{bl.leadTimeDays ? ` · ${bl.leadTimeDays}g` : ""}{bl.brand ? ` · ${bl.brand}` : ""}</div>
                           {isBest && <div className="text-[10px] font-semibold text-emerald-600">EN DÜŞÜK</div>}
-                          {isSel && <div className="text-[10px] font-semibold text-primary">✓ SEÇİLDİ</div>}
                         </button>
                       </td>
                     );

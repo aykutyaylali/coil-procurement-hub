@@ -37,7 +37,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="Planlanan" value={formatMoney(status.planned, b.currency)} />
         <Stat label="Rezerv" value={formatMoney(status.reserved, b.currency)} />
         <Stat label="Taahhüt" value={formatMoney(status.committed, b.currency)} />

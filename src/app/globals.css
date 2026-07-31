@@ -60,11 +60,25 @@
   border-color: hsl(var(--border));
 }
 
+/* Mobil: hiçbir ekranda yatayda kayma olmasın. `clip` sticky başlık/sidebar'ı bozmaz. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Medya öğeleri taşmasın */
+img,
+video {
+  max-width: 100%;
+  height: auto;
 }
 
 /* İnce scrollbar */

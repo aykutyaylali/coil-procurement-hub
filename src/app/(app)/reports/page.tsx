@@ -117,7 +117,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </Card>
 
       {/* KPI */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-6">
         <Card><CardContent className="p-4"><div className="text-xl font-semibold text-primary">{formatMoney(data.totalSpend, "TRY")}</div><div className="text-xs text-muted-foreground">Toplam Harcama (TL)</div></CardContent></Card>
         <Stat label="Sipariş" value={data.orderCount} href={`/orders`} />
         <Stat label="Kalem" value={data.lineCount} />
@@ -130,7 +130,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <Card className="mb-6">
         <CardHeader><CardTitle>Operasyonel Performans Metrikleri</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <MetricCard label="OTIF (Zamanında & Tam)" value={metricDisplay(metrics.otif)} ok={metrics.otif.sufficient} />
             <MetricCard label="Onay Bekleme Süresi" value={metricDisplay(metrics.approvalWaiting)} ok={metrics.approvalWaiting.sufficient} />
             <MetricCard label="Talep→Sipariş Çevrim" value={metricDisplay(metrics.reqCycleTime)} ok={metrics.reqCycleTime.sufficient} />

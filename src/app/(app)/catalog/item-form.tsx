@@ -65,7 +65,7 @@ export function ItemForm({
       <Card>
         <CardHeader><CardTitle>Tercih Edilen Tedarikçiler</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid max-h-48 grid-cols-2 gap-1 overflow-y-auto sm:grid-cols-3">
+          <div className="grid max-h-48 grid-cols-1 sm:grid-cols-2 gap-1 overflow-y-auto sm:grid-cols-3">
             {suppliers.map((s) => (
               <label key={s.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-accent">
                 <input type="checkbox" checked={f.preferredSuppliers.includes(s.id)} onChange={() => toggleSup(s.id)} /> <span className="truncate">{s.name}</span>

@@ -25,3 +25,9 @@ prisma/backups
 /*.xlsx
 .turbo
 next-env.d.ts
+
+.vercel
+.env*
+
+# Kimlik bilgisi içeren yerel dosya (asla commit edilmez)
+KULLANICILAR.md

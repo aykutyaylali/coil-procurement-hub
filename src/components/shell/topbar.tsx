@@ -27,10 +27,10 @@ export function Topbar({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/80 px-4 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-14 min-w-0 items-center gap-2 border-b bg-card/80 px-3 backdrop-blur sm:gap-3 sm:px-4">
       {mobileMenu}
       <form
-        className="relative flex-1 max-w-md"
+        className="relative hidden max-w-md flex-1 md:block"
         onSubmit={(e) => {
           e.preventDefault();
           const q = new FormData(e.currentTarget).get("q") as string;
@@ -45,7 +45,7 @@ export function Topbar({
         />
       </form>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
         <Button variant="ghost" size="icon" onClick={() => router.push("/approvals")} title="Bekleyen Onaylar" className="relative">
           <Icons.Stamp className="size-4" />
           {pendingApprovals > 0 && (

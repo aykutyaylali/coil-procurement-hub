@@ -112,7 +112,7 @@ export function ImportWizard() {
         <Card>
           <CardHeader><CardTitle>✓ İçe Aktarma Tamamlandı</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Sipariş oluşturuldu" value={imported.orders} tone="text-success" />
               <Stat label="Kalem oluşturuldu" value={imported.lines} tone="text-success" />
               <Stat label="Yeni tedarikçi" value={imported.suppliers} />
@@ -143,7 +143,7 @@ export function ImportWizard() {
           <Card>
             <CardHeader><CardTitle>3) İçe Aktarma Öncesi Özet</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat label="Toplam sipariş" value={s.totalOrders} />
                 <Stat label="Toplam kalem" value={s.totalLines} />
                 <Stat label="Yeni tedarikçi" value={dry.newSuppliers} tone="text-primary" />

@@ -360,7 +360,7 @@ export function Comparison({
                   <div key={line.id} className="mb-2 rounded border p-2 text-sm">
                     <div className="font-medium">{line.description}</div>
                     {bl ? (
-                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                         <span>Birim: {formatMoney(bl.unitPrice, bl.currency ?? detailBid.currency)}</span>
                         <span>İsk.: %{bl.discountPct}</span>
                         <span>KDV: %{bl.taxRate}</span>

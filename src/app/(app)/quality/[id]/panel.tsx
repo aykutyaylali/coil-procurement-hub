@@ -109,7 +109,7 @@ export function InspectionPanel({
                   <Label>Başlık *</Label>
                   <Input value={ncrTitle} onChange={(e) => setNcrTitle(e.target.value)} placeholder="Uygunsuzluğun kısa tanımı" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="space-y-1.5">
                     <Label>Şiddet</Label>
                     <Select value={ncrSeverity} onChange={(e) => setNcrSeverity(e.target.value)}>

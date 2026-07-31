@@ -32,17 +32,25 @@ export async function updateProductionStage(input: unknown): Promise<Result<{ st
 
     const po = await prisma.purchaseOrder.findFirst({
       where: { id: data.orderId, tenantId: user.tenantId },
-      select: { id: true, tenantId: true, supplierId: true, productionStage: true, number: true },
+      select: { id: true, tenantId: true, supplierId: true, productionStage: true, number: true, promisedDeliveryDate: true },
     });
     if (!po) throw new NotFoundError("Sipariş bulunamadı.");
     assertPoAccess(po, user); // tedarikçi yalnız kendi PO'sunu günceller
+
+    // Aynı aşamayı tekrar kaydetme (bayat client state / çift tık) — sessiz duplikasyonu engelle
+    if (po.productionStage === data.stage) {
+      throw new ValidationError("Sipariş zaten bu aşamada.");
+    }
 
     // Geçiş doğrulama: mevcut aşama varsa kurala uy; null ise ilk işaretleme serbest
     if (po.productionStage) {
       assertTransition(PO_PRODUCTION_TRANSITIONS, po.productionStage, data.stage, "Üretim aşaması");
     }
 
-    const est = data.estDate ? new Date(data.estDate) : null;
+    // Tarih taşıma: yeni tarih girildiyse onu kullan; yoksa PO'nun mevcut öngörülen
+    // teslim tarihini taşı (tedarikçi her aşamada tekrar girmek zorunda kalmaz).
+    const newDate = data.estDate ? new Date(data.estDate) : null;
+    const effectiveDate = newDate ?? po.promisedDeliveryDate ?? null;
 
     await prisma.$transaction(async (tx) => {
       await tx.pOProductionUpdate.create({
@@ -51,12 +59,16 @@ export async function updateProductionStage(input: unknown): Promise<Result<{ st
           orderId: po.id,
           stage: data.stage,
           note: data.note || null,
-          estDate: est,
+          estDate: effectiveDate,
           updatedById: user.id,
           isInternal: false, // üretim ilerlemesi tedarikçiyle paylaşılır
         },
       });
-      await tx.purchaseOrder.update({ where: { id: po.id }, data: { productionStage: data.stage } });
+      await tx.purchaseOrder.update({
+        where: { id: po.id },
+        // Öngörülen teslim tarihini yalnız yeni tarih girildiyse güncelle (aksi halde koru).
+        data: { productionStage: data.stage, ...(newDate ? { promisedDeliveryDate: newDate } : {}) },
+      });
       await writeAudit(
         {
           tenantId: user.tenantId,

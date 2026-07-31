@@ -1,25 +1,21 @@
 "use client";
 import { useState } from "react";
-import { Link2, Copy, Check, UserPlus } from "lucide-react";
+import { Link2, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useI18n } from "@/components/i18n-provider";
-import { generateOnboardingLink, invitePortalUser } from "../actions";
+import { generateOnboardingLink } from "../actions";
 
 /**
  * Tedarikçiye self-servis onboarding bağlantısı üretir ve panoya kopyalatır.
- * Ham token yalnızca burada görünür (DB'de hash saklanır).
+ * Ham token yalnızca burada görünür (DB'de hash saklanır). Portal erişimi ayrı
+ * kartta yönetilir (PortalAccessCard).
  */
 export function OnboardingLinkCard({ supplierId, tokenActive }: { supplierId: string; tokenActive: boolean }) {
-  const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [inviteBusy, setInviteBusy] = useState(false);
-  const [inviteCopied, setInviteCopied] = useState(false);
 
   async function generate() {
     setBusy(true);
@@ -34,33 +30,11 @@ export function OnboardingLinkCard({ supplierId, tokenActive }: { supplierId: st
     setExpiresAt(new Date(res.data.expiresAt).toLocaleDateString("tr-TR"));
   }
 
-  async function invite() {
-    setInviteBusy(true);
-    setError("");
-    const res = await invitePortalUser(supplierId);
-    setInviteBusy(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setInviteUrl(res.data.url);
-  }
-
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setError("Kopyalanamadı; linki elle seçip kopyalayın.");
-    }
-  }
-
-  async function copyInvite() {
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 1500);
     } catch {
       setError("Kopyalanamadı; linki elle seçip kopyalayın.");
     }
@@ -90,27 +64,6 @@ export function OnboardingLinkCard({ supplierId, tokenActive }: { supplierId: st
             {busy ? "Üretiliyor…" : tokenActive ? "Yeni Bağlantı Üret" : "Onboarding Bağlantısı Oluştur"}
           </Button>
         )}
-
-        {/* Portal kullanıcısı daveti (Faz 6) */}
-        <div className="space-y-2 border-t pt-3">
-          <p className="flex items-center gap-1.5 text-xs font-medium"><UserPlus className="size-3.5" /> {t("supplier.invitePortal")}</p>
-          <p className="text-xs text-muted-foreground">{t("supplier.inviteHint")}</p>
-          {inviteUrl ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <input readOnly value={inviteUrl} className="flex-1 rounded border bg-muted/40 px-2 py-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-                <Button type="button" size="sm" variant="outline" onClick={copyInvite}>
-                  {inviteCopied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{t("supplier.inviteLinkHint")}</p>
-            </div>
-          ) : (
-            <Button type="button" size="sm" variant="outline" onClick={invite} disabled={inviteBusy}>
-              {inviteBusy ? "…" : t("supplier.invitePortal")}
-            </Button>
-          )}
-        </div>
       </CardContent>
     </Card>
   );

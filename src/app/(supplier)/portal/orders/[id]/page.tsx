@@ -131,7 +131,7 @@ export default async function PortalOrderPage({
           <Card>
             <CardHeader><CardTitle>{T("po.production.title")}</CardTitle></CardHeader>
             <CardContent>
-              <ProductionPanel orderId={po.id} currentStage={po.productionStage} allowedNext={allowedProductionTargets(po.productionStage)} canUpdate={canProductionUpdate} stageLabels={stageLabels} />
+              <ProductionPanel orderId={po.id} currentStage={po.productionStage} allowedNext={allowedProductionTargets(po.productionStage)} canUpdate={canProductionUpdate} stageLabels={stageLabels} promisedDate={po.promisedDeliveryDate?.toISOString() ?? null} />
             </CardContent>
           </Card>
           <Card>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Factory } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,14 @@ export function ProductionPanel({
   allowedNext,
   canUpdate,
   stageLabels,
+  promisedDate,
 }: {
   orderId: string;
   currentStage: string | null;
   allowedNext: string[];
   canUpdate: boolean;
   stageLabels: Record<string, string>;
+  promisedDate?: string | null; // ISO; proje öngörülen teslim tarihi (varsa)
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -31,16 +33,44 @@ export function ProductionPanel({
   const [stage, setStage] = useState(allowedNext[0] ?? "");
   const [note, setNote] = useState("");
   const [estDate, setEstDate] = useState("");
+  const [dateOpen, setDateOpen] = useState(false); // tarih alanını göster/gizle
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // Sunucudan yeni aşama gelince (router.refresh sonrası) seçimi geçerli varsayılana
+  // sıfırla — aksi halde eski `stage` state'i kalır ve aynı aşama tekrar kaydedilir.
+  useEffect(() => {
+    setStage(allowedNext[0] ?? "");
+    setError("");
+    // allowedNext, currentStage'den türetilir; tek stabil bağımlılık currentStage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStage]);
+
   const currentIdx = currentStage ? PRODUCTION_STAGES.indexOf(currentStage as (typeof PRODUCTION_STAGES)[number]) : -1;
+  // Görsel dropdown ile state'in ayrışmasına karşı savunma: her zaman geçerli bir hedef gönder.
+  const effectiveStage = allowedNext.includes(stage) ? stage : allowedNext[0] ?? "";
+  const promisedInput = promisedDate ? promisedDate.slice(0, 10) : ""; // yyyy-mm-dd (tz kaymasız)
+  const promisedLabel = promisedDate ? new Date(promisedDate).toLocaleDateString("tr-TR") : "";
+
+  function toggleForm() {
+    setOpen((v) => {
+      const next = !v;
+      if (next) {
+        setNote("");
+        setEstDate("");
+        setError("");
+        // Tarih daha önce girilmemişse alanı açık başlat; girilmişse gizle (opsiyonel değiştir).
+        setDateOpen(!promisedDate);
+      }
+      return next;
+    });
+  }
 
   async function save() {
-    if (!stage || busy) return;
+    if (!effectiveStage || busy) return;
     setBusy(true);
     setError("");
-    const res = await updateProductionStage({ orderId, stage, note: note || undefined, estDate: estDate || undefined });
+    const res = await updateProductionStage({ orderId, stage: effectiveStage, note: note || undefined, estDate: estDate || undefined });
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
@@ -82,17 +112,20 @@ export function ProductionPanel({
         </ol>
       </div>
 
-      <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
-        <span className="flex items-center gap-2">
-          <Factory className="size-4 text-primary" />
+      <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <Factory className="size-4 shrink-0 text-primary" />
           {currentStage ? (
             <span>{t("po.production.currentStage")}: <b>{stageLabels[currentStage]}</b></span>
           ) : (
             <span className="text-muted-foreground">{t("po.production.notStarted")}</span>
           )}
+          {promisedDate && (
+            <span className="text-muted-foreground">· {t("po.production.promised")}: <b className="text-foreground">{promisedLabel}</b></span>
+          )}
         </span>
         {canUpdate && allowedNext.length > 0 && (
-          <Button size="sm" variant={open ? "secondary" : "outline"} onClick={() => setOpen((v) => !v)}>
+          <Button size="sm" variant={open ? "secondary" : "outline"} className="shrink-0" onClick={toggleForm}>
             {currentStage ? t("po.production.update") : t("po.production.start")}
           </Button>
         )}
@@ -101,20 +134,38 @@ export function ProductionPanel({
       {open && (
         <div className="space-y-3 rounded-md border p-3">
           {error && <p className="rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">{error}</p>}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t("po.production.selectStage")}</Label>
-              <Select value={stage} onChange={(e) => setStage(e.target.value)}>
-                {allowedNext.map((s) => (
-                  <option key={s} value={s}>{stageLabels[s]}</option>
-                ))}
-              </Select>
+          {/* Sade akış: yeni aşama + (opsiyonel) not. Tarih ilk seferde girilir, sonra taşınır. */}
+          <div className="space-y-1.5">
+            <Label>{t("po.production.selectStage")}</Label>
+            <Select value={effectiveStage} onChange={(e) => setStage(e.target.value)}>
+              {allowedNext.map((s) => (
+                <option key={s} value={s}>{stageLabels[s]}</option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Tarih: girilmişse küçük satır + "Değiştir"; girilmemişse alan inline (opsiyonel) */}
+          {promisedDate && !dateOpen ? (
+            <div className="text-xs text-muted-foreground">
+              {t("po.production.promised")}: <b className="text-foreground">{promisedLabel}</b>
+              <button type="button" className="ml-2 text-primary hover:underline" onClick={() => { setEstDate(promisedInput); setDateOpen(true); }}>
+                {t("po.production.change")}
+              </button>
             </div>
+          ) : (
             <div className="space-y-1.5">
               <Label>{t("po.production.estDate")}</Label>
               <Input type="date" value={estDate} onChange={(e) => setEstDate(e.target.value)} />
+              {promisedDate ? (
+                <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => { setEstDate(""); setDateOpen(false); }}>
+                  {t("action.cancel")}
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t("po.production.dateOnceHint")}</p>
+              )}
             </div>
-          </div>
+          )}
+
           <div className="space-y-1.5">
             <Label>{t("po.production.note")}</Label>
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="min-h-[56px]" />

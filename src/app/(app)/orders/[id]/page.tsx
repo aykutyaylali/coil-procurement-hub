@@ -187,6 +187,7 @@ export default async function OrderDetailPage({
                     allowedNext={allowedProductionTargets(po.productionStage)}
                     canUpdate={canProductionUpdate}
                     stageLabels={stageLabels}
+                    promisedDate={po.promisedDeliveryDate?.toISOString() ?? null}
                   />
                 </CardContent>
               </Card>

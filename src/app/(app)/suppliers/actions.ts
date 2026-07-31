@@ -186,8 +186,10 @@ export async function generateOnboardingLink(supplierId: string): Promise<Result
 
 /**
  * Tedarikçi PORTAL kullanıcısı daveti (Master §5, Faz 6). Birincil iletişim kişisi
- * için oturumlu bir kullanıcı (SUPPLIER_USER) hazırlar ve parola-belirleme linki üretir.
- * Kullanıcı isActive=false başlar; parola belirlenince aktifleşir (setPasswordWithToken).
+ * için oturumlu bir kullanıcı (SUPPLIER_USER) hazırlar ve KALICI bir parola-belirleme
+ * bağlantısı üretir. Bağlantı süresizdir; admin "Pasife Al" diyene kadar (revoke)
+ * geçerli kalır. Ham token cari sayfasında tekrar görüntülenebilsin diye kişide saklanır.
+ * Yeniden çağrılırsa yeni token üretir (eskisi geçersiz olur) ve pasifse yeniden aktifler.
  */
 export async function invitePortalUser(supplierId: string): Promise<Result<{ url: string; email: string }>> {
   try {
@@ -210,7 +212,6 @@ export async function invitePortalUser(supplierId: string): Promise<Result<{ url
         data: { tenantId: admin.tenantId, email, name: contact.name, isActive: false },
       });
       userId = created.id;
-      await prisma.supplierContact.update({ where: { id: contact.id }, data: { userId } });
     }
 
     // SUPPLIER_USER rolü (tenant için) + kullanıcıya ata
@@ -225,14 +226,48 @@ export async function invitePortalUser(supplierId: string): Promise<Result<{ url
       update: {},
     });
 
-    // Parola-belirleme token'ı (7 gün)
+    // Kalıcı davet token'ı (süresiz; revoke edilene kadar geçerli). Kişide ham saklanır.
     const raw = secureToken(32);
-    await prisma.passwordResetToken.create({
-      data: { userId, tokenHash: hashToken(raw), expiresAt: new Date(Date.now() + 7 * 864e5) },
+    await prisma.supplierContact.update({
+      where: { id: contact.id },
+      data: { userId, portalInviteToken: raw, portalInviteCreatedAt: new Date(), portalInviteRevokedAt: null },
     });
     await writeAudit({ tenantId: admin.tenantId, userId: admin.id, action: "UPDATE", entityType: "Supplier", entityId: supplier.id, after: { portalInvite: email } });
     revalidatePath(`/suppliers/${supplier.id}`);
     return ok({ url: `${env.APP_URL}/reset-password/${raw}`, email });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Portal erişimini pasife alır/yeniden aktifler. Pasife alınınca davet bağlantısı
+ * geçersizleşir (revokedAt) ve kullanıcı giriş yapamaz (isActive=false). Aktif edince
+ * bağlantı yeniden geçerli olur; kullanıcı parolasını belirlemiş/aktifse giriş açılır.
+ */
+export async function setPortalAccessActive(supplierId: string, active: boolean): Promise<Result<{ active: boolean }>> {
+  try {
+    const admin = await requirePermission(PERMISSIONS.SUPPLIER_EDIT);
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: supplierId, tenantId: admin.tenantId, deletedAt: null },
+      include: { contacts: { where: { userId: { not: null } }, take: 1 } },
+    });
+    if (!supplier) throw new NotFoundError("Tedarikçi bulunamadı.");
+    const contact = supplier.contacts[0];
+    if (!contact?.userId) return fail(new Error("Portal kullanıcısı bulunamadı."));
+
+    await prisma.$transaction(async (tx) => {
+      await tx.supplierContact.update({
+        where: { id: contact.id },
+        data: { portalInviteRevokedAt: active ? null : new Date() },
+      });
+      // Aktif ederken yalnız parolası belirlenmiş kullanıcıyı giriş yapabilir yap.
+      const u = await tx.user.findUnique({ where: { id: contact.userId! }, select: { passwordHash: true } });
+      await tx.user.update({ where: { id: contact.userId! }, data: { isActive: active ? !!u?.passwordHash : false } });
+    });
+    await writeAudit({ tenantId: admin.tenantId, userId: admin.id, action: "UPDATE", entityType: "Supplier", entityId: supplier.id, after: { portalAccess: active ? "ACTIVATED" : "REVOKED" } });
+    revalidatePath(`/suppliers/${supplier.id}`);
+    return ok({ active });
   } catch (e) {
     return fail(e);
   }

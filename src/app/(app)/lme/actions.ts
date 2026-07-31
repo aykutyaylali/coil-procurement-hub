@@ -100,6 +100,22 @@ export async function saveLmeRecord(input: unknown): Promise<Result<{ id: string
   }
 }
 
+/** Hatalı LME kaydını kalıcı siler. Snapshot değerler tekliflerde/siparişlerde
+ *  kopyalandığı için silme geçmiş fiyatları etkilemez (FK yok). */
+export async function deleteLmeRecord(id: string): Promise<Result<null>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.LME_MANAGE);
+    const rec = await prisma.lmeRecord.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!rec) throw new NotFoundError("LME kaydı bulunamadı.");
+    await prisma.lmeRecord.delete({ where: { id: rec.id } });
+    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "LmeRecord", entityId: rec.id, before: { usdPerTon: rec.usdPerTon, status: rec.status } });
+    revalidatePath("/lme");
+    return ok(null);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Durum değiştir: DRAFT→APPROVED (onayla) veya →ARCHIVED (arşivle). */
 export async function setLmeStatus(id: string, status: "APPROVED" | "ARCHIVED"): Promise<Result<{ status: string }>> {
   try {

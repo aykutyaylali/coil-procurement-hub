@@ -84,9 +84,18 @@ export function Sidebar({ items }: { items: NavItem[] }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <aside className={cn("sticky top-0 hidden h-screen flex-col border-r bg-card transition-all duration-200 lg:flex", collapsed ? "w-16" : "w-64")}>
-      <div className="flex h-14 items-center border-b px-3">
-        <Link href="/dashboard" className="flex items-center rounded-md bg-white px-2 py-1 shadow-sm ring-1 ring-black/5" title="Coil Partners">
-          <Image src="/brand/coil-logo.png" alt="Coil Partners" width={281} height={120} priority className={cn("w-auto", collapsed ? "h-6" : "h-7")} />
+      <div className="flex h-14 items-center justify-center border-b px-2">
+        <Link href="/dashboard" title="Coil Partners" className="flex items-center justify-center">
+          {collapsed ? (
+            // Daraltılmış: yazı kesilmesin diye yalnız AMBLEM (logonun sol karesi) gösterilir.
+            <span className="flex size-9 items-center justify-start overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-black/5">
+              <Image src="/brand/coil-logo.png" alt="Coil" width={281} height={120} priority className="h-9 w-auto max-w-none" />
+            </span>
+          ) : (
+            <span className="flex items-center rounded-md bg-white px-2 py-1 shadow-sm ring-1 ring-black/5">
+              <Image src="/brand/coil-logo.png" alt="Coil Partners" width={281} height={120} priority className="h-7 w-auto" />
+            </span>
+          )}
         </Link>
       </div>
       <SidebarNav items={items} collapsed={collapsed} />

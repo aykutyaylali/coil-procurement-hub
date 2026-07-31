@@ -49,6 +49,8 @@ export const en: Record<keyof typeof tr, string> = {
   "lme.overridden": "API value manually overridden",
   "lme.autoHint": "Pick type + date/period and auto-fetch LME (USD/ton) from the provider. Comes as Draft; verify and Approve.",
   "lme.editSource": "Edit source",
+  "lme.delete": "Delete",
+  "lme.deleteConfirm": "This LME record will be permanently deleted. Continue? (Historical quote/order prices are not affected.)",
   "lme.status.DRAFT": "Draft",
   "lme.status.APPROVED": "Approved",
   "lme.status.ARCHIVED": "Archived",

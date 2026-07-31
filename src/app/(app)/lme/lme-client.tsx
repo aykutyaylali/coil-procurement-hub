@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Check, Archive, Calculator, Download, Bot, Lock, Pencil } from "lucide-react";
+import { Plus, Check, Archive, Calculator, Download, Bot, Lock, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useI18n } from "@/components/i18n-provider";
 import { lmeUsdPerKg } from "@/domain/lme-pricing";
 import { parseTrNumber } from "@/lib/money";
-import { saveLmeRecord, setLmeStatus, fetchLmeAuto } from "./actions";
+import { saveLmeRecord, setLmeStatus, deleteLmeRecord, fetchLmeAuto } from "./actions";
 
 /** Yeni LME Bakır kaydı formu — canlı USD/kg önizlemeli, Türkçe sayı formatı destekli. */
 export function LmeForm() {
@@ -150,7 +150,14 @@ export function LmeRowActions({ id, status }: { id: string; status: string }) {
     setBusy(false);
     if (res.ok) router.refresh();
   }
-  if (status === "ARCHIVED") return <span className="text-xs text-muted-foreground">—</span>;
+  async function del() {
+    if (busy) return;
+    if (!confirm(t("lme.deleteConfirm"))) return;
+    setBusy(true);
+    const res = await deleteLmeRecord(id);
+    setBusy(false);
+    if (res.ok) router.refresh();
+  }
   return (
     <div className="flex justify-end gap-1">
       {status === "DRAFT" && (
@@ -158,8 +165,13 @@ export function LmeRowActions({ id, status }: { id: string; status: string }) {
           <Check className="size-3.5" /> {t("lme.approve")}
         </Button>
       )}
-      <Button size="sm" variant="ghost" onClick={() => act("ARCHIVED")} disabled={busy} title={t("lme.archive")}>
-        <Archive className="size-3.5" />
+      {status !== "ARCHIVED" && (
+        <Button size="sm" variant="ghost" onClick={() => act("ARCHIVED")} disabled={busy} title={t("lme.archive")}>
+          <Archive className="size-3.5" />
+        </Button>
+      )}
+      <Button size="sm" variant="ghost" onClick={del} disabled={busy} title={t("lme.delete")} className="text-destructive hover:bg-destructive/10">
+        <Trash2 className="size-3.5" />
       </Button>
     </div>
   );

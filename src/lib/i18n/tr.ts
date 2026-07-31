@@ -48,6 +48,8 @@ export const tr = {
   "lme.overridden": "API verisi manuel ezildi",
   "lme.autoHint": "Tip + tarih/dönem seçip LME (USD/ton)'u dış servisten otomatik çekin. Değer Taslak gelir; kontrol edip Onaylayın.",
   "lme.editSource": "Kaynağı düzenle",
+  "lme.delete": "Sil",
+  "lme.deleteConfirm": "Bu LME kaydı kalıcı olarak silinecek. Onaylıyor musunuz? (Geçmiş teklif/sipariş fiyatları etkilenmez.)",
   "lme.status.DRAFT": "Taslak",
   "lme.status.APPROVED": "Onaylı",
   "lme.status.ARCHIVED": "Arşiv",

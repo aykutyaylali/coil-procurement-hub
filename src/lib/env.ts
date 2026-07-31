@@ -38,8 +38,11 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().optional(),
   EXCHANGE_RATE_PROVIDER: z.enum(["tcmb", "manual", "mock"]).default("tcmb"),
-  // LME bakır fiyatı otomatik çekme sağlayıcısı (gerçek sağlayıcı API anahtarı gerektirir)
-  LME_PROVIDER: z.enum(["mock", "fastmarkets", "lme_api"]).default("mock"),
+  // LME bakır fiyatı otomatik çekme sağlayıcısı.
+  //  web         : ücretsiz/anahtarsız — Yahoo Finance COMEX bakır (HG=F) → LME eşdeğeri (USD/ton)
+  //  mock        : deterministik örnek (offline test)
+  //  fastmarkets | lme_api : gerçek LME aboneliği (LME_API_URL + LME_API_KEY gerekir)
+  LME_PROVIDER: z.enum(["web", "mock", "fastmarkets", "lme_api"]).default("web"),
   LME_API_URL: z.string().optional(),
   LME_API_KEY: z.string().optional(),
   ANTIVIRUS_PROVIDER: z.enum(["clamav", "none"]).default("none"),

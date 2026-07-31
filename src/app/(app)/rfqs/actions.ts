@@ -170,6 +170,8 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
     if (!["DRAFT", "APPROVED", "SENT", "OPEN"].includes(rfq.status)) {
       throw new AppError("Bu RFQ durumunda tedarikçi daveti yapılamaz.");
     }
+    // İlk gönderim mi, yoksa zaten gönderilmiş RFQ'ya ek tedarikçi mi?
+    const firstSend = rfq.status === "DRAFT" || rfq.status === "APPROVED";
 
     const dueAt = data.dueAt ? new Date(data.dueAt) : (rfq.dueAt ?? addDays(new Date(), 7));
     const ttlHours = env.MAGIC_LINK_TTL_HOURS;
@@ -259,22 +261,28 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
         void rfqSupplierId;
       }
 
-      assertTransition(RFQ_TRANSITIONS, rfq.status, "SENT", "RFQ");
-      await tx.rFQ.update({
-        where: { id: rfq.id },
-        data: { status: "SENT", dueAt, sealed: data.sealed ?? rfq.sealed },
-      });
-      await writeAudit(
-        {
-          tenantId: user.tenantId,
-          userId: user.id,
-          action: "STATUS_CHANGE",
-          entityType: "RFQ",
-          entityId: rfq.id,
-          after: { status: "SENT", suppliers: suppliers.length },
-        },
-        tx,
-      );
+      if (firstSend) {
+        // İlk gönderim: DRAFT/APPROVED -> SENT
+        assertTransition(RFQ_TRANSITIONS, rfq.status, "SENT", "RFQ");
+        await tx.rFQ.update({
+          where: { id: rfq.id },
+          data: { status: "SENT", dueAt, sealed: data.sealed ?? rfq.sealed },
+        });
+        await writeAudit(
+          { tenantId: user.tenantId, userId: user.id, action: "STATUS_CHANGE", entityType: "RFQ", entityId: rfq.id, after: { status: "SENT", suppliers: suppliers.length } },
+          tx,
+        );
+      } else {
+        // Zaten gönderilmiş/açık RFQ'ya EK tedarikçi: durum OPEN kalır; yalnız dueAt/sealed güncellenir
+        await tx.rFQ.update({
+          where: { id: rfq.id },
+          data: { dueAt, sealed: data.sealed ?? rfq.sealed },
+        });
+        await writeAudit(
+          { tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "RFQ", entityId: rfq.id, after: { addedSuppliers: suppliers.length, status: rfq.status } },
+          tx,
+        );
+      }
     });
 
     // E-postaları transaction'dan SONRA kuyruğa al (SQLite iç içe yazma kilidi olmaz)
@@ -285,8 +293,10 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
     // Kuyruğu işle (gerçek gönderim; mock modda konsola loglar)
     const result = await processQueue();
 
-    // SENT -> OPEN (teklif toplamaya açık)
-    await prisma.rFQ.update({ where: { id: rfq.id }, data: { status: "OPEN" } });
+    // SENT -> OPEN (teklif toplamaya açık) — yalnız ilk gönderimde; zaten OPEN ise dokunma
+    if (firstSend) {
+      await prisma.rFQ.update({ where: { id: rfq.id }, data: { status: "OPEN" } });
+    }
 
     revalidatePath(`/rfqs/${rfq.id}`);
     return ok({ sent: result.sent });

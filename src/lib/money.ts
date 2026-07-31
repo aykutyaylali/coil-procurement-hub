@@ -13,10 +13,23 @@ export type DecimalInput = string | number | Decimal | null | undefined;
 
 export function d(value: DecimalInput): Decimal {
   if (value === null || value === undefined || value === "") return new Decimal(0);
+  if (typeof value === "string") {
+    let t = value.trim();
+    if (t === "") return new Decimal(0);
+    // Türkçe ondalık virgülünü noktaya çevir (yalnız nokta yoksa; "1,5" -> "1.5").
+    if (t.includes(",") && !t.includes(".")) t = t.replace(",", ".");
+    try {
+      return new Decimal(t);
+    } catch {
+      // Kısmi/geçersiz giriş (ör. "1.", "-", "abc") canlı hesaplamada render'ı ÇÖKERTMEZ:
+      // 0 kabul edilir. Sunucuda gerçek doğrulama zod ile ayrıca yapılır.
+      return new Decimal(0);
+    }
+  }
   try {
     return new Decimal(value);
   } catch {
-    throw new Error(`Geçersiz sayısal değer: "${String(value)}"`);
+    return new Decimal(0);
   }
 }
 

@@ -62,6 +62,7 @@ export default async function OrderDetailPage({
     const current = steps[instance.currentStep];
     if (current) {
       canDecide =
+        user.isSystemAdmin ||
         current.approverUserId === user.id ||
         (current.approverRoleKey != null && user.roleKeys.includes(current.approverRoleKey));
     }

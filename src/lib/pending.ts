@@ -12,5 +12,5 @@ import { pendingApprovalsForUser } from "@/domain/approval";
 export const getMyPendingApprovals = cache(async () => {
   const user = await getCurrentUser();
   if (!user) return [];
-  return pendingApprovalsForUser(prisma, user.id, user.roleKeys);
+  return pendingApprovalsForUser(prisma, user.id, user.roleKeys, user.isSystemAdmin);
 });

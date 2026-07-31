@@ -58,6 +58,7 @@ export default async function RequisitionDetailPage({
     if (current) {
       currentStepName = current.name;
       canDecide =
+        user.isSystemAdmin ||
         current.approverUserId === user.id ||
         (current.approverRoleKey != null && user.roleKeys.includes(current.approverRoleKey));
     }

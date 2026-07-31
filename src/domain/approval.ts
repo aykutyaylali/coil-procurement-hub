@@ -168,6 +168,7 @@ export async function actOnApproval(
     action: ApprovalActionType;
     note?: string;
     forwardToUserId?: string;
+    isSystemAdmin?: boolean; // Sistem Yöneticisi her onay adımında işlem yapabilir (süper-admin)
   },
 ): Promise<{ instanceStatus: string; documentDecision: "APPROVED" | "REJECTED" | "PENDING" }> {
   const instance = await tx.approvalInstance.findUnique({ where: { id: params.instanceId } });
@@ -189,7 +190,7 @@ export async function actOnApproval(
   const holdsRole =
     current.approverRoleKey != null && params.userRoleKeys.includes(current.approverRoleKey);
 
-  if (isDesignatedUser || holdsRole) {
+  if (isDesignatedUser || holdsRole || params.isSystemAdmin) {
     eligible = true;
   } else if (current.approverUserId) {
     // Vekâlet: asıl onaycıdan bu kullanıcıya aktif devir var mı?
@@ -213,9 +214,10 @@ export async function actOnApproval(
     throw new ForbiddenError("Bu onay adımında işlem yapma yetkiniz bulunmuyor.");
   }
 
-  // Görevler ayrılığı: kişi kendi oluşturduğu belgeyi onaylayamaz
+  // Görevler ayrılığı: kişi kendi oluşturduğu belgeyi onaylayamaz (sysadmin hariç).
   if (
     current.enforceSegregation &&
+    !params.isSystemAdmin &&
     (params.action === "APPROVE") &&
     (params.userId === params.documentCreatorId ||
       (actedOnBehalfOf && actedOnBehalfOf === params.documentCreatorId))
@@ -295,6 +297,7 @@ export async function pendingApprovalsForUser(
   tx: Tx,
   userId: string,
   roleKeys: string[],
+  isSystemAdmin = false,
 ): Promise<{ instanceId: string; documentType: string; documentId: string; stepName: string }[]> {
   const instances = await tx.approvalInstance.findMany({
     where: { status: "PENDING" },
@@ -306,7 +309,7 @@ export async function pendingApprovalsForUser(
     if (!current) continue;
     const isUser = current.approverUserId === userId;
     const isRole = current.approverRoleKey != null && roleKeys.includes(current.approverRoleKey);
-    if (isUser || isRole) {
+    if (isUser || isRole || isSystemAdmin) {
       result.push({
         instanceId: inst.id,
         documentType: inst.documentType,

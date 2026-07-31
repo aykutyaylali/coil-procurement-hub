@@ -367,6 +367,7 @@ export async function decideRequisition(input: unknown): Promise<Result<{ status
       if (!instance) throw new NotFoundError("Bekleyen onay süreci bulunamadı.");
 
       const decision = await actOnApproval(tx, {
+        isSystemAdmin: user.isSystemAdmin,
         instanceId: instance.id,
         userId: user.id,
         userRoleKeys: user.roleKeys,

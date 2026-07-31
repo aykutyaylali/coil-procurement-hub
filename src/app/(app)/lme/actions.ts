@@ -12,9 +12,21 @@ const upsertSchema = z.object({
   id: z.string().optional(),
   priceDate: z.string().min(1, "Tarih zorunludur."),
   usdPerTon: z.string().min(1, "LME değeri (USD/ton) zorunludur."),
+  kind: z.enum(["DAILY_SPOT", "WEEKLY_AVG"]).default("DAILY_SPOT"),
+  periodStart: z.string().optional(),
+  periodEnd: z.string().optional(),
   source: z.string().optional(),
   note: z.string().optional(),
 });
+
+function periodFields(data: { kind: string; periodStart?: string; periodEnd?: string }) {
+  const weekly = data.kind === "WEEKLY_AVG";
+  return {
+    kind: data.kind,
+    periodStart: weekly && data.periodStart ? new Date(data.periodStart) : null,
+    periodEnd: weekly && data.periodEnd ? new Date(data.periodEnd) : null,
+  };
+}
 
 /** LME kaydı oluştur/güncelle. LME değeri Türkçe format da olsa doğru parse edilir. */
 export async function saveLmeRecord(input: unknown): Promise<Result<{ id: string }>> {
@@ -33,7 +45,7 @@ export async function saveLmeRecord(input: unknown): Promise<Result<{ id: string
       if (existing.status === "ARCHIVED") throw new ValidationError("Arşivlenmiş kayıt düzenlenemez.");
       await prisma.lmeRecord.update({
         where: { id: existing.id },
-        data: { priceDate, usdPerTon, source: data.source || null, note: data.note || null },
+        data: { priceDate, usdPerTon, source: data.source || null, note: data.note || null, ...periodFields(data) },
       });
       await writeAudit({
         tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "LmeRecord", entityId: existing.id,
@@ -46,7 +58,7 @@ export async function saveLmeRecord(input: unknown): Promise<Result<{ id: string
     const created = await prisma.lmeRecord.create({
       data: {
         tenantId: user.tenantId, priceDate, usdPerTon, source: data.source || null, note: data.note || null,
-        status: "DRAFT", createdById: user.id,
+        status: "DRAFT", createdById: user.id, ...periodFields(data),
       },
     });
     await writeAudit({

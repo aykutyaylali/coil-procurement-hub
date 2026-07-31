@@ -45,6 +45,7 @@ export default async function LmePage() {
             <THead>
               <TR>
                 <TH>{T("lme.date")}</TH>
+                <TH>{T("lme.kind")}</TH>
                 <TH className="text-right">{T("lme.usdPerTon")}</TH>
                 <TH className="text-right">{T("lme.usdPerKg")}</TH>
                 <TH>{T("lme.source")}</TH>
@@ -57,6 +58,12 @@ export default async function LmePage() {
               {records.map((r) => (
                 <TR key={r.id}>
                   <TD className="font-medium">{formatDate(r.priceDate)}</TD>
+                  <TD>
+                    <Badge tone={r.kind === "WEEKLY_AVG" ? "info" : "default"}>{T(`lme.kind.${r.kind}` as never) || r.kind}</Badge>
+                    {r.kind === "WEEKLY_AVG" && r.periodStart && r.periodEnd && (
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">{formatDate(r.periodStart)} – {formatDate(r.periodEnd)}</div>
+                    )}
+                  </TD>
                   <TD className="text-right font-mono">{Number(r.usdPerTon).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TD>
                   <TD className="text-right font-mono">{lmeUsdPerKg(r.usdPerTon)}</TD>
                   <TD className="text-sm text-muted-foreground">{r.source ?? "—"}</TD>

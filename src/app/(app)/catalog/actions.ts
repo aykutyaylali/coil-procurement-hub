@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { toStr } from "@/lib/money";
+import { toStr, parseTrNumber } from "@/lib/money";
 import { ok, fail, type Result, ConflictError, NotFoundError } from "@/lib/errors";
 
 const schema = z.object({
@@ -26,7 +26,25 @@ const schema = z.object({
   isActive: z.boolean().default(true),
   preferredSuppliers: z.array(z.string()).default([]),
   unitConversions: z.array(z.object({ fromUom: z.string(), toUom: z.string(), factor: z.string() })).default([]),
+  // LME bazlı bakır fiyatlandırma
+  pricingType: z.enum(["FIXED", "LME_COPPER"]).default("FIXED"),
+  lmeCoefficient: z.string().optional(),
+  defaultPremiumUsdPerKg: z.string().optional(),
+  defaultExtraCostUsdPerKg: z.string().optional(),
+  pricingNote: z.string().optional(),
 });
+
+/** Malzeme kartı LME alanlarını normalize eder (Türkçe sayı → decimal-string). */
+function copperFields(data: { pricingType: string; lmeCoefficient?: string; defaultPremiumUsdPerKg?: string; defaultExtraCostUsdPerKg?: string; pricingNote?: string }) {
+  const isCopper = data.pricingType === "LME_COPPER";
+  return {
+    pricingType: data.pricingType,
+    lmeCoefficient: isCopper ? parseTrNumber(data.lmeCoefficient || "1") : null,
+    defaultPremiumUsdPerKg: isCopper && data.defaultPremiumUsdPerKg ? parseTrNumber(data.defaultPremiumUsdPerKg) : null,
+    defaultExtraCostUsdPerKg: isCopper && data.defaultExtraCostUsdPerKg ? parseTrNumber(data.defaultExtraCostUsdPerKg) : null,
+    pricingNote: data.pricingNote || null,
+  };
+}
 
 export async function createItem(input: unknown): Promise<Result<{ id: string }>> {
   try {
@@ -45,9 +63,10 @@ export async function createItem(input: unknown): Promise<Result<{ id: string }>
         isService: data.isService, isActive: data.isActive,
         preferredSuppliers: data.preferredSuppliers.length ? JSON.stringify(data.preferredSuppliers) : null,
         unitConversions: data.unitConversions.length ? JSON.stringify(data.unitConversions) : null,
+        ...copperFields(data),
       },
     });
-    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "CREATE", entityType: "Item", entityId: item.id, after: { code: data.code, name: data.name } });
+    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "CREATE", entityType: "Item", entityId: item.id, after: { code: data.code, name: data.name, pricingType: data.pricingType } });
     revalidatePath("/catalog");
     return ok({ id: item.id });
   } catch (e) {
@@ -72,9 +91,10 @@ export async function updateItem(input: unknown): Promise<Result<{ id: string }>
         specs: data.specs || null, altCodes: data.altCodes || null, isService: data.isService, isActive: data.isActive,
         preferredSuppliers: data.preferredSuppliers.length ? JSON.stringify(data.preferredSuppliers) : null,
         unitConversions: data.unitConversions.length ? JSON.stringify(data.unitConversions) : null,
+        ...copperFields(data),
       },
     });
-    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "Item", entityId: existing.id, after: { name: data.name } });
+    await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "UPDATE", entityType: "Item", entityId: existing.id, after: { name: data.name, pricingType: data.pricingType } });
     revalidatePath(`/catalog/${existing.id}`);
     return ok({ id: existing.id });
   } catch (e) {

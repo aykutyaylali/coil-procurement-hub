@@ -493,8 +493,13 @@ model Item {
 model LmeRecord {
   id           String   @id @default(cuid())
   tenantId     String
-  priceDate    DateTime // LME değer tarihi
-  usdPerTon    String   // decimal-as-string (manuel giriş)
+  priceDate    DateTime // LME değer tarihi (haftalık ortalamada dönemin referans günü)
+  usdPerTon    String   // decimal-as-string (manuel giriş; haftalıkta hafta ortalaması)
+  // Tip: DAILY_SPOT (günlük spot) | WEEKLY_AVG (haftalık ortalama). Sarcam bakır tel
+  // alımlarında haftalık ortalama baz alınır; periyot başlangıç/bitiş ile tanımlanır.
+  kind         String   @default("DAILY_SPOT")
+  periodStart  DateTime?
+  periodEnd    DateTime?
   source       String?  // kaynak / referans notu
   status       String   @default("DRAFT") // DRAFT | APPROVED | ARCHIVED
   note         String?
@@ -1084,6 +1089,16 @@ model BidLine {
   isAlternative Boolean @default(false)
   technicalDeviation String?
   note        String?
+  // LME bazlı bakır fiyatı SNAPSHOT'ı (girildiği andaki değerler; sonradan değişmez).
+  // pricingType = LME_COPPER ise dolu olur; unitPrice bu değerlerden hesaplanır (USD/kg).
+  pricingType       String? // null | LME_COPPER
+  lmeRecordId       String?
+  lmePriceDate      DateTime?
+  lmeUsdPerTon      String?
+  lmeCoefficient    String?
+  premiumUsdPerKg   String?
+  extraCostUsdPerKg String?
+  usdTryRate        String?
 
   @@index([bidId])
   @@index([rfqLineId])
@@ -1253,6 +1268,15 @@ model PurchaseOrderLine {
   receivedQty String   @default("0")
   rejectedQty String   @default("0")
   invoicedQty String   @default("0")
+  // LME bazlı bakır fiyatı SNAPSHOT'ı (siparişteki kesinleşmiş değerler; değişmez).
+  pricingType       String? // null | LME_COPPER
+  lmeRecordId       String?
+  lmePriceDate      DateTime?
+  lmeUsdPerTon      String?
+  lmeCoefficient    String?
+  premiumUsdPerKg   String?
+  extraCostUsdPerKg String?
+  usdTryRate        String?
 
   goodsReceiptLines GoodsReceiptLine[]
   invoiceLines      InvoiceLine[]

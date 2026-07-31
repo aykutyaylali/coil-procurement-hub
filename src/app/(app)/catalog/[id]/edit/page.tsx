@@ -33,6 +33,9 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
           gtipCode: item.gtipCode ?? "", baseUomId: item.baseUomId ?? "", minOrderQty: item.minOrderQty ?? "",
           leadTimeDays: item.leadTimeDays ? String(item.leadTimeDays) : "", specs: item.specs ?? "",
           isService: item.isService, isActive: item.isActive, preferredSuppliers, unitConversions,
+          pricingType: item.pricingType ?? "FIXED", lmeCoefficient: item.lmeCoefficient ?? "1.0000",
+          defaultPremiumUsdPerKg: item.defaultPremiumUsdPerKg ?? "", defaultExtraCostUsdPerKg: item.defaultExtraCostUsdPerKg ?? "",
+          pricingNote: item.pricingNote ?? "",
         }}
       />
     </div>

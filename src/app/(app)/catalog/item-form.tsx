@@ -14,6 +14,7 @@ export interface ItemInitial {
   manufacturer: string; manufacturerCode: string; gtipCode: string; baseUomId: string; minOrderQty: string;
   leadTimeDays: string; specs: string; isService: boolean; isActive: boolean;
   preferredSuppliers: string[]; unitConversions: Conv[];
+  pricingType?: string; lmeCoefficient?: string; defaultPremiumUsdPerKg?: string; defaultExtraCostUsdPerKg?: string; pricingNote?: string;
 }
 
 export function ItemForm({
@@ -23,7 +24,7 @@ export function ItemForm({
 }) {
   const router = useRouter();
   const [f, setF] = useState<ItemInitial>(
-    initial ?? { code: "", name: "", description: "", categoryId: "", brand: "", manufacturer: "", manufacturerCode: "", gtipCode: "", baseUomId: uoms[0]?.id ?? "", minOrderQty: "", leadTimeDays: "", specs: "", isService: false, isActive: true, preferredSuppliers: [], unitConversions: [] },
+    initial ?? { code: "", name: "", description: "", categoryId: "", brand: "", manufacturer: "", manufacturerCode: "", gtipCode: "", baseUomId: uoms[0]?.id ?? "", minOrderQty: "", leadTimeDays: "", specs: "", isService: false, isActive: true, preferredSuppliers: [], unitConversions: [], pricingType: "FIXED", lmeCoefficient: "1.0000", defaultPremiumUsdPerKg: "", defaultExtraCostUsdPerKg: "", pricingNote: "" },
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,6 +56,23 @@ export function ItemForm({
           <div className="space-y-1.5"><Label>Min. Sipariş Miktarı</Label><Input value={f.minOrderQty} onChange={(e) => set({ minOrderQty: e.target.value })} /></div>
           <div className="space-y-1.5"><Label>Termin (gün)</Label><Input value={f.leadTimeDays} onChange={(e) => set({ leadTimeDays: e.target.value })} /></div>
           <div className="space-y-1.5 sm:col-span-2"><Label>Teknik Özellikler</Label><Textarea value={f.specs} onChange={(e) => set({ specs: e.target.value })} /></div>
+
+          {/* Fiyatlandırma tipi (LME bazlı bakır) */}
+          <div className="space-y-1.5 sm:col-span-2 border-t pt-3">
+            <Label>Fiyatlandırma Tipi</Label>
+            <Select value={f.pricingType ?? "FIXED"} onChange={(e) => set({ pricingType: e.target.value })} className="sm:max-w-xs">
+              <option value="FIXED">Sabit fiyat</option>
+              <option value="LME_COPPER">LME bazlı bakır fiyatı</option>
+            </Select>
+          </div>
+          {f.pricingType === "LME_COPPER" && (
+            <>
+              <div className="space-y-1.5"><Label>LME Katsayısı</Label><Input value={f.lmeCoefficient ?? ""} onChange={(e) => set({ lmeCoefficient: e.target.value })} placeholder="1,0000 (örn. 1,01 = %101)" /></div>
+              <div className="space-y-1.5"><Label>Varsayılan Prim/İşçilik (USD/kg)</Label><Input value={f.defaultPremiumUsdPerKg ?? ""} onChange={(e) => set({ defaultPremiumUsdPerKg: e.target.value })} placeholder="örn. 0,50" /></div>
+              <div className="space-y-1.5"><Label>Varsayılan Ek Maliyet (USD/kg)</Label><Input value={f.defaultExtraCostUsdPerKg ?? ""} onChange={(e) => set({ defaultExtraCostUsdPerKg: e.target.value })} placeholder="örn. 0,10" /></div>
+              <div className="space-y-1.5 sm:col-span-2"><Label>Fiyatlandırma Notu</Label><Input value={f.pricingNote ?? ""} onChange={(e) => set({ pricingNote: e.target.value })} placeholder="Sarcam bakır tel — LME + prim" /></div>
+            </>
+          )}
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isService} onChange={(e) => set({ isService: e.target.checked })} /> Hizmet</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isActive} onChange={(e) => set({ isActive: e.target.checked })} /> Aktif</label>

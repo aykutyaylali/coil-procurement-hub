@@ -7,11 +7,21 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { createGoodsReceipt } from "../actions";
 import { RECEIPT_DISPOSITIONS, label } from "@/domain/labels";
-import { formatQty } from "@/lib/money";
+import { formatQty, parseTrNumber } from "@/lib/money";
 
 interface OLine { id: string; lineNo: number; description: string; uom: string | null; quantity: string; openQty: string }
 interface Order { id: string; number: string; supplier: string; currency: string; lines: OLine[] }
 interface LineState { acceptedQty: string; rejectedQty: string; disposition: string; lotNumber: string; binLocation: string; note: string }
+
+const TOLERANCE_PCT = 3; // KG bazlı teslimatta ±%3 tolerans (kantar sapması)
+/** Bu sevkiyat sonrası toplam teslim alınan miktarın sipariş miktarına sapması (%). */
+function deviationPct(l: OLine, acceptedQty: string): number {
+  const ordered = Number(parseTrNumber(l.quantity));
+  if (!(ordered > 0)) return 0;
+  const receivedSoFar = ordered - Number(parseTrNumber(l.openQty));
+  const after = receivedSoFar + Number(parseTrNumber(acceptedQty || "0"));
+  return ((after - ordered) / ordered) * 100;
+}
 
 export function NewReceiptForm({
   orders,
@@ -30,6 +40,7 @@ export function NewReceiptForm({
   const [qualityRequired, setQualityRequired] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tolConfirmed, setTolConfirmed] = useState(false);
 
   const order = orders.find((o) => o.id === orderId);
   const [lines, setLines] = useState<Record<string, LineState>>({});
@@ -41,8 +52,14 @@ export function NewReceiptForm({
     setLines((prev) => ({ ...prev, [id]: { ...getLine(id, openQty), ...patch } }));
   }
 
+  const outOfTol = (order?.lines ?? []).filter((l) => Math.abs(deviationPct(l, getLine(l.id, l.openQty).acceptedQty)) > TOLERANCE_PCT);
+
   async function submit() {
     if (!order) return;
+    if (outOfTol.length > 0 && !tolConfirmed) {
+      setError(`${outOfTol.length} kalemde teslim miktarı ±%${TOLERANCE_PCT} tolerans dışında. Onaylamak için aşağıdaki kutuyu işaretleyin.`);
+      return;
+    }
     setError("");
     setBusy(true);
     const res = await createGoodsReceipt({
@@ -131,8 +148,14 @@ export function NewReceiptForm({
                   <TR key={l.id}>
                     <TD className="font-medium">{l.description}</TD>
                     <TD className="text-right">{formatQty(l.quantity)} {l.uom ?? ""}</TD>
-                    <TD className="text-right text-muted-foreground">{l.openQty}</TD>
-                    <TD><Input className="h-8 w-20 text-right" value={s.acceptedQty} onChange={(e) => update(l.id, { acceptedQty: e.target.value }, l.openQty)} /></TD>
+                    <TD className="text-right text-muted-foreground">
+                      <div>{l.openQty}</div>
+                      <div className="text-[10px]">alınan: {formatQty(Number(parseTrNumber(l.quantity)) - Number(parseTrNumber(l.openQty)))}</div>
+                    </TD>
+                    <TD>
+                      <Input className="h-8 w-20 text-right" value={s.acceptedQty} onChange={(e) => update(l.id, { acceptedQty: e.target.value }, l.openQty)} />
+                      {(() => { const dv = deviationPct(l, s.acceptedQty); return Math.abs(dv) > TOLERANCE_PCT ? <div className="mt-0.5 text-[10px] font-semibold text-amber-600">⚠ %{dv > 0 ? "+" : ""}{dv.toFixed(1)}</div> : null; })()}
+                    </TD>
                     <TD><Input className="h-8 w-20 text-right" value={s.rejectedQty} onChange={(e) => update(l.id, { rejectedQty: e.target.value }, l.openQty)} /></TD>
                     <TD>
                       <Select className="h-8" value={s.disposition} onChange={(e) => update(l.id, { disposition: e.target.value }, l.openQty)}>
@@ -156,10 +179,20 @@ export function NewReceiptForm({
         </CardContent>
       </Card>
 
+      {outOfTol.length > 0 && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="font-medium">⚠ Tolerans uyarısı (±%{TOLERANCE_PCT})</div>
+          <div className="mt-0.5 text-xs">{outOfTol.length} kalemde teslim alınan miktar sipariş miktarından ±%{TOLERANCE_PCT}'ten fazla sapıyor (kantar farkı olabilir). Devam etmek için onaylayın.</div>
+          <label className="mt-1.5 flex items-center gap-2 text-xs font-medium">
+            <input type="checkbox" checked={tolConfirmed} onChange={(e) => { setTolConfirmed(e.target.checked); if (e.target.checked) setError(""); }} />
+            Tolerans dışı teslimatı onaylıyorum
+          </label>
+        </div>
+      )}
       {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.back()} disabled={busy}>İptal</Button>
-        <Button onClick={submit} disabled={busy}>{busy ? "Kaydediliyor..." : "Mal Kabulü Kaydet"}</Button>
+        <Button onClick={submit} disabled={busy || (outOfTol.length > 0 && !tolConfirmed)}>{busy ? "Kaydediliyor..." : "Mal Kabulü Kaydet"}</Button>
       </div>
     </div>
   );

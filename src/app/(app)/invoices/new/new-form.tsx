@@ -12,13 +12,17 @@ interface OLine { id: string; description: string; uom: string | null; orderedQt
 interface Order { id: string; number: string; supplierId: string; supplier: string; currency: string; lines: OLine[] }
 interface LineState { include: boolean; quantity: string; unitPrice: string; taxRate: string }
 
-export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; preselectOrderId: string }) {
+interface LmeRec { id: string; priceDate: string; kind: string; usdPerTon: string }
+export function NewInvoiceForm({ orders, preselectOrderId, lmeRecords = [], defaultUsdTry = "" }: { orders: Order[]; preselectOrderId: string; lmeRecords?: LmeRec[]; defaultUsdTry?: string }) {
   const router = useRouter();
   const [orderId, setOrderId] = useState(preselectOrderId || orders[0]?.id || "");
   const [number, setNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState("");
   const [withholding, setWithholding] = useState("0");
+  const [lmeMode, setLmeMode] = useState("ORDER");
+  const [lmeRecordId, setLmeRecordId] = useState("");
+  const [invoiceUsdTry, setInvoiceUsdTry] = useState(defaultUsdTry);
   const [lines, setLines] = useState<Record<string, LineState>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,6 +53,9 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
       dueDate: dueDate || undefined,
       currency: order.currency,
       withholdingAmount: withholding || "0",
+      lmeMode,
+      lmeRecordId: lmeMode === "INVOICE_PERIOD" ? (lmeRecordId || undefined) : undefined,
+      invoiceUsdTryRate: invoiceUsdTry || undefined,
       lines: activeLines.map((l) => { const s = get(l); return { orderLineId: l.id, description: l.description, quantity: s.quantity || "0", unitPrice: s.unitPrice || "0", taxRate: s.taxRate || "0" }; }),
     });
     setBusy(false);
@@ -83,6 +90,36 @@ export function NewInvoiceForm({ orders, preselectOrderId }: { orders: Order[]; 
             <Label>Vade Tarihi</Label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* LME/Kur Modu — Sarcam bakır tel parça faturaları */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Bakır Fiyatlandırma — LME/Kur Modu</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>Mod</Label>
+            <Select value={lmeMode} onChange={(e) => setLmeMode(e.target.value)}>
+              <option value="ORDER">a) Sipariş LME/Kuru geçerli (PO değerleri)</option>
+              <option value="INVOICE_PERIOD">b) Teslimat/Fatura dönemi LME/Kuru</option>
+            </Select>
+          </div>
+          {lmeMode === "INVOICE_PERIOD" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Fatura Dönemi LME Kaydı</Label>
+                <Select value={lmeRecordId} onChange={(e) => setLmeRecordId(e.target.value)}>
+                  <option value="">Seçiniz</option>
+                  {lmeRecords.map((r) => <option key={r.id} value={r.id}>{new Date(r.priceDate).toLocaleDateString("tr-TR")} · {r.kind === "WEEKLY_AVG" ? "Hafta" : "Gün"} · {Number(r.usdPerTon).toLocaleString("tr-TR")}</option>)}
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fatura USD/TRY Kuru</Label>
+                <Input value={invoiceUsdTry} onChange={(e) => setInvoiceUsdTry(e.target.value)} placeholder="örn. 34,20" />
+              </div>
+            </>
+          )}
+          <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-3">Fatura tutarı ile sistemin PO/mal kabul üzerinden hesapladığı beklenen tutar arasında sapma varsa, fatura <b>BLOKE</b> olur ve neden fatura detayında gösterilir (3-yönlü eşleştirme).</p>
         </CardContent>
       </Card>
 

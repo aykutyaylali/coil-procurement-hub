@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
-import { formatMoney, formatQty } from "@/lib/money";
+import { formatMoney, formatQty, add, toStr } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { translator, type Locale, type TranslationKey } from "@/lib/i18n";
 import { loadPOTimeline, loadProductionHistory } from "@/domain/po-workspace";
@@ -16,12 +16,14 @@ import { PRODUCTION_STAGES, allowedProductionTargets } from "@/domain/state-mach
 import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
 import { DiscussionFeed } from "./discussion";
 import { ProductionPanel } from "./production";
+import { PoInvoiceSummary } from "./invoice-summary";
 import { TechnicalReviewPanel } from "./technical-review";
 import { OrderActionsPanel } from "./actions-panel";
 
 const TABS = [
   { key: "genel", labelKey: "po.workspace.tab.genel" },
   { key: "uretim", labelKey: "po.workspace.tab.uretim" },
+  { key: "fatura-teslimat", labelKey: "po.workspace.tab.faturaTeslimat" },
   { key: "teknik-incelemeler", labelKey: "po.workspace.tab.teknik" },
   { key: "belgeler", labelKey: "po.workspace.tab.belgeler" },
   { key: "discussion", labelKey: "po.workspace.tab.discussion" },
@@ -80,6 +82,12 @@ export default async function OrderDetailPage({
   const unreadComments = await unreadCommentCount("PurchaseOrder", po.id, user.id, { forSupplier: !canSeeInternal });
   const discussion = activeTab === "discussion" ? await loadDiscussion("PurchaseOrder", po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
   const productionHistory = activeTab === "uretim" ? await loadProductionHistory(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
+  const [poReceipts, poInvoices] = activeTab === "fatura-teslimat"
+    ? await Promise.all([
+        prisma.goodsReceipt.findMany({ where: { orderId: po.id }, orderBy: { receivedAt: "asc" }, include: { lines: { select: { acceptedQty: true, rejectedQty: true } } } }),
+        prisma.invoice.findMany({ where: { orderId: po.id, deletedAt: null }, orderBy: { invoiceDate: "asc" }, include: { lines: { select: { quantity: true } } } }),
+      ])
+    : [[], []];
   const techReviews = activeTab === "teknik-incelemeler" ? await loadTechnicalReviews(po.id, user.tenantId, { forSupplier: !canSeeInternal }) : [];
   const trDiscussions: Record<string, Awaited<ReturnType<typeof loadDiscussion>>> = {};
   if (activeTab === "teknik-incelemeler") {
@@ -214,6 +222,16 @@ export default async function OrderDetailPage({
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {activeTab === "fatura-teslimat" && (
+            <PoInvoiceSummary
+              orderedKg={toStr(po.lines.reduce((acc, l) => add(acc, l.quantity ?? "0"), add(0)), 3)}
+              currency={po.currency}
+              grandTotal={po.grandTotal}
+              receipts={poReceipts}
+              invoices={poInvoices}
+            />
           )}
 
           {activeTab === "teknik-incelemeler" && (

@@ -20,6 +20,11 @@ const createSchema = z.object({
   currency: z.string().default("TRY"),
   exchangeRate: z.string().optional(),
   withholdingAmount: z.string().optional(),
+  // Kısmi fatura & LME/kur modu (Sarcam bakır tel)
+  receiptId: z.string().optional(),
+  lmeMode: z.enum(["ORDER", "INVOICE_PERIOD"]).optional(),
+  lmeRecordId: z.string().optional(),
+  invoiceUsdTryRate: z.string().optional(),
   lines: z
     .array(
       z.object({
@@ -102,6 +107,12 @@ export async function createInvoice(input: unknown): Promise<Result<{ id: string
           status,
           blockReason: match.passed ? null : match.blockedReasons.join(" | "),
           source: "MANUAL",
+          // Kısmi fatura & LME/kur modu
+          receiptId: data.receiptId || null,
+          lmeMode: data.lmeMode || null,
+          lmeRecordId: data.lmeMode === "INVOICE_PERIOD" ? (data.lmeRecordId || null) : null,
+          invoiceUsdTryRate: data.invoiceUsdTryRate ? toStr(data.invoiceUsdTryRate, 4) : null,
+          invoicedQtyKg: toStr(data.lines.reduce((acc, l) => add(acc, l.quantity), add(0)), 3),
           lines: {
             create: data.lines.map((l) => ({
               orderLineId: l.orderLineId,

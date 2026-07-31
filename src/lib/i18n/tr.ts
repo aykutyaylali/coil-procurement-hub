@@ -129,6 +129,7 @@ export const tr = {
 
   // PO Workspace — Üretim İlerlemesi (Master §6; finansal durumdan bağımsız)
   "po.workspace.tab.uretim": "Üretim",
+  "po.workspace.tab.faturaTeslimat": "Fatura & Teslimat",
   "po.production.title": "Üretim İlerlemesi",
   "po.production.notStarted": "Üretim henüz başlamadı.",
   "po.production.currentStage": "Güncel aşama",

@@ -128,6 +128,7 @@ export const en: Record<keyof typeof tr, string> = {
 
   // PO Workspace — Production Progress (Master §6; independent of financial status)
   "po.workspace.tab.uretim": "Production",
+  "po.workspace.tab.faturaTeslimat": "Invoice & Delivery",
   "po.production.title": "Production Progress",
   "po.production.notStarted": "Production has not started yet.",
   "po.production.currentStage": "Current stage",

@@ -1459,6 +1459,12 @@ model Invoice {
   paymentStatus String   @default("UNPAID") // UNPAID | PARTIAL | PAID
   blockReason   String?
   source        String   @default("MANUAL") // MANUAL | UPLOAD | EMAIL | EINVOICE | ERP
+  // Kısmi fatura & LME/kur eşleştirme (Sarcam bakır tel parça faturaları)
+  receiptId     String?  // ilişkili Mal Kabul (GRN) kaydı
+  lmeMode       String?  // ORDER (PO LME/kuru) | INVOICE_PERIOD (fatura günü/haftası LME+TCMB)
+  lmeRecordId   String?  // INVOICE_PERIOD modunda kullanılan LME kaydı
+  invoiceUsdTryRate String? // fatura tarihindeki USD/TRY
+  invoicedQtyKg String?  // faturalanan net miktar (kg)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime? // soft delete (denetim bütünlüğü)

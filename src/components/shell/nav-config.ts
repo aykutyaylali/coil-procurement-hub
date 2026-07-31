@@ -29,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   { href: "/suppliers", labelKey: "nav.suppliers", label: "Tedarikçiler", icon: "Building2", permission: PERMISSIONS.SUPPLIER_VIEW, group: "master" },
   { href: "/catalog", labelKey: "nav.catalog", label: "Ürün Kataloğu", icon: "Boxes", permission: PERMISSIONS.CATALOG_VIEW, group: "master" },
+  { href: "/lme", labelKey: "nav.lme", label: "LME Bakır", icon: "TrendingUp", permission: PERMISSIONS.LME_VIEW, group: "master" },
   { href: "/contracts", labelKey: "nav.contracts", label: "Sözleşmeler", icon: "FileSignature", permission: PERMISSIONS.CONTRACT_VIEW, group: "master" },
   { href: "/reports", labelKey: "nav.reports", label: "Raporlar", icon: "BarChart3", permission: PERMISSIONS.REPORT_VIEW, group: "master" },
 

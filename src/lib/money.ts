@@ -33,6 +33,23 @@ export function d(value: DecimalInput): Decimal {
   }
 }
 
+/**
+ * Türkçe sayı formatını decimal-string'e çevirir: "13.294,80" -> "13294.80",
+ * "1.234.567,5" -> "1234567.5", "9,6" -> "9.6", "9600" -> "9600".
+ * Kural: hem nokta hem virgül varsa nokta=binlik/virgül=ondalık; yalnız virgül varsa
+ * virgül=ondalık; yalnız nokta varsa ondalık kabul edilir (dokunulmaz).
+ */
+export function parseTrNumber(input: string | number | null | undefined): string {
+  if (input === null || input === undefined) return "0";
+  let t = String(input).trim();
+  if (t === "") return "0";
+  const hasComma = t.includes(",");
+  const hasDot = t.includes(".");
+  if (hasComma && hasDot) t = t.replace(/\./g, "").replace(",", ".");
+  else if (hasComma) t = t.replace(",", ".");
+  return t;
+}
+
 export function add(...values: DecimalInput[]): Decimal {
   return values.reduce<Decimal>((acc, v) => acc.plus(d(v)), new Decimal(0));
 }

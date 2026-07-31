@@ -43,6 +43,9 @@ export const PERMISSIONS = {
   // Katalog
   CATALOG_VIEW: "catalog.view",
   CATALOG_MANAGE: "catalog.manage",
+  // LME Bakır fiyatlandırma
+  LME_VIEW: "lme.view",
+  LME_MANAGE: "lme.manage",
   // Sözleşme
   CONTRACT_VIEW: "contract.view",
   CONTRACT_MANAGE: "contract.manage",
@@ -178,6 +181,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.SUPPLIER_CREATE,
     P.SUPPLIER_EDIT,
     P.CATALOG_VIEW,
+    P.LME_VIEW,
+    P.LME_MANAGE,
     P.CONTRACT_VIEW,
     P.REPORT_VIEW,
     // PO Workspace (tam)
@@ -191,6 +196,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.TECH_REVIEW_DECIDE,
   ],
   PURCHASING_MANAGER: [
+    P.LME_VIEW,
+    P.LME_MANAGE,
     P.REQUISITION_VIEW,
     P.REQUISITION_ASSIGN,
     P.REQUISITION_APPROVE,

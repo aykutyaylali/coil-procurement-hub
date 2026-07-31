@@ -192,11 +192,12 @@ export function statusTone(status: string): "default" | "success" | "warning" | 
     case "ACTIVE":
     case "CONFIRMED":
     case "RECEIVED":
-    case "MATCHED":
     case "PAID":
     case "AWARDED":
       return "success";
     case "PENDING_APPROVAL":
+    case "PENDING":
+    case "UNPAID":
     case "CLARIFICATION":
     case "NEGOTIATION":
     case "ONBOARDING":
@@ -204,6 +205,7 @@ export function statusTone(status: string): "default" | "success" | "warning" | 
     case "PARTIALLY_RECEIVED":
     case "PARTIALLY_SHIPPED":
     case "PARTIALLY_CONFIRMED":
+    case "PARTIALLY_PAID":
       return "warning";
     case "REJECTED":
     case "CANCELLED":
@@ -217,6 +219,7 @@ export function statusTone(status: string): "default" | "success" | "warning" | 
     case "SUBMITTED":
     case "ACKNOWLEDGED":
     case "INVOICED":
+    case "MATCHED":
       return "info";
     default:
       return "default";

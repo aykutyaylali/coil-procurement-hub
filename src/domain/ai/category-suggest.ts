@@ -20,6 +20,35 @@ export function tokenize(text: string): string[] {
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
 }
 
+/**
+ * Yerleşik anahtar-kelime → kategori-adı parçası sözlüğü (domain bilgisi).
+ * GEÇMİŞ VERİ OLMASA DA çalışır: yaygın satınalma terimleri, tenant'ın kategori
+ * adında geçen parçalarla eşleştirilir (ör. "civata" → adı "hırdavat"/"sarf" geçen
+ * kategori). Tenant'ta o kategori yoksa sessizce atlanır (kelime-örtüşmesine düşer).
+ */
+const KEYWORD_CATEGORY: Record<string, string[]> = {
+  // Bağlantı elemanları / hırdavat
+  civata: ["hırdavat", "sarf", "bağlantı", "yedek", "mro"], cıvata: ["hırdavat", "sarf", "bağlantı", "yedek", "mro"],
+  somun: ["hırdavat", "sarf", "bağlantı", "yedek", "mro"], vida: ["hırdavat", "sarf", "bağlantı", "mro"],
+  rondela: ["hırdavat", "sarf", "mro"], saplama: ["hırdavat", "sarf", "mro"], perçin: ["hırdavat", "sarf", "mro"], pul: ["hırdavat", "sarf", "mro"],
+  // Bakır / alüminyum / iletken
+  bakır: ["bakır", "iletken", "metal"], bakir: ["bakır", "iletken", "metal"], alüminyum: ["alüminyum", "bakır", "metal"], aluminyum: ["alüminyum", "bakır", "metal"],
+  tel: ["bakır", "iletken", "tel"], bobin: ["bakır", "iletken"], iletken: ["bakır", "iletken"], bara: ["bakır", "iletken"], kablo: ["kablo", "elektrik", "bakır"],
+  // Yalıtım / izolasyon
+  yalıtım: ["yalıtım", "izolasyon", "mika"], yalitim: ["yalıtım", "izolasyon", "mika"], izolasyon: ["izolasyon", "yalıtım", "mika"],
+  nomex: ["yalıtım", "izolasyon", "mika"], presbant: ["yalıtım", "izolasyon", "mika"], mika: ["mika", "izolasyon", "yalıtım"], reçine: ["yalıtım", "izolasyon"],
+  // Elektrik / trafo sacı
+  sac: ["elektrik", "sac"], saç: ["elektrik", "sac"], trafo: ["elektrik", "trafo"], nüve: ["elektrik", "sac"], laminasyon: ["elektrik", "sac"], silisyum: ["elektrik", "sac"],
+  // Kimyasal / sarf
+  yağ: ["sarf", "mro", "kimyasal"], gres: ["sarf", "mro", "kimyasal"], boya: ["sarf", "mro", "kimyasal"], kimyasal: ["kimyasal", "sarf", "mro"], tiner: ["sarf", "mro", "kimyasal"], temizlik: ["sarf", "mro"],
+  // Ambalaj
+  palet: ["ambalaj"], koli: ["ambalaj"], streç: ["ambalaj"], kutu: ["ambalaj"], ambalaj: ["ambalaj"], şerit: ["ambalaj"],
+  // Yedek parça
+  rulman: ["yedek", "parça"], kayış: ["yedek", "parça"], kayis: ["yedek", "parça"], motor: ["yedek", "parça"], pompa: ["yedek", "parça"], valf: ["yedek", "parça"], conta: ["yedek", "parça"], filtre: ["yedek", "parça"],
+  // Hizmet
+  hizmet: ["hizmet"], bakım: ["hizmet"], bakim: ["hizmet"], montaj: ["hizmet"], nakliye: ["hizmet", "lojistik"], danışmanlık: ["hizmet"], kalibrasyon: ["hizmet"],
+};
+
 export interface CategorySample {
   categoryId: string;
   description: string;
@@ -68,6 +97,16 @@ export function suggestCategoryLocal(
     let overlap = 0;
     for (const w of ct) if (tokens.has(w)) overlap++;
     if (overlap > 0) bump(c.id, (scoreByCat.get(c.id) ?? 0) + overlap * 3);
+  }
+
+  // 3) Yerleşik anahtar-kelime sözlüğü — GEÇMİŞ VERİ GEREKTİRMEZ (domain bilgisi).
+  const catNames = categories.map((c) => ({ id: c.id, nm: c.name.toLocaleLowerCase("tr-TR") }));
+  for (const w of tokens) {
+    const frags = KEYWORD_CATEGORY[w];
+    if (!frags) continue;
+    for (const c of catNames) {
+      if (frags.some((f) => c.nm.includes(f))) bump(c.id, (scoreByCat.get(c.id) ?? 0) + 4);
+    }
   }
 
   if (scoreByCat.size === 0) return null;

@@ -473,11 +473,39 @@ model Item {
   manufacturerCode   String?
   isService     Boolean  @default(false)
   isActive      Boolean  @default(true)
+  // Fiyatlandırma tipi: FIXED (sabit) | LME_COPPER (LME bazlı bakır). LME_COPPER'da
+  // fiyat, seçilen LME kaydından + katsayı + prim/işçilik + ek maliyetten hesaplanır.
+  pricingType              String  @default("FIXED")
+  lmeCoefficient           String? // decimal-as-string (varsayılan 1.0000)
+  defaultPremiumUsdPerKg   String? // Sarcam prim/işçilik USD/kg
+  defaultExtraCostUsdPerKg String? // ek maliyet USD/kg
+  pricingNote              String?
   createdAt     DateTime @default(now())
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([categoryId])
+}
+
+// LME Bakır kaydı (Sarcam bakır tel fiyatlandırması). LME değeri USD/ton MANUEL
+// girilir; USD/kg = usdPerTon/1000 (uygulamada hesaplanır, saklanmaz). Sipariş/teklif
+// bu kaydın anlık değerini SNAPSHOT olarak saklar → geçmiş fiyat sonradan değişmez.
+model LmeRecord {
+  id           String   @id @default(cuid())
+  tenantId     String
+  priceDate    DateTime // LME değer tarihi
+  usdPerTon    String   // decimal-as-string (manuel giriş)
+  source       String?  // kaynak / referans notu
+  status       String   @default("DRAFT") // DRAFT | APPROVED | ARCHIVED
+  note         String?
+  createdById  String
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId, priceDate])
+  @@index([tenantId, status])
 }
 
 model UnitOfMeasure {

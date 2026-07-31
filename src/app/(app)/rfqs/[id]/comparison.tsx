@@ -15,6 +15,9 @@ interface Line { id: string; lineNo: number; description: string; quantity: stri
 interface BidLine {
   rfqLineId: string; willQuote: boolean; unitPrice: string; discountPct: string; taxRate: string;
   leadTimeDays: number | null; currency: string | null; brand: string | null; model: string | null; note: string | null;
+  // LME bazlı bakır snapshot
+  pricingType?: string | null; lmeRecordId?: string | null; lmePriceDate?: string | null; lmeUsdPerTon?: string | null;
+  lmeCoefficient?: string | null; premiumUsdPerKg?: string | null; extraCostUsdPerKg?: string | null; usdTryRate?: string | null;
 }
 interface Bid {
   id: string; supplierId: string; supplierName: string; currency: string; status: string;
@@ -213,6 +216,9 @@ export function Comparison({
                         {b.id === shortestLeadBidId && <Badge tone="info">En Kısa Termin</Badge>}
                         {isSingleBid && <Badge tone="warning">Tek Teklif</Badge>}
                         {t.missing > 0 && <Badge tone="danger">Eksik Bilgi</Badge>}
+                        {b.lines.some((l) => l.pricingType === "LME_COPPER") && (
+                          <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">LME / Bakır</span>
+                        )}
                       </div>
                       <div className="mt-1 text-[11px] font-normal text-muted-foreground">{SOURCE_LABEL[b.source] ?? b.source}</div>
                     </th>
@@ -246,6 +252,12 @@ export function Comparison({
                           )}
                           <div className="font-medium">{formatMoney(lt, cur)}</div>
                           <div className="text-[11px] text-muted-foreground">Birim {formatMoney(bl.unitPrice, cur)}{bl.leadTimeDays ? ` · ${bl.leadTimeDays}g` : ""}{bl.brand ? ` · ${bl.brand}` : ""}</div>
+                          {bl.pricingType === "LME_COPPER" && (
+                            <div className="mt-0.5 rounded bg-amber-50 px-1.5 py-1 text-[10px] leading-tight text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                              <div>LME {bl.lmePriceDate ? new Date(bl.lmePriceDate).toLocaleDateString("tr-TR") : "—"} · {Number(bl.lmeUsdPerTon ?? 0).toLocaleString("tr-TR")} $/t × {bl.lmeCoefficient ?? "1"}</div>
+                              <div>+prim {bl.premiumUsdPerKg || "0"} +ek {bl.extraCostUsdPerKg || "0"} → <b>{bl.unitPrice} $/kg</b>{bl.usdTryRate ? <> · <b>{toStr(mul(bl.unitPrice, bl.usdTryRate), 4)} ₺/kg</b></> : null}</div>
+                            </div>
+                          )}
                           {isBest && <div className="text-[10px] font-semibold text-emerald-600">EN DÜŞÜK</div>}
                         </button>
                       </td>

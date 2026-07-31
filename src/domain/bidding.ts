@@ -3,7 +3,37 @@ import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/ids";
 import { add, lineNet, lineTax, toStr } from "@/lib/money";
 import { getStorage } from "@/lib/storage";
+import { getLatestRates } from "@/lib/exchange/service";
 import { AppError } from "@/lib/errors";
+
+/** Tedarikçi Sarcam/Sarkuysan (bakır) mı? — LME panelini otomatik açmak için. */
+export function isCopperSupplier(name: string | null | undefined): boolean {
+  const n = (name || "").toLocaleLowerCase("tr-TR");
+  return n.includes("sarcam") || n.includes("sarçam") || n.includes("sarkuysan");
+}
+
+/** Onaylı LME kayıtları + güncel USD/TRY + satır-bazlı malzeme fiyat tipi (RFQ item'ından). */
+async function loadCopperContext(rfqLines: { id: string; itemId: string | null }[], tenantId: string) {
+  const [lmeRows, rates, items] = await Promise.all([
+    prisma.lmeRecord.findMany({ where: { tenantId, status: "APPROVED" }, orderBy: [{ priceDate: "desc" }], take: 60, select: { id: true, priceDate: true, kind: true, periodStart: true, periodEnd: true, usdPerTon: true } }),
+    getLatestRates(tenantId),
+    prisma.item.findMany({ where: { tenantId, id: { in: rfqLines.map((l) => l.itemId).filter((x): x is string => !!x) } }, select: { id: true, pricingType: true, lmeCoefficient: true, defaultPremiumUsdPerKg: true, defaultExtraCostUsdPerKg: true } }),
+  ]);
+  const usdTryRate = rates.find((r) => r.quote === "USD")?.rate ?? "";
+  const itemById = new Map(items.map((i) => [i.id, i] as const));
+  const pricingByLineId = new Map<string, { pricingType: string; lmeCoefficient: string | null; premiumUsdPerKg: string | null; extraCostUsdPerKg: string | null }>();
+  for (const l of rfqLines) {
+    const it = l.itemId ? itemById.get(l.itemId) : null;
+    pricingByLineId.set(l.id, {
+      pricingType: it?.pricingType ?? "FIXED",
+      lmeCoefficient: it?.lmeCoefficient ?? null,
+      premiumUsdPerKg: it?.defaultPremiumUsdPerKg ?? null,
+      extraCostUsdPerKg: it?.defaultExtraCostUsdPerKg ?? null,
+    });
+  }
+  const lmeRecords = lmeRows.map((r) => ({ id: r.id, priceDate: r.priceDate, kind: r.kind, periodStart: r.periodStart, periodEnd: r.periodEnd, usdPerTon: r.usdPerTon }));
+  return { lmeRecords, usdTryRate, pricingByLineId };
+}
 
 export interface LinePhoto {
   id: string;
@@ -66,6 +96,10 @@ export interface BidContext {
   currencyOptions: string[];
   /** Tedarikçinin kayıtlı varsayılan ödeme vadesi (gün); teklif formunda otomatik gelir. */
   supplierPaymentTermDays: number | null;
+  // LME bazlı bakır fiyatlandırma bağlamı
+  isSarcam: boolean; // tedarikçi Sarcam/Sarkuysan → LME paneli otomatik açılır
+  usdTryRate: string; // güncel TCMB USD/TRY (kur alanı otomatik gelir)
+  lmeRecords: { id: string; priceDate: Date; kind: string; periodStart: Date | null; periodEnd: Date | null; usdPerTon: string }[];
   lines: {
     id: string;
     lineNo: number;
@@ -74,6 +108,11 @@ export interface BidContext {
     quantity: string;
     uom: string | null;
     photos: LinePhoto[];
+    // Satır malzemesinin fiyat tipi (LME_COPPER ise panel açılır) + varsayılanlar
+    pricingType?: string;
+    lmeCoefficient?: string | null;
+    premiumUsdPerKg?: string | null;
+    extraCostUsdPerKg?: string | null;
   }[];
   existingBid: {
     id: string;
@@ -82,7 +121,10 @@ export interface BidContext {
     note: string | null;
     paymentTermDays: number | null;
     incoterm: string | null;
-    lines: Record<string, { unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: string; brand: string; note: string; willQuote: boolean; currency: string }>;
+    lines: Record<string, {
+      unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: string; brand: string; note: string; willQuote: boolean; currency: string;
+      pricingType?: string | null; lmeRecordId?: string | null; lmeUsdPerTon?: string | null; lmeCoefficient?: string | null; premiumUsdPerKg?: string | null; extraCostUsdPerKg?: string | null; usdTryRate?: string | null;
+    }>;
   } | null;
 }
 
@@ -143,6 +185,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
     /* varsayılan */
   }
 
+  const copper = await loadCopperContext(rfq.lines.map((l) => ({ id: l.id, itemId: l.itemId })), rfq.tenantId);
   const existingBid = rfqSupplier.bids[0]
     ? {
         id: rfqSupplier.bids[0].id,
@@ -152,19 +195,7 @@ export async function loadBidContext(token: string): Promise<BidContext> {
         paymentTermDays: rfqSupplier.bids[0].paymentTermDays,
         incoterm: rfqSupplier.bids[0].incoterm,
         lines: Object.fromEntries(
-          rfqSupplier.bids[0].lines.map((bl) => [
-            bl.rfqLineId,
-            {
-              unitPrice: bl.unitPrice,
-              discountPct: bl.discountPct,
-              taxRate: bl.taxRate,
-              leadTimeDays: bl.leadTimeDays?.toString() ?? "",
-              brand: bl.brand ?? "",
-              note: bl.note ?? "",
-              willQuote: bl.willQuote,
-              currency: bl.currency ?? rfqSupplier.bids[0]!.currency,
-            },
-          ]),
+          rfqSupplier.bids[0].lines.map((bl) => [bl.rfqLineId, existingLine(bl, rfqSupplier.bids[0]!.currency)]),
         ),
       }
     : null;
@@ -184,16 +215,26 @@ export async function loadBidContext(token: string): Promise<BidContext> {
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     supplierPaymentTermDays: rfqSupplier.supplier.defaultPaymentTermDays ?? null,
+    isSarcam: isCopperSupplier(rfqSupplier.supplier.legalName),
+    usdTryRate: copper.usdTryRate,
+    lmeRecords: copper.lmeRecords,
     lines: rfq.lines.map((l) => ({
-      id: l.id,
-      lineNo: l.lineNo,
-      description: l.description,
-      specs: l.specs,
-      quantity: l.quantity,
-      uom: l.uom,
-      photos: photosByLine[l.id] ?? [],
+      id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom,
+      photos: photosByLine[l.id] ?? [], ...copper.pricingByLineId.get(l.id),
     })),
     existingBid,
+  };
+}
+
+/** BidLine → existingBid.lines kaydı (LME snapshot dahil). */
+function existingLine(bl: { unitPrice: string; discountPct: string; taxRate: string; leadTimeDays: number | null; brand: string | null; note: string | null; willQuote: boolean; currency: string | null; pricingType?: string | null; lmeRecordId?: string | null; lmeUsdPerTon?: string | null; lmeCoefficient?: string | null; premiumUsdPerKg?: string | null; extraCostUsdPerKg?: string | null; usdTryRate?: string | null }, fallbackCurrency: string) {
+  return {
+    unitPrice: bl.unitPrice, discountPct: bl.discountPct, taxRate: bl.taxRate,
+    leadTimeDays: bl.leadTimeDays?.toString() ?? "", brand: bl.brand ?? "", note: bl.note ?? "",
+    willQuote: bl.willQuote, currency: bl.currency ?? fallbackCurrency,
+    pricingType: bl.pricingType ?? null, lmeRecordId: bl.lmeRecordId ?? null, lmeUsdPerTon: bl.lmeUsdPerTon ?? null,
+    lmeCoefficient: bl.lmeCoefficient ?? null, premiumUsdPerKg: bl.premiumUsdPerKg ?? null,
+    extraCostUsdPerKg: bl.extraCostUsdPerKg ?? null, usdTryRate: bl.usdTryRate ?? null,
   };
 }
 
@@ -217,6 +258,7 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
   }
 
   const photosByLine = await loadLinePhotos(rfq.lines.map((l) => ({ id: l.id, requisitionLineId: l.requisitionLineId })), tenantId);
+  const copper = await loadCopperContext(rfq.lines.map((l) => ({ id: l.id, itemId: l.itemId })), tenantId);
 
   return {
     rfqSupplierId: "preview",
@@ -233,14 +275,12 @@ export async function loadBidContextForPreview(rfqId: string, tenantId: string):
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     supplierPaymentTermDays: null,
+    isSarcam: false,
+    usdTryRate: copper.usdTryRate,
+    lmeRecords: copper.lmeRecords,
     lines: rfq.lines.map((l) => ({
-      id: l.id,
-      lineNo: l.lineNo,
-      description: l.description,
-      specs: l.specs,
-      quantity: l.quantity,
-      uom: l.uom,
-      photos: photosByLine[l.id] ?? [],
+      id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom,
+      photos: photosByLine[l.id] ?? [], ...copper.pricingByLineId.get(l.id),
     })),
     existingBid: null,
   };
@@ -271,6 +311,7 @@ export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: st
     /* varsayılan */
   }
 
+  const copper = await loadCopperContext(rfq.lines.map((l) => ({ id: l.id, itemId: l.itemId })), tenantId);
   const b = rfqSupplier.bids[0];
   const existingBid = b
     ? {
@@ -280,21 +321,7 @@ export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: st
         note: b.note,
         paymentTermDays: b.paymentTermDays,
         incoterm: b.incoterm,
-        lines: Object.fromEntries(
-          b.lines.map((bl) => [
-            bl.rfqLineId,
-            {
-              unitPrice: bl.unitPrice,
-              discountPct: bl.discountPct,
-              taxRate: bl.taxRate,
-              leadTimeDays: bl.leadTimeDays?.toString() ?? "",
-              brand: bl.brand ?? "",
-              note: bl.note ?? "",
-              willQuote: bl.willQuote,
-              currency: bl.currency ?? b.currency,
-            },
-          ]),
-        ),
+        lines: Object.fromEntries(b.lines.map((bl) => [bl.rfqLineId, existingLine(bl, b.currency)])),
       }
     : null;
 
@@ -313,7 +340,13 @@ export async function loadBidContextForBuyer(rfqSupplierId: string, tenantId: st
     operationType: rfq.operationType,
     currencyOptions: currencyOptionsFor(rfq.operationType, currencyOptions),
     supplierPaymentTermDays: rfqSupplier.supplier.defaultPaymentTermDays ?? null,
-    lines: rfq.lines.map((l) => ({ id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom, photos: photosByLine[l.id] ?? [] })),
+    isSarcam: isCopperSupplier(rfqSupplier.supplier.legalName),
+    usdTryRate: copper.usdTryRate,
+    lmeRecords: copper.lmeRecords,
+    lines: rfq.lines.map((l) => ({
+      id: l.id, lineNo: l.lineNo, description: l.description, specs: l.specs, quantity: l.quantity, uom: l.uom,
+      photos: photosByLine[l.id] ?? [], ...copper.pricingByLineId.get(l.id),
+    })),
     existingBid,
     supplierInvitedStatus: rfqSupplier.status,
   };
@@ -338,6 +371,15 @@ export interface SaveBidInput {
     leadTimeDays?: string;
     note?: string;
     currency?: string;
+    // LME bazlı bakır fiyatı snapshot (varsa) — BidLine'a kaydedilir
+    pricingType?: string;
+    lmeRecordId?: string;
+    lmePriceDate?: string;
+    lmeUsdPerTon?: string;
+    lmeCoefficient?: string;
+    premiumUsdPerKg?: string;
+    extraCostUsdPerKg?: string;
+    usdTryRate?: string;
   }[];
 }
 
@@ -447,6 +489,15 @@ async function persistBid(rfqSupplier: RfqSupplierWithRfq, input: PersistBidInpu
         leadTimeDays: l.leadTimeDays ? parseInt(l.leadTimeDays, 10) : null,
         note: l.note ?? null,
         currency: l.currency ?? input.currency,
+        // LME snapshot (pricingType = LME_COPPER ise dolu)
+        pricingType: l.pricingType ?? null,
+        lmeRecordId: l.lmeRecordId ?? null,
+        lmePriceDate: l.lmePriceDate ? new Date(l.lmePriceDate) : null,
+        lmeUsdPerTon: l.lmeUsdPerTon ?? null,
+        lmeCoefficient: l.lmeCoefficient ?? null,
+        premiumUsdPerKg: l.premiumUsdPerKg ?? null,
+        extraCostUsdPerKg: l.extraCostUsdPerKg ?? null,
+        usdTryRate: l.usdTryRate ?? null,
       })),
     });
 

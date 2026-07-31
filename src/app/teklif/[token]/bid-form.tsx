@@ -1,11 +1,12 @@
 "use client";
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import type { BidContext } from "@/domain/bidding";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { add, lineNet, lineTax, formatMoney, formatQty } from "@/lib/money";
+import { add, lineNet, lineTax, formatMoney, formatQty, parseTrNumber } from "@/lib/money";
+import { copperUnitUsdPerKg, lmeUsdPerKg, computeCopperPricing } from "@/domain/lme-pricing";
 import { submitBidAction, submitBidByBuyerAction } from "./actions";
 import type { Locale } from "@/lib/i18n";
 
@@ -45,6 +46,17 @@ const S = {
     doneBody: "için teklifiniz kaydedildi. Satınalma ekibi bilgilendirildi.",
     status: "Durum",
     close: "Bu sayfayı kapatabilirsiniz.",
+    copperTitle: "LME bazlı bakır fiyatı",
+    lmeSelect: "LME Kaydı",
+    lmeManual: "Manuel LME",
+    lmeUsdTon: "LME USD/ton",
+    lmeCoef: "Katsayı",
+    premium: "Prim/İşçilik USD/kg",
+    extra: "Ek Maliyet USD/kg",
+    usdTry: "USD/TRY",
+    netUsdKg: "Net USD/kg",
+    netTryKg: "Net TL/kg",
+    netTry: "Net Toplam TL",
   },
   en: {
     terms: "Quotation Terms",
@@ -81,6 +93,17 @@ const S = {
     doneBody: "your quotation has been saved. The procurement team has been notified.",
     status: "Status",
     close: "You may close this page.",
+    copperTitle: "LME-based copper price",
+    lmeSelect: "LME Record",
+    lmeManual: "Manual LME",
+    lmeUsdTon: "LME USD/ton",
+    lmeCoef: "Coefficient",
+    premium: "Premium/Labor USD/kg",
+    extra: "Extra Cost USD/kg",
+    usdTry: "USD/TRY",
+    netUsdKg: "Net USD/kg",
+    netTryKg: "Net TL/kg",
+    netTry: "Net Total TL",
   },
 } as const;
 
@@ -96,6 +119,14 @@ interface LineState {
   leadTimeDays: string;
   note: string;
   currency: string;
+  // LME bazlı bakır fiyatı (varsa)
+  copperMode: boolean;
+  lmeRecordId: string; // "" = manuel LME
+  lmeUsdPerTon: string;
+  lmeCoefficient: string;
+  premiumUsdPerKg: string;
+  extraCostUsdPerKg: string;
+  usdTryRate: string;
 }
 
 export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSupplierId }: { ctx: BidContext; token: string; locale?: Locale; preview?: boolean; buyerRfqSupplierId?: string }) {
@@ -120,6 +151,8 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
     const init: Record<string, LineState> = {};
     for (const l of ctx.lines) {
       const ex = ctx.existingBid?.lines[l.id];
+      const isCopperItem = l.pricingType === "LME_COPPER";
+      const copperMode = ex?.pricingType === "LME_COPPER" ? true : (ex ? false : isCopperItem);
       init[l.id] = {
         willQuote: ex?.willQuote ?? true,
         unitPrice: ex?.unitPrice ?? "0",
@@ -129,7 +162,14 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
         brand: ex?.brand ?? "",
         leadTimeDays: ex?.leadTimeDays ?? "",
         note: ex?.note ?? "",
-        currency: ex?.currency ?? defaultCurrency,
+        currency: copperMode ? "USD" : (ex?.currency ?? defaultCurrency),
+        copperMode,
+        lmeRecordId: ex?.lmeRecordId ?? (ctx.lmeRecords[0]?.id ?? ""),
+        lmeUsdPerTon: ex?.lmeUsdPerTon ?? (ctx.lmeRecords[0]?.usdPerTon ?? ""),
+        lmeCoefficient: ex?.lmeCoefficient ?? l.lmeCoefficient ?? "1.0000",
+        premiumUsdPerKg: ex?.premiumUsdPerKg ?? l.premiumUsdPerKg ?? "",
+        extraCostUsdPerKg: ex?.extraCostUsdPerKg ?? l.extraCostUsdPerKg ?? "",
+        usdTryRate: ex?.usdTryRate ?? ctx.usdTryRate ?? "",
       };
     }
     return init;
@@ -139,14 +179,30 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
     setLines((prev) => ({ ...prev, [id]: { ...prev[id]!, ...patch } }));
   }
 
+  /** Bakır modunda satırın net birim fiyatı USD/kg (decimal.js). */
+  function copperUnit(ls: LineState): string {
+    return copperUnitUsdPerKg({
+      usdPerTon: parseTrNumber(ls.lmeUsdPerTon), coefficient: parseTrNumber(ls.lmeCoefficient || "1"),
+      premiumUsdPerKg: parseTrNumber(ls.premiumUsdPerKg || "0"), extraCostUsdPerKg: parseTrNumber(ls.extraCostUsdPerKg || "0"),
+    });
+  }
+  /** Satırın efektif birim fiyatı ve PB (bakır modunda hesaplanan USD/kg / USD). */
+  const effUnit = (ls: LineState) => (ls.copperMode ? copperUnit(ls) : ls.unitPrice);
+  const effCur = (ls: LineState) => (ls.copperMode ? "USD" : ls.currency);
+  /** LME kaydı seçilince USD/ton'u doldur. */
+  function pickLme(id: string, recId: string) {
+    const rec = ctx.lmeRecords.find((r) => r.id === recId);
+    update(id, { lmeRecordId: recId, ...(rec ? { lmeUsdPerTon: rec.usdPerTon } : {}) });
+  }
+
   // Para birimine göre gruplu toplam (kalemler farklı PB olabilir). Navlun kendi PB'sine eklenir.
   const totalsByCurrency = useMemo(() => {
     const map: Record<string, ReturnType<typeof add>> = {};
     for (const l of ctx.lines) {
       const ls = lines[l.id]!;
       if (!ls.willQuote) continue;
-      const cur = ls.currency || defaultCurrency;
-      const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
+      const cur = effCur(ls) || defaultCurrency;
+      const net = lineNet(l.quantity, effUnit(ls), ls.discountPct);
       const withTax = add(net, lineTax(net, ls.taxRate));
       map[cur] = add(map[cur] ?? add(0), withTax);
     }
@@ -154,6 +210,8 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
       map[freightCurrency] = add(map[freightCurrency] ?? add(0), freight || "0");
     }
     return map;
+    // effUnit/effCur saf yardımcılardır; bağımlılık `lines` üzerinden zaten yakalanır.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, freight, ctx.lines, freightCurrency, defaultCurrency]);
   const totalCurrencies = Object.keys(totalsByCurrency);
   // Teklifin ana para birimi: en büyük tutarlı PB (yoksa navlun PB'si).
@@ -177,17 +235,33 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
       incoterm: incoterm || undefined,
       freightAmount: freight || "0",
       submit,
-      lines: ctx.lines.map((l) => ({
-        rfqLineId: l.id,
-        willQuote: lines[l.id]!.willQuote,
-        unitPrice: lines[l.id]!.unitPrice || "0",
-        discountPct: lines[l.id]!.discountPct || "0",
-        taxRate: lines[l.id]!.taxRate || "0",
-        brand: lines[l.id]!.brand || undefined,
-        leadTimeDays: lines[l.id]!.leadTimeDays || undefined,
-        note: lines[l.id]!.note || undefined,
-        currency: lines[l.id]!.currency || defaultCurrency,
-      })),
+      lines: ctx.lines.map((l) => {
+        const ls = lines[l.id]!;
+        const copper = ls.copperMode
+          ? {
+              pricingType: "LME_COPPER",
+              lmeRecordId: ls.lmeRecordId || undefined,
+              lmeUsdPerTon: parseTrNumber(ls.lmeUsdPerTon),
+              lmeCoefficient: parseTrNumber(ls.lmeCoefficient || "1"),
+              premiumUsdPerKg: parseTrNumber(ls.premiumUsdPerKg || "0"),
+              extraCostUsdPerKg: parseTrNumber(ls.extraCostUsdPerKg || "0"),
+              usdTryRate: parseTrNumber(ls.usdTryRate || "0"),
+              lmePriceDate: (ctx.lmeRecords.find((r) => r.id === ls.lmeRecordId)?.priceDate ?? new Date()).toISOString?.() ?? undefined,
+            }
+          : {};
+        return {
+          rfqLineId: l.id,
+          willQuote: ls.willQuote,
+          unitPrice: effUnit(ls) || "0",
+          discountPct: ls.discountPct || "0",
+          taxRate: ls.taxRate || "0",
+          brand: ls.brand || undefined,
+          leadTimeDays: ls.leadTimeDays || undefined,
+          note: ls.note || undefined,
+          currency: effCur(ls) || defaultCurrency,
+          ...copper,
+        };
+      }),
     };
     const res = buyerRfqSupplierId
       ? await submitBidByBuyerAction(buyerRfqSupplierId, payload)
@@ -263,10 +337,13 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
             <TBody>
               {ctx.lines.map((l) => {
                 const ls = lines[l.id]!;
-                const net = lineNet(l.quantity, ls.unitPrice, ls.discountPct);
+                const eligible = l.pricingType === "LME_COPPER" || ctx.isSarcam;
+                const uUnit = effUnit(ls);
+                const net = lineNet(l.quantity, uUnit, ls.discountPct);
                 const withTax = add(net, lineTax(net, ls.taxRate));
                 return (
-                  <TR key={l.id}>
+                  <Fragment key={l.id}>
+                  <TR>
                     <TD>
                       <div className="font-medium">{l.description}</div>
                       {l.specs && <div className="text-xs text-muted-foreground">{l.specs}</div>}
@@ -301,24 +378,32 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
                       </label>
                     </TD>
                     <TD>
-                      <Input
-                        className="h-8 w-28 text-right"
-                        disabled={!ls.willQuote}
-                        value={ls.unitPrice}
-                        onChange={(e) => update(l.id, { unitPrice: e.target.value })}
-                      />
+                      {ls.copperMode ? (
+                        <div className="flex h-8 w-28 items-center justify-end rounded-md border bg-primary/5 px-2 font-mono text-xs" title="LME'den hesaplandı (USD/kg)">{uUnit}</div>
+                      ) : (
+                        <Input
+                          className="h-8 w-28 text-right"
+                          disabled={!ls.willQuote}
+                          value={ls.unitPrice}
+                          onChange={(e) => update(l.id, { unitPrice: e.target.value })}
+                        />
+                      )}
                     </TD>
                     <TD>
-                      <Select
-                        className="h-8 w-20"
-                        disabled={!ls.willQuote}
-                        value={ls.currency}
-                        onChange={(e) => update(l.id, { currency: e.target.value })}
-                      >
-                        {ctx.currencyOptions.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </Select>
+                      {ls.copperMode ? (
+                        <span className="text-xs font-medium">USD</span>
+                      ) : (
+                        <Select
+                          className="h-8 w-20"
+                          disabled={!ls.willQuote}
+                          value={ls.currency}
+                          onChange={(e) => update(l.id, { currency: e.target.value })}
+                        >
+                          {ctx.currencyOptions.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </Select>
+                      )}
                     </TD>
                     <TD>
                       <Input
@@ -349,9 +434,49 @@ export function BidForm({ ctx, token, locale = "tr", preview = false, buyerRfqSu
                       />
                     </TD>
                     <TD className="text-right font-medium">
-                      {ls.willQuote ? formatMoney(withTax, ls.currency) : "-"}
+                      {ls.willQuote ? formatMoney(withTax, effCur(ls)) : "-"}
                     </TD>
                   </TR>
+                  {eligible && (
+                    <TR>
+                      <TD colSpan={9} className="bg-primary/5">
+                        <div className="space-y-2">
+                          <label className="flex w-fit items-center gap-2 text-xs font-semibold text-primary">
+                            <input type="checkbox" checked={ls.copperMode} onChange={(e) => update(l.id, { copperMode: e.target.checked, currency: e.target.checked ? "USD" : defaultCurrency })} />
+                            {s.copperTitle}
+                          </label>
+                          {ls.copperMode && (() => {
+                            const r = computeCopperPricing({ usdPerTon: parseTrNumber(ls.lmeUsdPerTon), coefficient: parseTrNumber(ls.lmeCoefficient || "1"), premiumUsdPerKg: parseTrNumber(ls.premiumUsdPerKg || "0"), extraCostUsdPerKg: parseTrNumber(ls.extraCostUsdPerKg || "0"), qtyKg: l.quantity, usdTryRate: parseTrNumber(ls.usdTryRate || "0"), vatRate: ls.taxRate });
+                            return (
+                              <>
+                                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.lmeSelect}</Label>
+                                    <Select className="h-8 text-xs" value={ls.lmeRecordId} onChange={(e) => pickLme(l.id, e.target.value)}>
+                                      <option value="">{s.lmeManual}</option>
+                                      {ctx.lmeRecords.map((rec) => <option key={rec.id} value={rec.id}>{new Date(rec.priceDate).toLocaleDateString("tr-TR")} · {rec.kind === "WEEKLY_AVG" ? "Hafta" : "Gün"} · {Number(rec.usdPerTon).toLocaleString("tr-TR")}</option>)}
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.lmeUsdTon}</Label><Input className="h-8 text-xs" value={ls.lmeUsdPerTon} onChange={(e) => update(l.id, { lmeUsdPerTon: e.target.value, lmeRecordId: "" })} /></div>
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.lmeCoef}</Label><Input className="h-8 text-xs" value={ls.lmeCoefficient} onChange={(e) => update(l.id, { lmeCoefficient: e.target.value })} /></div>
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.premium}</Label><Input className="h-8 text-xs" value={ls.premiumUsdPerKg} onChange={(e) => update(l.id, { premiumUsdPerKg: e.target.value })} placeholder="0" /></div>
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.extra}</Label><Input className="h-8 text-xs" value={ls.extraCostUsdPerKg} onChange={(e) => update(l.id, { extraCostUsdPerKg: e.target.value })} placeholder="0" /></div>
+                                  <div className="space-y-1"><Label className="text-[11px]">{s.usdTry}</Label><Input className="h-8 text-xs" value={ls.usdTryRate} onChange={(e) => update(l.id, { usdTryRate: e.target.value })} /></div>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-background/60 px-3 py-2 text-[11px]">
+                                  <span>LME USD/kg: <b>{lmeUsdPerKg(parseTrNumber(ls.lmeUsdPerTon))}</b></span>
+                                  <span>{s.netUsdKg}: <b className="text-primary">{r.unitUsdPerKg}</b></span>
+                                  <span>{s.netTryKg}: <b>{r.unitTryPerKg}</b></span>
+                                  <span>{s.netTry}: <b>{formatMoney(r.netTotalTry, "TRY")}</b></span>
+                                  <span>KDV+: <b>{formatMoney(r.grandTotalTry, "TRY")}</b></span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </TD>
+                    </TR>
+                  )}
+                  </Fragment>
                 );
               })}
             </TBody>

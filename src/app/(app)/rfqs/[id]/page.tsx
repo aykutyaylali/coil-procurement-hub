@@ -106,6 +106,15 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       brand: bl.brand,
       model: bl.model,
       note: bl.note,
+      // LME bazlı bakır snapshot (karşılaştırma kırılımı için)
+      pricingType: bl.pricingType,
+      lmeRecordId: bl.lmeRecordId,
+      lmePriceDate: bl.lmePriceDate ? bl.lmePriceDate.toISOString() : null,
+      lmeUsdPerTon: bl.lmeUsdPerTon,
+      lmeCoefficient: bl.lmeCoefficient,
+      premiumUsdPerKg: bl.premiumUsdPerKg,
+      extraCostUsdPerKg: bl.extraCostUsdPerKg,
+      usdTryRate: bl.usdTryRate,
     })),
   }));
 

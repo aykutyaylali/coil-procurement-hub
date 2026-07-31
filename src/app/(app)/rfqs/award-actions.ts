@@ -105,6 +105,16 @@ export async function awardRfqAndCreateOrders(
             taxRate: toStr(bidLine.taxRate, 4),
             lineTotal: toStr(net, 2),
             neededBy: rfqLine.neededBy,
+            currency: bidLine.currency,
+            // LME bakır snapshot'ı teklif satırından siparişe AYNEN taşınır (değişmez)
+            pricingType: bidLine.pricingType,
+            lmeRecordId: bidLine.lmeRecordId,
+            lmePriceDate: bidLine.lmePriceDate,
+            lmeUsdPerTon: bidLine.lmeUsdPerTon,
+            lmeCoefficient: bidLine.lmeCoefficient,
+            premiumUsdPerKg: bidLine.premiumUsdPerKg,
+            extraCostUsdPerKg: bidLine.extraCostUsdPerKg,
+            usdTryRate: bidLine.usdTryRate,
           });
         }
 

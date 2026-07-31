@@ -182,7 +182,7 @@ export function NewReceiptForm({
       {outOfTol.length > 0 && (
         <div className="rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <div className="font-medium">⚠ Tolerans uyarısı (±%{TOLERANCE_PCT})</div>
-          <div className="mt-0.5 text-xs">{outOfTol.length} kalemde teslim alınan miktar sipariş miktarından ±%{TOLERANCE_PCT}'ten fazla sapıyor (kantar farkı olabilir). Devam etmek için onaylayın.</div>
+          <div className="mt-0.5 text-xs">{outOfTol.length} kalemde teslim alınan miktar, sipariş miktarından ±%{TOLERANCE_PCT} üzerinde sapıyor (kantar farkı olabilir). Devam etmek için onaylayın.</div>
           <label className="mt-1.5 flex items-center gap-2 text-xs font-medium">
             <input type="checkbox" checked={tolConfirmed} onChange={(e) => { setTolConfirmed(e.target.checked); if (e.target.checked) setError(""); }} />
             Tolerans dışı teslimatı onaylıyorum

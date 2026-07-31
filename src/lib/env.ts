@@ -38,6 +38,10 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().optional(),
   EXCHANGE_RATE_PROVIDER: z.enum(["tcmb", "manual", "mock"]).default("tcmb"),
+  // LME bakır fiyatı otomatik çekme sağlayıcısı (gerçek sağlayıcı API anahtarı gerektirir)
+  LME_PROVIDER: z.enum(["mock", "fastmarkets", "lme_api"]).default("mock"),
+  LME_API_URL: z.string().optional(),
+  LME_API_KEY: z.string().optional(),
   ANTIVIRUS_PROVIDER: z.enum(["clamav", "none"]).default("none"),
 
   FEATURE_AI: z

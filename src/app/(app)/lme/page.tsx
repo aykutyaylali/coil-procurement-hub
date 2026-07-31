@@ -66,7 +66,10 @@ export default async function LmePage() {
                   </TD>
                   <TD className="text-right font-mono">{Number(r.usdPerTon).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TD>
                   <TD className="text-right font-mono">{lmeUsdPerKg(r.usdPerTon)}</TD>
-                  <TD className="text-sm text-muted-foreground">{r.source ?? "—"}</TD>
+                  <TD className="text-sm text-muted-foreground">
+                    <span className={`mr-1 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${r.isAutoFetched ? "border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-border text-muted-foreground"}`}>{r.isAutoFetched ? T("lme.autoBadge") : T("lme.manualBadge")}</span>
+                    {r.source ?? "—"}
+                  </TD>
                   <TD className="text-sm">{nameById[r.createdById] ?? "—"}</TD>
                   <TD><Badge tone={TONE[r.status] ?? "default"}>{statusLabel(r.status)}</Badge></TD>
                   {canManage && <TD className="text-right"><LmeRowActions id={r.id} status={r.status} /></TD>}

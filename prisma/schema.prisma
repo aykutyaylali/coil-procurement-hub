@@ -500,9 +500,12 @@ model LmeRecord {
   kind         String   @default("DAILY_SPOT")
   periodStart  DateTime?
   periodEnd    DateTime?
-  source       String?  // kaynak / referans notu
+  source       String?  // kaynak / referans notu (otomatik çekimde servis + tarih)
   status       String   @default("DRAFT") // DRAFT | APPROVED | ARCHIVED
   note         String?
+  // Otomatik çekme izlenebilirliği (Faz 5)
+  isAutoFetched Boolean @default(false) // true: dış servisten otomatik; false: manuel
+  fetchedAt    DateTime? // otomatik çekilme zamanı
   createdById  String
   approvedById String?
   approvedAt   DateTime?

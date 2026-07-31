@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Check, Archive, Calculator } from "lucide-react";
+import { Plus, Check, Archive, Calculator, Download, Bot, Lock, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useI18n } from "@/components/i18n-provider";
 import { lmeUsdPerKg } from "@/domain/lme-pricing";
 import { parseTrNumber } from "@/lib/money";
-import { saveLmeRecord, setLmeStatus } from "./actions";
+import { saveLmeRecord, setLmeStatus, fetchLmeAuto } from "./actions";
 
 /** Yeni LME Bakır kaydı formu — canlı USD/kg önizlemeli, Türkçe sayı formatı destekli. */
 export function LmeForm() {
@@ -23,18 +23,49 @@ export function LmeForm() {
   const [source, setSource] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState("");
+  // Faz 5: otomatik çekme durumu
+  const [isAuto, setIsAuto] = useState(false);
+  const [autoVal, setAutoVal] = useState(""); // çekilen orijinal değer (override tespiti)
+  const [fetchedAt, setFetchedAt] = useState("");
+  const [sourceLocked, setSourceLocked] = useState(false);
 
   const preview = usdPerTon.trim() ? lmeUsdPerKg(parseTrNumber(usdPerTon)) : "—";
+  const overridden = isAuto && autoVal !== "" && parseTrNumber(usdPerTon) !== autoVal;
+
+  async function autoFetch() {
+    if (fetching) return;
+    setFetching(true);
+    setError("");
+    const res = await fetchLmeAuto({ kind: kind as "DAILY_SPOT" | "WEEKLY_AVG", priceDate, periodStart: periodStart || undefined, periodEnd: periodEnd || undefined });
+    setFetching(false);
+    if (!res.ok) return setError(res.error);
+    setUsdPerTon(res.data.usdPerTon);
+    setAutoVal(res.data.usdPerTon);
+    setSource(res.data.source);
+    setFetchedAt(res.data.fetchedAt);
+    setIsAuto(true);
+    setSourceLocked(true);
+  }
+
+  function reset() {
+    setUsdPerTon(""); setSource(""); setNote(""); setPeriodStart(""); setPeriodEnd("");
+    setIsAuto(false); setAutoVal(""); setFetchedAt(""); setSourceLocked(false); setOpen(false);
+  }
 
   async function save() {
     if (busy) return;
     setBusy(true);
     setError("");
-    const res = await saveLmeRecord({ priceDate, usdPerTon, kind, periodStart: periodStart || undefined, periodEnd: periodEnd || undefined, source: source || undefined, note: note || undefined });
+    const res = await saveLmeRecord({
+      priceDate, usdPerTon, kind, periodStart: periodStart || undefined, periodEnd: periodEnd || undefined,
+      source: source || undefined, note: note || undefined,
+      isAutoFetched: isAuto, fetchedAt: fetchedAt || undefined, autoFetchedValue: autoVal || undefined,
+    });
     setBusy(false);
     if (!res.ok) return setError(res.error);
-    setUsdPerTon(""); setSource(""); setNote(""); setPeriodStart(""); setPeriodEnd(""); setOpen(false);
+    reset();
     router.refresh();
   }
 
@@ -51,6 +82,14 @@ export function LmeForm() {
       <CardHeader><CardTitle className="text-base">{t("lme.new")}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {error && <p className="rounded bg-destructive/10 px-2 py-1 text-sm text-destructive">{error}</p>}
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
+          <Button size="sm" variant="outline" onClick={autoFetch} disabled={fetching}>
+            <Download className="size-3.5" /> {fetching ? t("lme.fetching") : t("lme.autoFetch")}
+          </Button>
+          {isAuto && <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><Bot className="size-3" /> {t("lme.autoBadge")}</span>}
+          {overridden && <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">⚠ {t("lme.overridden")}</span>}
+          <span className="text-[11px] text-muted-foreground">{t("lme.autoHint")}</span>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label>{t("lme.kind")}</Label>
@@ -78,8 +117,11 @@ export function LmeForm() {
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{preview}</div>
           </div>
           <div className="space-y-1.5">
-            <Label>{t("lme.source")}</Label>
-            <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder={t("lme.sourcePh")} />
+            <Label className="flex items-center gap-1">{sourceLocked && <Lock className="size-3 text-muted-foreground" />} {t("lme.source")}</Label>
+            <div className="flex gap-1">
+              <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder={t("lme.sourcePh")} readOnly={sourceLocked} className={sourceLocked ? "flex-1 bg-muted/40" : "flex-1"} />
+              {sourceLocked && <Button type="button" size="sm" variant="ghost" onClick={() => setSourceLocked(false)} title={t("lme.editSource")}><Pencil className="size-3.5" /></Button>}
+            </div>
           </div>
         </div>
         <div className="space-y-1.5">
@@ -89,7 +131,7 @@ export function LmeForm() {
         <p className="rounded-md bg-primary/5 px-3 py-2 text-xs text-muted-foreground">{t("lme.help")}</p>
         <div className="flex gap-2">
           <Button size="sm" onClick={save} disabled={busy}>{busy ? t("lme.saving") : t("action.save")}</Button>
-          <Button size="sm" variant="outline" onClick={() => setOpen(false)} disabled={busy}>{t("action.cancel")}</Button>
+          <Button size="sm" variant="outline" onClick={reset} disabled={busy}>{t("action.cancel")}</Button>
         </div>
       </CardContent>
     </Card>

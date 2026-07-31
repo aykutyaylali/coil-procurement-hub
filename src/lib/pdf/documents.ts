@@ -4,7 +4,8 @@ import type { Locale } from "@/lib/i18n";
 import { formatDate } from "@/lib/dates";
 import { formatCurrency } from "@/lib/i18n";
 import { renderPdf, type PdfSpec } from "@/lib/pdf/render";
-import { lineNet, lineTax, add, toStr, d } from "@/lib/money";
+import { lineNet, lineTax, add, toStr, d, formatMoney } from "@/lib/money";
+import { computeCopperPricing, lmeUsdPerKg } from "@/domain/lme-pricing";
 import { NotFoundError } from "@/lib/errors";
 import { opLabel } from "@/domain/operations";
 import { label as enumLabel } from "@/domain/labels";
@@ -29,6 +30,34 @@ export async function buildPurchaseOrderPdf(id: string, tenantId: string, locale
     include: { supplier: true, lines: { orderBy: { lineNo: "asc" } } },
   });
   if (!po) throw new NotFoundError("Sipariş bulunamadı.");
+
+  // Bakır Fiyatlandırma Özeti — LME bazlı satırlar için (TR/EN), snapshot'tan hesaplanır.
+  const copperSections = po.lines
+    .filter((l) => l.pricingType === "LME_COPPER" && l.lmeUsdPerTon)
+    .map((l) => {
+      const r = computeCopperPricing({
+        usdPerTon: l.lmeUsdPerTon!, coefficient: l.lmeCoefficient ?? "1", premiumUsdPerKg: l.premiumUsdPerKg ?? "0",
+        extraCostUsdPerKg: l.extraCostUsdPerKg ?? "0", qtyKg: l.quantity ?? "0", usdTryRate: l.usdTryRate ?? "0", vatRate: l.taxRate ?? "0",
+      });
+      const period = l.lmePriceDate ? formatDate(l.lmePriceDate) : "-";
+      return {
+        title: `${tr(locale, "Bakır Fiyatlandırma Özeti", "Copper Pricing Summary")} — ${l.description}`,
+        rows: [
+          { label: tr(locale, "LME Tarihi/Dönemi", "LME Date/Period"), value: period },
+          { label: tr(locale, "LME (USD/ton)", "LME (USD/ton)"), value: l.lmeUsdPerTon! },
+          { label: tr(locale, "LME (USD/kg)", "LME (USD/kg)"), value: lmeUsdPerKg(l.lmeUsdPerTon!) },
+          { label: tr(locale, "LME Katsayısı", "LME Coefficient"), value: l.lmeCoefficient ?? "1" },
+          { label: tr(locale, "Prim/İşçilik (USD/kg)", "Premium/Labor (USD/kg)"), value: l.premiumUsdPerKg ?? "0" },
+          { label: tr(locale, "Ek Maliyet (USD/kg)", "Extra Cost (USD/kg)"), value: l.extraCostUsdPerKg ?? "0" },
+          { label: tr(locale, "Net Tel Fiyatı (USD/kg)", "Net Wire Price (USD/kg)"), value: r.unitUsdPerKg, strong: true },
+          { label: tr(locale, "TCMB USD/TRY Kuru", "USD/TRY Rate"), value: l.usdTryRate ?? "-" },
+          { label: tr(locale, "Net Tel Fiyatı (TL/kg)", "Net Wire Price (TL/kg)"), value: r.unitTryPerKg },
+          { label: tr(locale, "Toplam Net (TL)", "Net Total (TL)"), value: formatMoney(r.netTotalTry, "TRY") },
+          { label: tr(locale, "KDV (TL)", "VAT (TL)"), value: formatMoney(r.vatAmount, "TRY") },
+          { label: tr(locale, "Genel Toplam (TL)", "Grand Total (TL)"), value: formatMoney(r.grandTotalTry, "TRY"), strong: true },
+        ],
+      };
+    });
 
   const spec: PdfSpec = {
     locale,
@@ -75,6 +104,7 @@ export async function buildPurchaseOrderPdf(id: string, tenantId: string, locale
       { label: tr(locale, "KDV", "VAT"), value: formatCurrency(Number(po.taxTotal), po.currency, locale) },
       { label: tr(locale, "Genel Toplam", "Grand Total"), value: formatCurrency(Number(po.grandTotal), po.currency, locale), bold: true },
     ],
+    sections: copperSections.length ? copperSections : undefined,
     terms: [
       tr(locale, "Sipariş teyidi tedarikçi tarafından yapılmalıdır.", "Order must be acknowledged by the supplier."),
       tr(locale, "Teslimat ve fatura bu sipariş numarası ile ilişkilendirilmelidir.", "Delivery and invoice must reference this order number."),

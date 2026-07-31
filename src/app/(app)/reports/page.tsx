@@ -80,6 +80,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <PageHeader title="Raporlar" description="Gerçek verilerden hesaplanan harcama ve performans analizleri." />
+      <Link href="/reports/lme" className="mb-4 flex items-center justify-between rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/50">
+        <span className="font-medium text-amber-800 dark:text-amber-200">🟠 LME &amp; Sarcam Raporları — bakır (LME bazlı) alım trendleri ve fatura bakiye analizi</span>
+        <span className="text-amber-700 dark:text-amber-300">→</span>
+      </Link>
 
       {/* Filtreler */}
       <Card className="mb-6">

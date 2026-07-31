@@ -35,6 +35,8 @@ export interface PdfSpec {
   columns: PdfColumn[];
   rows: Record<string, string | number | null>[];
   totals?: { label: string; value: string; bold?: boolean }[];
+  // Ek başlıklı bölümler (ör. "Bakır Fiyatlandırma Özeti"). Tablo/totals sonrası çizilir.
+  sections?: { title: string; rows: { label: string; value: string; strong?: boolean }[] }[];
   terms?: string[];
   footerNote?: string;
 }
@@ -145,6 +147,22 @@ export function renderPdf(spec: PdfSpec): Promise<Buffer> {
       doc.text(t.label, boxX, y, { width: 110 });
       doc.fillColor(DARK).text(t.value, boxX + 110, y, { width: 110, align: "right" });
       y += t.bold ? 16 : 13;
+    }
+  }
+
+  // --- Ek bölümler (ör. Bakır Fiyatlandırma Özeti) ---
+  if (spec.sections?.length) {
+    for (const sec of spec.sections) {
+      y += 16;
+      if (y > doc.page.height - 130) { doc.addPage(); y = 60; }
+      doc.font("bold").fontSize(9).fillColor(BRAND).text(sec.title, pageLeft, y);
+      y += 14;
+      for (const r of sec.rows) {
+        if (y > doc.page.height - 60) { doc.addPage(); y = 60; }
+        doc.font("body").fontSize(8).fillColor(MUTED).text(r.label, pageLeft, y, { width: contentWidth * 0.62 });
+        doc.font(r.strong ? "bold" : "body").fontSize(r.strong ? 9 : 8).fillColor(DARK).text(r.value, pageLeft + contentWidth * 0.62, y, { width: contentWidth * 0.38, align: "right" });
+        y += r.strong ? 14 : 12;
+      }
     }
   }
 

@@ -15,8 +15,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "sqlite"
+  url       = env("DATABASE_URL")
+  // Migration/introspection için doğrudan (pooler'sız) bağlantı. Prod'da Neon DIRECT
+  // string'i; dev'de DATABASE_URL ile aynı SQLite dosyası (bkz. .env / .env.example).
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------

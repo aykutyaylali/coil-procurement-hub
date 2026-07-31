@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/context";
 import { getStorage, generateStorageKey, validateUpload, scanBuffer } from "@/lib/storage";
 import { writeAudit } from "@/lib/audit";
+import { notify, resolvePoTargets } from "@/domain/notify";
 import { ok, fail, type Result } from "@/lib/errors";
 
 /**
@@ -55,7 +56,96 @@ export async function uploadAttachment(formData: FormData): Promise<Result<{ id:
       after: { fileName: file.name, entityType, entityId },
     });
 
+    // PO'ya yüklenen AÇIK belgeler için katılımcılara bildirim (iç belgeler sessiz)
+    if (entityType === "PurchaseOrder" && !isInternal) {
+      const po = await prisma.purchaseOrder.findFirst({ where: { id: entityId, tenantId: user.tenantId }, select: { id: true, number: true, supplierId: true } });
+      if (po) {
+        const targets = await resolvePoTargets(po.id, po.supplierId, user.tenantId);
+        await notify({ tenantId: user.tenantId, actorId: user.id, targetUserIds: targets, type: "DOCUMENT_UPLOADED", titleKey: "notif.document.title", params: { actor: user.name, order: po.number }, linkInternal: `/orders/${po.id}?tab=belgeler`, linkPortal: `/portal/orders/${po.id}?tab=belgeler` });
+      }
+    }
+
     return ok({ id: attachment.id, fileName: file.name });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export interface AttachmentMeta {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  isInternal: boolean;
+  isImage: boolean;
+  dataUrl: string | null; // görseller için küçük önizleme; diğer dosyalarda null
+  createdAt: string;
+}
+
+/**
+ * Bir varlığa (entityType/entityId) bağlı ekleri listeler (görsellerde önizleme dahil).
+ * includeInternal=false ise yalnız tedarikçiye açık (isInternal=false) ekler döner —
+ * tedarikçi yüzeyinde iç belgelerin sızmaması için.
+ */
+export async function listAttachments(entityType: string, entityId: string, includeInternal = true): Promise<Result<AttachmentMeta[]>> {
+  try {
+    const user = await requireUser();
+    const rows = await prisma.attachment.findMany({
+      where: { tenantId: user.tenantId, entityType, entityId, ...(includeInternal ? {} : { isInternal: false }) },
+      orderBy: { createdAt: "asc" },
+    });
+    const storage = getStorage();
+    const items: AttachmentMeta[] = [];
+    for (const a of rows) {
+      const isImage = a.mimeType.startsWith("image/");
+      let dataUrl: string | null = null;
+      if (isImage && a.scanStatus !== "INFECTED") {
+        try {
+          const buffer = await storage.get(a.storageKey);
+          dataUrl = `data:${a.mimeType};base64,${buffer.toString("base64")}`;
+        } catch {
+          dataUrl = null;
+        }
+      }
+      items.push({
+        id: a.id,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        isInternal: a.isInternal,
+        isImage,
+        dataUrl,
+        createdAt: a.createdAt.toISOString(),
+      });
+    }
+    return ok(items);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Yetki kontrollü ek silme (yalnızca aynı tenant). */
+export async function deleteAttachment(id: string): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requireUser();
+    const att = await prisma.attachment.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!att) return fail(new Error("Dosya bulunamadı."));
+    const storage = getStorage();
+    try {
+      await storage.delete(att.storageKey);
+    } catch {
+      // depodan silinemese bile kaydı kaldır (yetim dosya temizliği ayrı yapılır)
+    }
+    await prisma.attachment.delete({ where: { id: att.id } });
+    await writeAudit({
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: "DELETE",
+      entityType: "Attachment",
+      entityId: att.id,
+      before: { fileName: att.fileName, entityType: att.entityType, entityId: att.entityId },
+    });
+    return ok({ id: att.id });
   } catch (e) {
     return fail(e);
   }

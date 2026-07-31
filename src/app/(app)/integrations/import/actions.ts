@@ -32,8 +32,8 @@ export async function analyzeImport(formData: FormData): Promise<Result<AnalyzeR
     if (!file.name.toLowerCase().endsWith(".xlsx")) throw new AppError("Yalnızca .xlsx dosyası kabul edilir.");
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const sheets = listSheets(buffer);
-    const rows = readSheetRows(buffer, sheetName);
+    const sheets = await listSheets(buffer);
+    const rows = await readSheetRows(buffer, sheetName);
     const parsed = parseKalemRows(rows);
     const summary = buildSummary(parsed);
     const dry = await dryRun(user.tenantId, parsed);
@@ -85,7 +85,7 @@ export async function runImport(input: { fileKey: string; fileName: string; shee
 
     const storage = getStorage();
     const buffer = await storage.get(input.fileKey);
-    const rows = readSheetRows(buffer, sheetName);
+    const rows = await readSheetRows(buffer, sheetName);
     const parsed = parseKalemRows(rows);
     const summary = buildSummary(parsed);
 

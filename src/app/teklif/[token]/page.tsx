@@ -1,7 +1,9 @@
+import Image from "next/image";
 import { loadBidContext } from "@/domain/bidding";
 import { BidForm } from "./bid-form";
 import { formatDateTime } from "@/lib/dates";
 import { ThemeProvider } from "@/components/theme-provider";
+import { opLabel } from "@/domain/operations";
 
 import Link from "next/link";
 import { isLocale, type Locale } from "@/lib/i18n";
@@ -71,10 +73,15 @@ export default async function BidPage({
     <ThemeProvider>
       <div className="min-h-screen bg-slate-100 dark:bg-slate-950">
         <header className="border-b bg-white px-6 py-4 dark:bg-slate-900">
-          <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <div>
-              <div className="text-lg font-semibold">{ctx.companyName}</div>
-              <div className="text-sm text-muted-foreground">{tp.portal}</div>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center rounded-md bg-white px-2 py-1 shadow-sm ring-1 ring-black/5">
+                <Image src="/brand/coil-logo.png" alt={ctx.companyName} width={281} height={120} className="h-9 w-auto" priority />
+              </span>
+              <div className="hidden sm:block">
+                <div className="text-base font-semibold">{ctx.companyName}</div>
+                <div className="text-sm text-muted-foreground">{tp.portal} · {opLabel(ctx.operationType, locale)}</div>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right text-sm">

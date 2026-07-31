@@ -14,6 +14,7 @@ Kurumsal **Satınalma ve Tedarikçi Yönetim Platformu** — Talep → Onay → 
 - [Demo giriş bilgileri](#demo-giriş-bilgileri)
 - [Uçtan uca akışı deneme](#uçtan-uca-akışı-deneme)
 - [Mimari](#mimari)
+- [Tedarikçi İşbirliği Portalı & PO Workspace](#tedarikçi-i̇şbirliği-portalı--po-workspace)
 - [Testler](#testler)
 - [Ortam değişkenleri](#ortam-değişkenleri)
 - [Üretime alma](#üretime-alma)
@@ -26,7 +27,10 @@ Kurumsal **Satınalma ve Tedarikçi Yönetim Platformu** — Talep → Onay → 
 
 - **Tam satınalma döngüsü:** Talep → çok adımlı onay → RFQ → tedarikçi teklifi → karşılaştırma → karar (split award) → otomatik sipariş → mal kabul → fatura üçlü eşleştirme.
 - **Onay motoru:** Tutar, kategori, şirket, proje, operasyon türü, aciliyet ve risk seviyesine göre yapılandırılabilir çok adımlı onay akışları. Görevler ayrılığı (kişi kendi belgesini onaylayamaz) ve **vekâlet** desteği.
-- **Tedarikçi magic-link portalı:** Tedarikçinin platformda hesabı olması zorunlu değildir. E-postadaki güvenli, süreli, tek kullanımlık bağlantı ile teklif verir. **TR/EN dil değiştirici** portalda yerleşiktir.
+- **Tedarikçi magic-link portalı:** Tedarikçinin platformda hesabı olması zorunlu değildir. E-postadaki güvenli, süreli, tek kullanımlık bağlantı ile teklif verir. **TR/EN dil değiştirici** portalda yerleşiktir. Teklif kalemleri **kalem bazlı para birimi**, Türkiye-geçerli KDV seçimi ve tedarikçinin kayıtlı vadesine göre otomatik ödeme vadesi ile girilir.
+- **Kalem bazlı fotoğraf/görsel:** Talep açan kişi kaleme fotoğraf/dosya ekler (talep açılırken veya detayda); bu görseller **tedarikçinin teklif sayfasında** kalem altında görünür — doğru ürün için net teklif.
+- **Kalite / bobin testleri:** Mal kabul kalite kontrolünde düzenlenebilir test tablosu (test/metot/spesifikasyon/ölçüm/sonuç) + test raporu ve numune fotoğrafı ekleme; uygunsuzluk (NCR) ve CAPA/8D yönetimi.
+- **Tedarikçi İşbirliği Portalı & PO Workspace:** Her satınalma siparişi, tedarikçi ile ortak bir **çalışma alanıdır** — Belgeler, **Üretim İlerlemesi** (8 aşamalı stepper), **Teknik İnceleme** (yapılandırılmış talep + onay/ret/alternatif karar akışı), **threaded tartışma** (@mention + okundu), Zaman Çizelgesi ve **merkezi bildirimler** tek ekranda. Oturumlu tedarikçi kullanıcıları (`/portal`) yalnız kendi siparişlerini görür; **iç notlar/belgeler/aksiyonlar `isInternal` ile kesin izole edilir**. Ayrıntı: [`docs/architecture-supplier-portal.md`](docs/architecture-supplier-portal.md).
 - **Gerçek e-posta altyapısı:** Sağlayıcı soyutlaması (mock / SMTP / Microsoft Graph / SendGrid / SES), kuyruklama, yeniden deneme, teslim logları. Gelen yanıtları benzersiz Reply-To token'ı veya konu satırındaki RFQ numarası ile doğru RFQ'ya eşleştirme.
 - **Çok şirketli & çok lokasyonlu:** Tenant izolasyonu, RBAC + kayıt bazlı kapsam (16 rol).
 - **Çift dil (TR/EN) baştan tasarlanmış i18n:** Merkezi sözlükler, `t()`, yerele duyarlı sayı/para/tarih biçimlendirme, **Türkçe karakter uyumlu sıralama ve arama**, tedarikçinin tercih ettiği dile göre otomatik e-posta dili. Eksik çeviri anahtarları testle denetlenir.
@@ -35,7 +39,7 @@ Kurumsal **Satınalma ve Tedarikçi Yönetim Platformu** — Talep → Onay → 
 - **Güvenli finansal hesaplama:** Tüm para/miktar aritmetiği `decimal.js` ile; hiçbir yerde floating-point yok. Değerler decimal-as-string olarak saklanır.
 - **Denetim izi:** Değişmez (append-only) audit log; kullanıcı, zaman, IP, önceki/yeni değer.
 - **Durum makineleri:** Talep, RFQ, sipariş, fatura ve tedarikçi için geçersiz durum geçişleri **backend'de** engellenir.
-- **Güvenlik:** httpOnly oturum cookie'leri, bcrypt parola, TOTP MFA (RFC 6238, harici bağımlılık yok), hesap kilitleme, hız sınırlama, güvenlik başlıkları, magic-link/token hash'leme.
+- **Güvenlik:** httpOnly oturum cookie'leri, bcrypt parola, TOTP MFA (RFC 6238, harici bağımlılık yok), hesap kilitleme, hız sınırlama, **CSP** dâhil güvenlik başlıkları, magic-link/token hash'leme, **inbound e-posta webhook HMAC imza doğrulaması**, finansal/operasyonel kayıtlarda **soft-delete** (denetim bütünlüğü).
 
 ---
 
@@ -143,6 +147,27 @@ Ayrıntı: [`docs/architecture.md`](docs/architecture.md) · Süreç akışı: [
 
 ---
 
+## Tedarikçi İşbirliği Portalı & PO Workspace
+
+Her satınalma siparişi, iç ekip ile tedarikçinin ortak çalıştığı bir **iş birliği alanına** dönüşür. Tamamen **additive** (mevcut sipariş/mal kabul/fatura akışları değişmedi), **%100 i18n** (TR/EN, enum'lar UI'da çevrilir), her katmanda **tenant + tedarikçi izolasyonu** (`assertPoAccess` + `isInternal`).
+
+**İç yüzey** `/orders/[id]` ve **tedarikçi portalı** `/portal/orders/[id]` aynı sekmeleri paylaşır (tedarikçi tarafında `forSupplier` filtreli):
+
+| Sekme | Yetenek |
+|---|---|
+| **Genel** | Sipariş kalemleri, tutarlar |
+| **Üretim** | 8 aşamalı üretim stepper'ı (Planlama→…→Tamamlandı), aşama güncelleme + tahmini teslim + geçmiş; finansal PO durumundan **bağımsız** state-machine |
+| **Teknik İncelemeler** | Yapılandırılmış inceleme (Tür/Mevcut/Önerilen/Gerekçe/Etki/Risk/Öncelik/Son Tarih/Ekler) + Coil karar akışı (Onay/Ret/Bilgi İste/Alternatif/Yönlendir/İç Not) + inceleme-içi tartışma |
+| **Belgeler** | Polimorfik dosya/çizim/PDF; `isInternal` ile tedarikçiye kapalı belge desteği |
+| **Tartışma** | Threaded yorum + `@mention` + okundu-sayacı (Slack-tarzı) |
+| **Zaman Çizelgesi** | Değişmez audit akışı (tüm workspace olayları) |
+
+**Tedarikçi kimliği:** Onboarding daveti → parola belirleme → `SUPPLIER_USER` rolüyle oturumlu giriş; login sonrası otomatik `/portal` yönlendirmesi; iç kullanıcılar portal rotalarından, tedarikçiler iç uygulamadan guard'larla ayrılır. **Merkezi `notify()`** her olayda (yorum/mention/teknik karar/üretim aşaması/belge) ilgili katılımcılara ve tedarikçilere **alıcının dilinde** başlık ve **doğru yüzeye** (iç ↔ portal) yönlendiren bildirim üretir.
+
+Mimari & 7 fazlık uygulama planı: [`docs/architecture-supplier-portal.md`](docs/architecture-supplier-portal.md).
+
+---
+
 ## Testler
 
 ```bash
@@ -200,6 +225,8 @@ Yedekleme/geri yükleme: [`docs/backup-restore.md`](docs/backup-restore.md).
 | [`docs/erp-adapter.md`](docs/erp-adapter.md) | ERP adapter geliştirme kılavuzu |
 | [`docs/security-checklist.md`](docs/security-checklist.md) | Güvenlik kontrol listesi |
 | [`docs/deployment.md`](docs/deployment.md) | Üretim dağıtım kılavuzu |
+| [`docs/postgres-migration.md`](docs/postgres-migration.md) | SQLite → PostgreSQL geçiş ve yapılandırma kılavuzu |
+| [`docs/architecture-supplier-portal.md`](docs/architecture-supplier-portal.md) | Tedarikçi İşbirliği Portalı & PO Workspace mimarisi (7 faz) |
 | [`docs/backup-restore.md`](docs/backup-restore.md) | Yedekleme / geri yükleme |
 | [`docs/test-report.md`](docs/test-report.md) | Test raporu |
 
@@ -213,7 +240,9 @@ karşılaştırma/karar, sipariş, **mal kabul** (kısmi/çoklu, miktar validasy
 (sipariş, RFQ, RFQ karşılaştırma, mal kabul, NCR, rapor, tedarikçi — pdfkit, Türkçe font), **raporlar**
 (harcama/operasyon/tedarikçi kırılımı + OTIF/çevrim süresi/onay bekleme/tasarruf — veri yetersizse
 "veri yetersiz" gösterir), **sözleşme / bütçe / katalog / tedarikçi / kullanıcı CRUD**, gerçek bütçe
-rezervasyonu/kontrolü. Liste-only modül, ölü bağlantı veya placeholder **yoktur**.
+rezervasyonu/kontrolü, ve **Tedarikçi İşbirliği Portalı / PO Workspace** (üretim stepper, teknik inceleme
+karar akışı, threaded tartışma + mention, belgeler, zaman çizelgesi, merkezi bildirimler — oturumlu
+tedarikçi portalı + `isInternal` izolasyonu). Liste-only modül, ölü bağlantı veya placeholder **yoktur**.
 
 Gerçekten kalan maddeler yalnızca **harici sistem/hesap** veya **üretim operasyonu** gerektirir:
 

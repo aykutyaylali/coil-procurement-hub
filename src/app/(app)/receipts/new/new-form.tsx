@@ -7,6 +7,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { createGoodsReceipt } from "../actions";
 import { RECEIPT_DISPOSITIONS, label } from "@/domain/labels";
+import { formatQty } from "@/lib/money";
 
 interface OLine { id: string; lineNo: number; description: string; uom: string | null; quantity: string; openQty: string }
 interface Order { id: string; number: string; supplier: string; currency: string; lines: OLine[] }
@@ -129,7 +130,7 @@ export function NewReceiptForm({
                 return (
                   <TR key={l.id}>
                     <TD className="font-medium">{l.description}</TD>
-                    <TD className="text-right">{l.quantity} {l.uom ?? ""}</TD>
+                    <TD className="text-right">{formatQty(l.quantity)} {l.uom ?? ""}</TD>
                     <TD className="text-right text-muted-foreground">{l.openQty}</TD>
                     <TD><Input className="h-8 w-20 text-right" value={s.acceptedQty} onChange={(e) => update(l.id, { acceptedQty: e.target.value }, l.openQty)} /></TD>
                     <TD><Input className="h-8 w-20 text-right" value={s.rejectedQty} onChange={(e) => update(l.id, { rejectedQty: e.target.value }, l.openQty)} /></TD>

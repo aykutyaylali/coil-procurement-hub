@@ -48,8 +48,8 @@ describe("durum etiketleri paritesi (STATUS_LABELS_TR ⇄ STATUS_LABELS_EN)", ()
   });
 
   it("statusLabel doğru dilde etiket döndürür (auto-prettify değil)", () => {
-    expect(statusLabel("IN_RFQ", "tr")).toBe("Teklifte");
-    expect(statusLabel("IN_RFQ", "en")).toBe("In RFQ");
+    expect(statusLabel("IN_RFQ", "tr")).toBe("Teklifler toplanıyor");
+    expect(statusLabel("IN_RFQ", "en")).toBe("Collecting Quotes");
     expect(statusLabel("PENDING_APPROVAL", "en")).toBe("Pending Approval");
   });
 

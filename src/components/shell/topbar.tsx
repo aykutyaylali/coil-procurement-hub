@@ -13,12 +13,14 @@ export function Topbar({
   pendingApprovals,
   unreadNotifications,
   locale,
+  mobileMenu,
 }: {
   userName: string;
   userTitle: string;
   pendingApprovals: number;
   unreadNotifications: number;
   locale: string;
+  mobileMenu?: React.ReactNode;
 }) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -26,6 +28,7 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/80 px-4 backdrop-blur">
+      {mobileMenu}
       <form
         className="relative flex-1 max-w-md"
         onSubmit={(e) => {

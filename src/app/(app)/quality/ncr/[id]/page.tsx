@@ -8,11 +8,13 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { label } from "@/domain/labels";
+import { translator, type Locale } from "@/lib/i18n";
 import { NcrPanel } from "./panel";
 
 export default async function NcrDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.QUALITY_VIEW);
+  const T = translator(user.locale as Locale);
 
   const ncr = await prisma.nonConformance.findFirst({
     where: { id, inspection: { receipt: { order: { tenantId: user.tenantId } } } },
@@ -36,11 +38,11 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
             <StatusBadge status={ncr.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {ncr.title} · {ncr.supplier?.legalName ?? "-"} · Kalite:{" "}
-            <Link href={`/quality/${ncr.inspectionId}`} className="text-primary hover:underline">Kontrol kaydı</Link>
+            {ncr.title} · {ncr.supplier?.legalName ?? "-"} · {T("nav.quality")}:{" "}
+            <Link href={`/quality/${ncr.inspectionId}`} className="text-primary hover:underline">{T("ncr.inspectionRecord")}</Link>
           </p>
         </div>
-        <Link href="/quality" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
+        <Link href="/quality" className="text-sm text-primary hover:underline">{T("quality.backToList")}</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -53,14 +55,14 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div>
           <Card>
-            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("quality.summary")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Tür" value={label(ncr.type)} />
-              <Row label="Sipariş" value={ncr.inspection.receipt.order.number} />
-              <Row label="Hedef Tarih" value={ncr.dueDate ? formatDate(ncr.dueDate) : "-"} />
-              <Row label="Maliyet" value={ncr.cost ? formatMoney(ncr.cost, "TRY") : "-"} />
-              {ncr.description && <Row label="Açıklama" value={ncr.description} />}
-              {ncr.verifiedAt && <Row label="Doğrulandı" value={formatDate(ncr.verifiedAt)} />}
+              <Row label={T("ncr.type")} value={label(ncr.type)} />
+              <Row label={T("quality.order")} value={ncr.inspection.receipt.order.number} />
+              <Row label={T("ncr.dueDate")} value={ncr.dueDate ? formatDate(ncr.dueDate) : "-"} />
+              <Row label={T("ncr.cost")} value={ncr.cost ? formatMoney(ncr.cost, "TRY") : "-"} />
+              {ncr.description && <Row label={T("ncr.description")} value={ncr.description} />}
+              {ncr.verifiedAt && <Row label={T("ncr.verified")} value={formatDate(ncr.verifiedAt)} />}
             </CardContent>
           </Card>
         </div>

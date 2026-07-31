@@ -15,8 +15,62 @@ import { rfqInviteTemplate, rfqReminderTemplate } from "@/lib/email/templates";
 import { formatDateTime } from "@/lib/dates";
 import { ok, fail, type Result, NotFoundError, AppError } from "@/lib/errors";
 
+/**
+ * Taslak/açık bir RFQ'yu İPTAL eder ve bağlı talep kalemlerini yeniden AÇAR
+ * (status OPEN). Böylece tedarikçi seçmeden bırakılan RFQ'lar kalemleri kilitlemez;
+ * satınalma aynı kalemler için yeniden RFQ oluşturabilir. Teklif alınmış RFQ iptal edilmez.
+ */
+export async function cancelRfq(rfqId: string): Promise<Result<{ id: string }>> {
+  try {
+    const user = await requirePermission(PERMISSIONS.RFQ_CREATE);
+    await prisma.$transaction(async (tx) => {
+      const rfq = await tx.rFQ.findFirst({
+        where: { id: rfqId, tenantId: user.tenantId },
+        include: { lines: { select: { requisitionLineId: true } }, _count: { select: { bids: true } } },
+      });
+      if (!rfq) throw new NotFoundError("RFQ bulunamadı.");
+      if (rfq.status === "AWARDED" || rfq.status === "CLOSED") throw new AppError("Karara bağlanmış RFQ iptal edilemez.");
+      if (rfq._count.bids > 0) throw new AppError("Teklif alınmış RFQ iptal edilemez; değerlendirmeye devam edin.");
+
+      // Bağlı talep kalemlerini yeniden aç
+      const reqLineIds = rfq.lines.map((l) => l.requisitionLineId).filter((x): x is string => !!x);
+      if (reqLineIds.length) {
+        await tx.requisitionLine.updateMany({ where: { id: { in: reqLineIds } }, data: { status: "OPEN" } });
+      }
+      // İlgili taleplerin durumunu, açık kalemi olanları IN_RFQ'dan APPROVED'a çek
+      const reqIds = await tx.requisitionLine.findMany({ where: { id: { in: reqLineIds } }, select: { requisitionId: true } });
+      const uniqReqIds = [...new Set(reqIds.map((r) => r.requisitionId))];
+      for (const rid of uniqReqIds) {
+        const req = await tx.purchaseRequisition.findUnique({ where: { id: rid }, select: { status: true } });
+        if (req?.status === "IN_RFQ") {
+          await tx.purchaseRequisition.update({ where: { id: rid }, data: { status: "APPROVED" } });
+        }
+      }
+      // Davetli tedarikçileri ve kalemleri temizle; RFQ başlığı soft-delete
+      // (kayıt denetim için korunur, listelerden gizlenir).
+      await tx.rFQSupplier.deleteMany({ where: { rfqId: rfq.id } });
+      await tx.rFQLine.deleteMany({ where: { rfqId: rfq.id } });
+      await tx.rFQ.update({ where: { id: rfq.id }, data: { deletedAt: new Date(), status: "CANCELLED" } });
+      await writeAudit({ tenantId: user.tenantId, userId: user.id, action: "DELETE", entityType: "RFQ", entityId: rfq.id, before: { number: rfq.number, status: rfq.status }, reason: "RFQ iptal edildi (soft-delete); kalemler yeniden açıldı" }, tx);
+    });
+    revalidatePath("/rfqs");
+    return ok({ id: rfqId });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /** Onaylı talepten RFQ oluşturur (satırları kopyalar). */
-export async function createRfqFromRequisition(requisitionId: string): Promise<Result<{ id: string }>> {
+/**
+ * Talepten RFQ oluşturur. Kalem seçimi ile KISMİ RFQ desteklenir: satınalma,
+ * farklı tedarikçilere gidecek kalemleri ayrı ayrı seçip birden fazla RFQ
+ * oluşturabilir (örn. hırdavat ile bakır teli aynı talepte ama ayrı RFQ'larda).
+ *
+ * @param lineIds Boş/verilmemişse talebin AÇIK (OPEN) tüm kalemleri; verilirse
+ *   yalnızca seçilen açık kalemler RFQ'ya alınır. Kalan açık kalemlerden yeni
+ *   RFQ oluşturmaya devam edilebilir.
+ */
+export async function createRfqFromRequisition(requisitionId: string, lineIds?: string[]): Promise<Result<{ id: string }>> {
   try {
     const user = await requirePermission(PERMISSIONS.RFQ_CREATE);
     const created = await prisma.$transaction(async (tx) => {
@@ -25,8 +79,15 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
         include: { lines: { orderBy: { lineNo: "asc" } } },
       });
       if (!req) throw new NotFoundError("Talep bulunamadı.");
-      if (req.status !== "APPROVED" && req.status !== "ASSIGNED") {
+      // Onaylı/atanmış talepten; kısmi RFQ için IN_RFQ durumunda da devam edilebilir
+      if (!["APPROVED", "ASSIGNED", "IN_RFQ"].includes(req.status)) {
         throw new AppError("Yalnızca onaylanmış talepten RFQ oluşturulabilir.");
+      }
+
+      const openLines = req.lines.filter((l) => l.status === "OPEN");
+      const selected = lineIds && lineIds.length > 0 ? openLines.filter((l) => lineIds.includes(l.id)) : openLines;
+      if (selected.length === 0) {
+        throw new AppError("RFQ'ya alınacak uygun (açık) kalem yok. Lütfen en az bir açık kalem seçin.");
       }
 
       const number = await nextNumber(tx, user.tenantId, "RFQ");
@@ -42,7 +103,7 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
           dueAt: addDays(new Date(), 7),
           createdById: user.id,
           lines: {
-            create: req.lines.map((l, i) => ({
+            create: selected.map((l, i) => ({
               lineNo: i + 1,
               requisitionId: req.id,
               requisitionLineId: l.id,
@@ -55,6 +116,12 @@ export async function createRfqFromRequisition(requisitionId: string): Promise<R
             })),
           },
         },
+      });
+
+      // Seçili kalemleri IN_RFQ olarak işaretle (kalan açık kalemler yeni RFQ'ya alınabilir)
+      await tx.requisitionLine.updateMany({
+        where: { id: { in: selected.map((l) => l.id) } },
+        data: { status: "IN_RFQ" },
       });
 
       await tx.purchaseRequisition.update({
@@ -117,6 +184,9 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
       .map((l) => `• ${l.description} (${l.quantity} ${l.uom ?? ""})`)
       .join("<br/>");
 
+    // E-postalar transaction DIŞINDA kuyruğa alınır (SQLite'ta iç içe yazma kilidi olmasın)
+    const emailsToQueue: Parameters<typeof queueEmail>[0][] = [];
+
     await prisma.$transaction(async (tx) => {
       for (const supplier of suppliers) {
         const existing = await tx.rFQSupplier.findUnique({
@@ -165,7 +235,7 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
 
         // Reply-To benzersiz token içerir => gelen yanıt doğru RFQ'ya bağlanır
         const replyTo = `rfq+${replyToken}@${env.EMAIL_INBOUND_DOMAIN}`;
-        await queueEmail({
+        emailsToQueue.push({
           tenantId: user.tenantId,
           to: contact?.email ?? `${supplier.code}@tedarikci.example`,
           subject: `[${rfq.number}] ${tmpl.subject}`,
@@ -206,6 +276,11 @@ export async function sendRfqToSuppliers(input: unknown): Promise<Result<{ sent:
         tx,
       );
     });
+
+    // E-postaları transaction'dan SONRA kuyruğa al (SQLite iç içe yazma kilidi olmaz)
+    for (const e of emailsToQueue) {
+      await queueEmail(e);
+    }
 
     // Kuyruğu işle (gerçek gönderim; mock modda konsola loglar)
     const result = await processQueue();

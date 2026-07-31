@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { completeInspection, createNonConformance } from "../actions";
 import { QUALITY_RESULTS, NCR_SEVERITIES, label } from "@/domain/labels";
+import { useI18n } from "@/components/i18n-provider";
 
 export function InspectionPanel({
   inspectionId,
@@ -19,6 +20,7 @@ export function InspectionPanel({
   users: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [result, setResult] = useState("PASS");
   const [sampleSize, setSampleSize] = useState("");
   const [sampleResult, setSampleResult] = useState("");
@@ -67,29 +69,29 @@ export function InspectionPanel({
 
       {status === "PENDING" && (
         <Card>
-          <CardHeader><CardTitle>Kalite Kontrolü Tamamla</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("quality.completeTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label>Sonuç</Label>
+                <Label>{t("quality.result")}</Label>
                 <Select value={result} onChange={(e) => setResult(e.target.value)}>
                   {QUALITY_RESULTS.map((r) => (<option key={r} value={r}>{label(r)}</option>))}
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Numune Adedı</Label>
+                <Label>{t("quality.sampleSize")}</Label>
                 <Input value={sampleSize} onChange={(e) => setSampleSize(e.target.value)} placeholder="Örn: 8" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Ölçüm / Numune Sonuçları</Label>
+              <Label>{t("quality.measureResults")}</Label>
               <Textarea value={sampleResult} onChange={(e) => setSampleResult(e.target.value)} placeholder="Ölçüm sonuçları, kontrol planı notları..." />
             </div>
             <div className="space-y-1.5">
-              <Label>Açıklama</Label>
+              <Label>{t("common.description")}</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <Button onClick={complete} disabled={busy}>{busy ? "Kaydediliyor..." : "Kontrolü Tamamla"}</Button>
+            <Button onClick={complete} disabled={busy}>{busy ? t("quality.saving") : t("quality.complete")}</Button>
           </CardContent>
         </Card>
       )}

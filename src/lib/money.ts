@@ -120,4 +120,26 @@ export function formatMoney(
   }
 }
 
+/**
+ * Miktar / adet görüntüleme: gereksiz küsurat sıfırları temizlenir.
+ * Örn "10000.0000" → "10.000", "12.5000" → "12,5" (tr-TR binlik/ondalık).
+ */
+export function formatQty(value: DecimalInput, locale = "tr-TR", maxFractionDigits = 3): string {
+  const num = d(value).toNumber();
+  try {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: maxFractionDigits }).format(num);
+  } catch {
+    return d(value).toDecimalPlaces(maxFractionDigits).toString();
+  }
+}
+
+/**
+ * Tutar görüntüleme; değer 0 (veya boş) ise "fiyatlandırılmamış" anlamında
+ * placeholder döner (talep açan fiyat girmez → 0,00 yerine "Belirlenmedi").
+ */
+export function formatMoneyOrDash(value: DecimalInput, currency = "TRY", placeholder = "Belirlenmedi", locale = "tr-TR"): string {
+  if (d(value).isZero()) return placeholder;
+  return formatMoney(value, currency, locale);
+}
+
 export { Decimal };

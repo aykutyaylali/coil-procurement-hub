@@ -10,7 +10,10 @@ import { PrismaClient } from "@prisma/client";
  */
 const PW = "Coil2026!";
 const prisma = new PrismaClient();
-test.afterAll(async () => { await prisma.$disconnect(); });
+const ALWAYS = JSON.stringify({ reqApproval: { mode: "ALWAYS", threshold: "0" } });
+// Bu test onay zincirini doğrular → politikayı ALWAYS yap; sonra varsayılana (NEVER/"{}") döndür.
+test.beforeAll(async () => { await prisma.company.updateMany({ data: { settings: ALWAYS } }); });
+test.afterAll(async () => { await prisma.company.updateMany({ data: { settings: "{}" } }); await prisma.$disconnect(); });
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -30,9 +33,8 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   // Departman = Üretim (seed'de amir bu departmanın amiri → step-0 onaycı)
   await page.locator("select").nth(1).selectOption({ label: "Üretim" }).catch(() => {});
   await page.getByPlaceholder("Malzeme / hizmet açıklaması").first().fill(`E2E kalem ${stamp}`);
-  await page.locator('input[value="1"]').first().fill("100").catch(() => {});
-  await page.locator('input[value="0"]').first().fill("300").catch(() => {});
-  await page.getByRole("button", { name: /Kaydet ve Onaya Gönder/ }).click();
+  await page.locator('label:has-text("Miktar") + input').first().fill("100").catch(() => {});
+  await page.getByRole("button", { name: /Kaydet ve Gönder/ }).click();
   await expect(page).toHaveURL(/\/requisitions\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const reqId = page.url().split("/requisitions/")[1]!.split("?")[0]!;
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toBe("PENDING_APPROVAL");
@@ -52,10 +54,10 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 15000 }).toMatch(/APPROVED|IN_RFQ/);
   await context.clearCookies();
 
-  // 4) Satınalma uzmanı: RFQ oluştur
+  // 4) Satınalma uzmanı: kalemlerden RFQ oluştur (yeni akış: kalem seçimi)
   await login(page, "satinalma@coilpartners.com");
   await page.goto(`/requisitions/${reqId}`);
-  await page.getByRole("button", { name: /Teklif Talebi \(RFQ\) Oluştur/ }).click();
+  await page.getByRole("button", { name: /Tüm açık kalemlerden tek RFQ/ }).click();
   await expect(page).toHaveURL(/\/rfqs\/[a-z0-9]{20,}/i, { timeout: 20000 });
   const rfqId = page.url().split("/rfqs/")[1]!.split("?")[0]!;
 
@@ -64,9 +66,43 @@ test("E2E ön yarı: talep→onay→onay→RFQ→gönder→2 magic-link teklif",
   expect(rfq).toBeTruthy();
   await expect.poll(async () => (await prisma.purchaseRequisition.findUnique({ where: { id: reqId } }))?.status, { timeout: 10000 }).toBe("IN_RFQ");
 
-  // SendPanel görünür (tedarikçi daveti UI'ı hazır). Gönderim + teklif akışı
-  // tests/integration/full-chain.test.ts içinde deterministik olarak doğrulanır.
+  // SendPanel görünür (tedarikçi daveti UI'ı hazır).
   await expect(page.getByText("Tedarikçilere Gönder")).toBeVisible({ timeout: 15000 });
+
+  // Tedarikçiye GÖNDER (SQLite transaction+queueEmail kilidi regresyonu): listeden ilk tedarikçiyi seç + gönder
+  const supplierCb = page.locator("div.max-h-48 input[type='checkbox']").first();
+  await supplierCb.scrollIntoViewIfNeeded();
+  await supplierCb.check();
+  await expect(supplierCb).toBeChecked();
+  await page.getByRole("button", { name: /Seçili \d+ tedarikçiye gönder/ }).click();
+  await page.waitForTimeout(2500);
+  // DB hatası ("Veritabanı işlemi tamamlanamadı") gösterilmemeli
+  const errs = await page.locator(".text-destructive, .text-success").allInnerTexts();
+  console.log("SEND PANEL MESAJ:", JSON.stringify(errs));
+  expect(errs.join(" ")).not.toMatch(/Veritabanı işlemi tamamlanamadı|database is locked/i);
+  // Davet oluşmalı
+  await expect.poll(async () => prisma.rFQSupplier.count({ where: { rfqId } }), { timeout: 15000 }).toBeGreaterThan(0);
+
+  // Satınalma, tedarikçi teklif sayfasını ÖNİZLER (kontrol amaçlı, token'sız)
+  await page.goto(`/teklif-onizleme/${rfqId}`);
+  await expect(page.getByText(/ÖNİZLEME/)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(rfq!.number)).toBeVisible();
+
+  // Satınalma, TEDARİKÇİ ADINA teklif girer (manuel giriş / düzeltme)
+  const rs = await prisma.rFQSupplier.findFirst({ where: { rfqId }, select: { id: true } });
+  await page.goto(`/rfqs/${rfqId}/teklif-gir/${rs!.id}`);
+  await expect(page.getByText(/Tedarikçi Adına Teklif/)).toBeVisible({ timeout: 15000 });
+  // KDV artık seçim (dropdown); birim fiyat (w-28) gir + gönder
+  await page.locator("input.w-28").first().fill("250");
+  await page.getByRole("button", { name: /Teklifi Gönder/ }).click();
+  await page.getByRole("button", { name: /Onayla ve Gönder/ }).click();
+  await expect.poll(async () => prisma.bid.count({ where: { rfqSupplierId: rs!.id } }), { timeout: 15000 }).toBeGreaterThan(0);
+
+  // Yanıtlanan RFQ, "Teklif Geldi" filtresinde bulunabilmeli (keşfedilebilirlik)
+  await expect.poll(async () => (await prisma.rFQSupplier.findUnique({ where: { id: rs!.id } }))?.status, { timeout: 10000 }).toBe("RESPONDED");
+  await page.goto("/rfqs?filter=responded");
+  await expect(page.locator(`a:has-text("${rfq!.number}")`).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/yanıtladı/).first()).toBeVisible();
   void context;
-  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→amir onayı→müdür onayı→RFQ oluşturma zinciri doğrulandı.`);
+  console.log(`E2E (tarayıcı) OK: reqId=${reqId} rfqId=${rfqId} — talep→onay→RFQ→gönder→önizle→tedarikçi adına teklif→"Teklif Geldi" listesi doğrulandı.`);
 });

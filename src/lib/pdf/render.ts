@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/dates";
 const FONT_DIR = path.join(process.cwd(), "public", "fonts");
 const FONT_REGULAR = path.join(FONT_DIR, "DejaVuSans.ttf");
 const FONT_BOLD = path.join(FONT_DIR, "DejaVuSans-Bold.ttf");
+const LOGO_PATH = path.join(process.cwd(), "public", "brand", "coil-logo.png");
 
 const BRAND = "#2563eb";
 const DARK = "#0f172a";
@@ -62,16 +63,22 @@ export function renderPdf(spec: PdfSpec): Promise<Buffer> {
 
   // --- Başlık / marka ---
   doc.rect(pageLeft, 40, contentWidth, 60).fill("#f8fafc");
-  // Logo monogram
-  doc.rect(pageLeft + 12, 52, 36, 36).fill(BRAND);
-  doc.fillColor("#ffffff").font("bold").fontSize(20).text("C", pageLeft + 22, 60);
-  doc.fillColor(DARK).font("bold").fontSize(15).text(spec.company.name, pageLeft + 60, 54, { width: contentWidth - 220 });
+  // Gerçek şirket logosu (yüklenemezse "C" monogramına düşer — PDF asla bozulmaz)
+  let nameX = pageLeft + 60;
+  try {
+    doc.image(LOGO_PATH, pageLeft + 12, 54, { fit: [110, 34] });
+    nameX = pageLeft + 132;
+  } catch {
+    doc.rect(pageLeft + 12, 52, 36, 36).fill(BRAND);
+    doc.fillColor("#ffffff").font("bold").fontSize(20).text("C", pageLeft + 22, 60);
+  }
+  doc.fillColor(DARK).font("bold").fontSize(14).text(spec.company.name, nameX, 54, { width: pageRight - nameX - 230 });
   doc.font("body").fontSize(8).fillColor(MUTED);
   const compMeta = [
     spec.company.taxOffice && spec.company.taxNumber ? `VD: ${spec.company.taxOffice} / VKN: ${spec.company.taxNumber}` : null,
     spec.company.address,
   ].filter(Boolean).join("  ·  ");
-  if (compMeta) doc.text(compMeta, pageLeft + 60, 74, { width: contentWidth - 220 });
+  if (compMeta) doc.text(compMeta, nameX, 76, { width: pageRight - nameX - 230 });
 
   // Belge türü + numara (sağ üst)
   doc.font("bold").fontSize(13).fillColor(BRAND).text(spec.docTypeLabel, pageRight - 220, 52, { width: 208, align: "right" });

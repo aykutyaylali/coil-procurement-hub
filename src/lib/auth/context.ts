@@ -20,6 +20,11 @@ export interface AuthUser {
   permissions: Set<string>;
   /** Kayıt bazlı erişim kapsamları: scopeType -> id set */
   scopes: Record<string, Set<string>>;
+  /**
+   * Tedarikçi portalı kullanıcısıysa bağlı tedarikçi id'si (SupplierContact.userId
+   * üzerinden çözülür); iç kullanıcılarda null. PO Workspace izolasyonunda kullanılır.
+   */
+  supplierId: string | null;
 }
 
 /**
@@ -35,6 +40,7 @@ export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
     include: {
       userRoles: { include: { role: true } },
       scopes: true,
+      supplierUser: { select: { supplierId: true } },
     },
   });
   if (!user || !user.isActive) return null;
@@ -76,6 +82,7 @@ export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
     roleKeys,
     permissions,
     scopes,
+    supplierId: user.supplierUser?.supplierId ?? null,
   };
 });
 
@@ -107,3 +114,6 @@ export function userInScope(user: AuthUser, scopeType: string, scopeId: string |
   if (!set || set.size === 0) return true; // kapsam kısıtı tanımlı değil
   return scopeId ? set.has(scopeId) : true;
 }
+
+// PO Workspace izolasyon guard'ları saf modülde tutulur (birim-test edilebilir).
+export { isSupplierUser, assertPoAccess } from "./po-access";

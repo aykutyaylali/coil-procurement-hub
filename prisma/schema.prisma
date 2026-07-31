@@ -15,8 +15,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "sqlite"
+  url       = env("DATABASE_URL")
+  // Migration/introspection için doğrudan (pooler'sız) bağlantı. Prod'da Neon DIRECT
+  // string'i; dev'de DATABASE_URL ile aynı SQLite dosyası (bkz. .env / .env.example).
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +216,9 @@ model User {
 
   isActive      Boolean  @default(true)
   isSystemAdmin Boolean  @default(false)
+  // Geçmiş veriden içe aktarılan talep sahipleri (giriş yapamaz; passwordHash null)
+  isImported    Boolean  @default(false)
+  importBatchId String?
 
   // MFA
   mfaEnabled    Boolean  @default(false)
@@ -394,6 +400,7 @@ model ApprovalInstance {
 
   actions ApprovalAction[]
 
+  @@index([status])
   @@index([documentType, documentId])
   @@index([workflowId])
 }
@@ -605,6 +612,7 @@ model Supplier {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([tenantId, taxNumber])
+  @@index([tenantId, legalName])
 }
 
 model SupplierContact {
@@ -619,6 +627,12 @@ model SupplierContact {
   // Portal kullanıcısı (opsiyonel)
   userId     String?  @unique
   user       User?    @relation(fields: [userId], references: [id])
+  // Kalıcı portal davet bağlantısı (süresiz; admin pasife alana kadar geçerli).
+  // Ham token saklanır ki admin cari sayfasında linki tekrar görüp kopyalayabilsin
+  // (yalnız iç/yetkili sayfada gösterilir). Revoke edilince login+link kapanır.
+  portalInviteToken     String?   @unique
+  portalInviteCreatedAt DateTime?
+  portalInviteRevokedAt DateTime?
 
   @@index([supplierId])
 }
@@ -818,14 +832,22 @@ model PurchaseRequisition {
   internalNote  String?  // tedarikçiye gösterilmez
   estimatedTotal String  @default("0") // decimal-as-string
   assignedBuyerId String?
+  // Çift gönderim/çift tıklama koruması (idempotency): aynı istek anahtarı tek talep üretir
+  clientRequestId String?
+  // Geçmiş veriden içe aktarma
+  isImported    Boolean  @default(false)
+  importBatchId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines     RequisitionLine[]
   rfqLines  RFQLine[]
 
   @@unique([tenantId, number])
+  @@unique([tenantId, clientRequestId])
   @@index([tenantId, status])
+  @@index([tenantId, status, createdAt])
   @@index([companyId])
   @@index([requesterId])
 }
@@ -886,6 +908,7 @@ model RFQ {
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines     RFQLine[]
   suppliers RFQSupplier[]
@@ -996,6 +1019,8 @@ model Bid {
   otherCharges  String  @default("0")
   note          String?
   submittedAt   DateTime?
+  // Teklif kaynağı: PORTAL (tedarikçi magic-link) | MANUAL (satınalma girdi) | EMAIL
+  source        String   @default("PORTAL")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -1022,6 +1047,8 @@ model BidLine {
   unitPrice   String   @default("0") // decimal-as-string
   discountPct String   @default("0")
   taxRate     String   @default("20")
+  // Kalem bazında para birimi (bazı kalem TL, bazı USD/EUR olabilir). Boşsa teklif para birimi.
+  currency    String?
   minOrderQty String?
   leadTimeDays Int?
   deliveryDate DateTime?
@@ -1134,9 +1161,17 @@ model PurchaseOrder {
   sourceRowNo     Int?
   requesterName   String?
   requisitionNumber String?
+  // PO Workspace: üretim aşaması (finansal `status`'tan AYRI boyut). Güncel aşama;
+  // geçmiş POProductionUpdate'te. enum: PLANNING | WAITING_RAW_MATERIAL | PRODUCTION_STARTED
+  //  | QUALITY_INSPECTION | READY_FOR_SHIPMENT | LOADED | SHIPPED | COMPLETED
+  productionStage String?
+  // Öngörülen teslim tarihi (proje seviyesi). Planlamada bir kez girilir; sonraki
+  // aşamalarda taşınır — tedarikçi her aşamada tekrar girmez, sadece değiştirmek isterse.
+  promisedDeliveryDate DateTime?
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines         PurchaseOrderLine[]
   revisions     OrderRevision[]
@@ -1145,9 +1180,13 @@ model PurchaseOrder {
   goodsReceipts GoodsReceipt[]
   invoices      Invoice[]
   landedCosts   LandedCostItem[]
+  workspaceParticipants POParticipant[]
+  productionUpdates     POProductionUpdate[]
+  technicalReviews      TechnicalReview[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
   @@index([supplierId])
 }
 
@@ -1300,6 +1339,7 @@ model QualityInspection {
   planRef     String?  // kontrol planı referansı
   sampleSize  String?
   sampleResult String? // numune/ölçüm sonuçları (JSON veya metin)
+  testsJson   String? // bobin testleri: [{name,method,spec,measured,result}] JSON dizisi
   inspectedBy String?
   inspectedAt DateTime?
   note        String?
@@ -1369,6 +1409,7 @@ model Invoice {
   source        String   @default("MANUAL") // MANUAL | UPLOAD | EMAIL | EINVOICE | ERP
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime? // soft delete (denetim bütünlüğü)
 
   lines   InvoiceLine[]
   matches InvoiceMatch[]
@@ -1474,14 +1515,132 @@ model BudgetTransaction {
 
 model Comment {
   id         String   @id @default(cuid())
+  tenantId   String?  // PO Workspace scoping (additive; eski kayıtlarda null)
   entityType String
   entityId   String
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   body       String
   isInternal Boolean  @default(true) // true => tedarikçi göremez
+  // Threaded discussion: yanıt zinciri (self-relation)
+  parentId   String?
+  parent     Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies    Comment[] @relation("CommentThread")
+  mentions   CommentMention[]
   createdAt  DateTime @default(now())
 
+  @@index([entityType, entityId])
+  @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// PO WORKSPACE (Tedarikçi İşbirliği Portalı) — additive; mevcut akışları bozmaz.
+// Görünürlük `isInternal` ile: tedarikçi yalnızca isInternal=false içerik görür.
+// userId alanları PurchaseOrder.createdById gibi düz String'tir (User relation yok).
+// ---------------------------------------------------------------------------
+
+// PO çalışma alanı katılımcıları — mention hedefi + bildirim yönlendirme + açık davet.
+model POParticipant {
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  // rol: PURCHASING | PLANNING | TECHNICAL | QUALITY | WAREHOUSE | MANAGEMENT | SUPPLIER
+  role      String
+  addedById String?
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+// Üretim ilerleme günlüğü (Master §6) — finansal PO durumundan AYRI. Güncel aşama
+// PurchaseOrder.productionStage'te; bu tablo tarihçedir.
+model POProductionUpdate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // aşama: PLANNING | WAITING_RAW_MATERIAL | PRODUCTION_STARTED | QUALITY_INSPECTION
+  //  | READY_FOR_SHIPMENT | LOADED | SHIPPED | COMPLETED
+  stage      String
+  note       String?
+  estDate    DateTime?
+  updatedById String  // tedarikçi VEYA iç kullanıcı
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+  @@index([tenantId])
+}
+
+// Teknik İnceleme (Master §7) — tedarikçinin yapılandırılmış talebi + Coil kararı.
+model TechnicalReview {
+  id          String   @id @default(cuid())
+  tenantId    String
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderLineId String?
+  supplierId  String
+  createdById String   // tedarikçi kullanıcısı
+  reviewType  String   // DIMENSION | MATERIAL | PROCESS | TOLERANCE | SUBSTITUTION | OTHER
+  currentValue  String?
+  proposedValue String?
+  reason        String?
+  technicalExplanation String?
+  impact      String?
+  risk        String?  // LOW | MEDIUM | HIGH
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  deadline    DateTime?
+  // OPEN | APPROVED | REJECTED | INFO_REQUESTED | ALTERNATIVE_SUGGESTED | FORWARDED | CLOSED
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  actions     TechnicalReviewAction[]
+
+  @@index([orderId])
+  @@index([tenantId])
+  @@index([supplierId])
+}
+
+// Teknik İnceleme karar geçmişi (kalıcı) — Approve/Reject/Info/Alternative/Forward/Internal.
+model TechnicalReviewAction {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    TechnicalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  // APPROVE | REJECT | REQUEST_INFO | SUGGEST_ALTERNATIVE | FORWARD | INTERNAL_NOTE
+  action    String
+  byUserId  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+}
+
+// Yorumlarda @mention (threaded discussion).
+model CommentMention {
+  id              String   @id @default(cuid())
+  commentId       String
+  comment         Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  @@unique([commentId, mentionedUserId])
+  @@index([mentionedUserId])
+}
+
+// Okundu-işareti (kullanıcı × varlık son-okuma damgası) — verimli okunmamış sayacı.
+model ThreadRead {
+  id         String   @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  lastReadAt DateTime
+
+  @@unique([userId, entityType, entityId])
   @@index([entityType, entityId])
 }
 

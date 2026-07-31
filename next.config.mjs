@@ -2,7 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: "standalone",
+  // Standalone çıktısı YALNIZCA Docker/deploy build'inde (NEXT_OUTPUT_STANDALONE=true).
+  // Lokal `npm run prod` (next start) normal çıktı kullanır; aksi halde standalone ile
+  // `next start` statik dosyaları sunamaz (chunk'lar 400 → "client-side exception").
+  output: process.env.NEXT_OUTPUT_STANDALONE === "true" ? "standalone" : undefined,
   // pdfkit'i webpack ile paketleme; runtime'da node_modules'tan yÃ¼kle
   serverExternalPackages: ["pdfkit"],
   eslint: {

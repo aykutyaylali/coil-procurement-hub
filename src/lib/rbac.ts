@@ -57,6 +57,15 @@ export const PERMISSIONS = {
   ADMIN_WORKFLOWS: "admin.workflows",
   ADMIN_INTEGRATIONS: "admin.integrations",
   AUDIT_VIEW: "audit.view",
+  // PO Workspace & Tedarikçi İşbirliği Portalı
+  PO_WORKSPACE_VIEW: "po.workspace.view",
+  PO_WORKSPACE_COMMENT: "po.workspace.comment",       // tedarikçiye açık (isInternal=false) yorum
+  PO_INTERNAL_COMMENT: "po.workspace.internalComment", // yalnız iç (isInternal=true) tartışma
+  PO_PRODUCTION_UPDATE: "po.production.update",
+  PO_PARTICIPANT_MANAGE: "po.participant.manage",
+  TECH_REVIEW_VIEW: "techreview.view",
+  TECH_REVIEW_CREATE: "techreview.create",             // tedarikçi oluşturur
+  TECH_REVIEW_DECIDE: "techreview.decide",             // Coil karar verir (approve/reject/...)
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -117,8 +126,25 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.REQUISITION_APPROVE,
     P.CATALOG_VIEW,
     P.REPORT_VIEW,
+    // PO Workspace (planlama/yönetim tarafı: görüntüle + yorum + iç tartışma)
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_INTERNAL_COMMENT,
+    P.TECH_REVIEW_VIEW,
   ],
-  TECHNICAL_APPROVER: [P.REQUISITION_VIEW, P.REQUISITION_APPROVE, P.RFQ_VIEW, P.CATALOG_VIEW],
+  TECHNICAL_APPROVER: [
+    P.REQUISITION_VIEW,
+    P.REQUISITION_APPROVE,
+    P.RFQ_VIEW,
+    P.CATALOG_VIEW,
+    // PO Workspace (teknik: yorum/iç tartışma + teknik inceleme kararı)
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_INTERNAL_COMMENT,
+    P.TECH_REVIEW_VIEW,
+    P.TECH_REVIEW_CREATE,
+    P.TECH_REVIEW_DECIDE,
+  ],
   BUDGET_APPROVER: [
     P.REQUISITION_VIEW,
     P.REQUISITION_APPROVE,
@@ -154,6 +180,15 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.CATALOG_VIEW,
     P.CONTRACT_VIEW,
     P.REPORT_VIEW,
+    // PO Workspace (tam)
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_INTERNAL_COMMENT,
+    P.PO_PRODUCTION_UPDATE,
+    P.PO_PARTICIPANT_MANAGE,
+    P.TECH_REVIEW_VIEW,
+    P.TECH_REVIEW_CREATE,
+    P.TECH_REVIEW_DECIDE,
   ],
   PURCHASING_MANAGER: [
     P.REQUISITION_VIEW,
@@ -181,6 +216,15 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.CONTRACT_MANAGE,
     P.BUDGET_VIEW,
     P.REPORT_VIEW,
+    // PO Workspace (tam)
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_INTERNAL_COMMENT,
+    P.PO_PRODUCTION_UPDATE,
+    P.PO_PARTICIPANT_MANAGE,
+    P.TECH_REVIEW_VIEW,
+    P.TECH_REVIEW_CREATE,
+    P.TECH_REVIEW_DECIDE,
   ],
   QUALITY_USER: [
     P.RECEIPT_VIEW,
@@ -188,8 +232,13 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.QUALITY_INSPECT,
     P.SUPPLIER_VIEW,
     P.REPORT_VIEW,
+    // PO Workspace (kalite: görüntüle/yorum + üretim-kalite aşaması + teknik inceleme görüntüle)
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_PRODUCTION_UPDATE,
+    P.TECH_REVIEW_VIEW,
   ],
-  WAREHOUSE_USER: [P.ORDER_VIEW, P.RECEIPT_VIEW, P.RECEIPT_CREATE],
+  WAREHOUSE_USER: [P.ORDER_VIEW, P.RECEIPT_VIEW, P.RECEIPT_CREATE, P.PO_WORKSPACE_VIEW, P.PO_PRODUCTION_UPDATE],
   ACCOUNTING_USER: [
     P.ORDER_VIEW,
     P.INVOICE_VIEW,
@@ -208,6 +257,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.BUDGET_VIEW,
     P.REPORT_VIEW,
     P.AUDIT_VIEW,
+    P.PO_WORKSPACE_VIEW,
+    P.TECH_REVIEW_VIEW,
   ],
   VIEWER: [
     P.REQUISITION_VIEW,
@@ -216,9 +267,26 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.SUPPLIER_VIEW,
     P.CATALOG_VIEW,
     P.REPORT_VIEW,
+    P.PO_WORKSPACE_VIEW,
+    P.TECH_REVIEW_VIEW,
   ],
-  SUPPLIER_MANAGER: [], // tedarikçi portalı (ayrı yüzey)
-  SUPPLIER_USER: [], // tedarikçi portalı (ayrı yüzey)
+  // Tedarikçi portalı (ayrı yüzey) — izinler TEDARİKÇİ-SCOPED'tur:
+  // taşıyıcı guard (assertPoAccess) yalnızca kendi supplierId'sine ait PO'lara izin verir.
+  SUPPLIER_USER: [
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,   // yalnız isInternal=false yorum
+    P.PO_PRODUCTION_UPDATE,   // kendi üretim aşaması güncellemesi
+    P.TECH_REVIEW_CREATE,
+    P.TECH_REVIEW_VIEW,
+  ],
+  SUPPLIER_MANAGER: [
+    P.PO_WORKSPACE_VIEW,
+    P.PO_WORKSPACE_COMMENT,
+    P.PO_PRODUCTION_UPDATE,
+    P.TECH_REVIEW_CREATE,
+    P.TECH_REVIEW_VIEW,
+    P.PO_PARTICIPANT_MANAGE,  // kendi ekibini (tedarikçi kullanıcıları) yönetir
+  ],
 };
 
 export function permissionsForRoles(roleKeys: string[]): Set<string> {

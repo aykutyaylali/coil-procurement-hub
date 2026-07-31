@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ingestInboundEmail } from "@/lib/email/service";
@@ -8,8 +9,23 @@ import { ingestInboundEmail } from "@/lib/email/service";
  * gibi sağlayıcılardan). Reply-To token'ı veya konu satırındaki RFQ numarası ile
  * doğru RFQ'ya eşleştirir. Eşleşmezse "eşleştirme bekleyen" kuyruğuna alır.
  *
- * Güvenlik: Üretimde webhook imza doğrulaması eklenmelidir (docs/email-*.md).
+ * Güvenlik: EMAIL_WEBHOOK_SECRET ayarlıysa gövde HMAC-SHA256 imzası zorunludur
+ * (x-webhook-signature başlığı, hex). Secret yoksa (dev) doğrulama atlanır.
  */
+
+/** Gövde imzasını sabit-zamanlı karşılaştırma ile doğrular. */
+function verifySignature(rawBody: string, signature: string | null): boolean {
+  const secret = process.env.EMAIL_WEBHOOK_SECRET;
+  if (!secret) return true; // dev / imzasız mod
+  if (!signature) return false;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  // Uzunluk farkı timingSafeEqual'ı patlatmasın diye önce boyut kontrolü
+  const sigBuf = Buffer.from(signature, "hex");
+  const expBuf = Buffer.from(expected, "hex");
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, expBuf);
+}
+
 const schema = z.object({
   tenantSlug: z.string().optional(),
   from: z.string(),
@@ -20,9 +36,15 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Ham gövde imza doğrulaması için gerekir (JSON.parse'tan önce)
+  const rawBody = await req.text();
+  if (!verifySignature(rawBody, req.headers.get("x-webhook-signature"))) {
+    return NextResponse.json({ error: "Geçersiz imza" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Geçersiz JSON" }, { status: 400 });
   }

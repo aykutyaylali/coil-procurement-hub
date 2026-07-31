@@ -7,6 +7,8 @@ export interface NavItem {
   icon: string; // lucide icon adı
   permission?: Permission;
   group: "main" | "procurement" | "supply" | "finance" | "master" | "admin";
+  /** İleri-seviye: günlük kullanıcının ana menüsünü yormaz; grup altında "İleri" bölümünde toplanır. */
+  secondary?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -14,6 +16,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", labelKey: "nav.tasks", label: "Görevlerim", icon: "CheckSquare", group: "main" },
   { href: "/approvals", labelKey: "nav.approvals", label: "Onaylarım", icon: "Stamp", group: "main" },
 
+  // Satınalma grubu düz listelenir (tek öğe için "İleri" katlanır bölümü gereksizdi).
+  { href: "/islem-merkezi", labelKey: "nav.islemMerkezi", label: "Satınalma İşlem Merkezi", icon: "LayoutList", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/requisitions", labelKey: "nav.requisitions", label: "Talepler", icon: "FileText", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/rfqs", labelKey: "nav.rfqs", label: "Teklif Talepleri", icon: "Send", permission: PERMISSIONS.RFQ_VIEW, group: "procurement" },
   { href: "/orders", labelKey: "nav.orders", label: "Siparişler", icon: "ShoppingCart", permission: PERMISSIONS.ORDER_VIEW, group: "procurement" },

@@ -6,8 +6,10 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime, formatDate } from "@/lib/dates";
 import { env } from "@/lib/env";
+import { ensureFreshRates, getLatestRates } from "@/lib/exchange/service";
+import { ExchangeRatesCard } from "./exchange-card";
 
 export const metadata: Metadata = { title: "Entegrasyonlar" };
 
@@ -22,11 +24,13 @@ const CONNECTORS = [
 
 export default async function IntegrationsPage() {
   const user = await requirePermission(PERMISSIONS.ADMIN_INTEGRATIONS);
-  const jobs = await prisma.integrationJob.findMany({
-    where: { tenantId: user.tenantId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  // TCMB kurları otomatik: bugünün kuru yoksa çekilir (ağ hatasında sessiz geçer)
+  await ensureFreshRates(user.tenantId);
+  const [jobs, rates] = await Promise.all([
+    prisma.integrationJob.findMany({ where: { tenantId: user.tenantId }, orderBy: { createdAt: "desc" }, take: 50 }),
+    getLatestRates(user.tenantId),
+  ]);
+  const rateRows = rates.map((r) => ({ quote: r.quote, rate: r.rate, rateDate: formatDate(r.rateDate) }));
 
   return (
     <div>
@@ -50,6 +54,11 @@ export default async function IntegrationsPage() {
           </Card>
         ))}
       </div>
+
+      <div className="mb-6">
+        <ExchangeRatesCard rates={rateRows} />
+      </div>
+
       <Card>
         <CardHeader><CardTitle>Son Entegrasyon İşleri</CardTitle></CardHeader>
         <CardContent className="p-0">

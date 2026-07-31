@@ -3,18 +3,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { submitOrderForApproval, decideOrder, sendOrderToSupplier } from "../actions";
+import { submitOrderForApproval, confirmOrderDirect, decideOrder, sendOrderToSupplier, confirmAndSendOrder } from "../actions";
 
 export function OrderActionsPanel({
   id,
   status,
   canDecide,
   canSend,
+  canApprove,
 }: {
   id: string;
   status: string;
   canDecide: boolean;
   canSend: boolean;
+  canApprove: boolean;
 }) {
   const router = useRouter();
   const [note, setNote] = useState("");
@@ -39,9 +41,31 @@ export function OrderActionsPanel({
       {msg && <p className="rounded bg-success/10 px-3 py-2 text-sm text-success">{msg}</p>}
 
       {status === "DRAFT" && (
-        <Button className="w-full" disabled={busy} onClick={() => run(() => submitOrderForApproval(id))}>
-          Onaya Gönder
-        </Button>
+        <div className="space-y-2">
+          {canApprove && canSend && (
+            <Button
+              className="w-full"
+              disabled={busy}
+              onClick={async () => {
+                const res = await run(() => confirmAndSendOrder(id));
+                if (res.ok) setMsg("Sipariş onaylandı ve tedarikçiye gönderildi.");
+              }}
+            >
+              {busy ? "İşleniyor…" : "✓ Onayla ve Tedarikçiye Gönder"}
+            </Button>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Yönetim onayı gerekiyorsa aşağıdan gönderin; aksi halde tek adımda onaylayıp gönderebilirsiniz.
+          </p>
+          {canApprove && (
+            <Button className="w-full" variant="ghost" size="sm" disabled={busy} onClick={() => run(() => confirmOrderDirect(id))}>
+              Yalnızca Onayla (gönderme)
+            </Button>
+          )}
+          <Button className="w-full" variant="outline" size="sm" disabled={busy} onClick={() => run(() => submitOrderForApproval(id))}>
+            Yönetim Onayına Gönder
+          </Button>
+        </div>
       )}
 
       {canDecide && status === "PENDING_APPROVAL" && (

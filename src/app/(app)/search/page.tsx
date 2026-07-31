@@ -16,8 +16,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const empty = { reqs: [], rfqs: [], orders: [], suppliers: [] } as const;
   const [reqs, rfqs, orders, suppliers] = query
     ? await Promise.all([
-        prisma.purchaseRequisition.findMany({ where: { tenantId: user.tenantId, number: { contains: query } }, take: 10 }),
-        prisma.rFQ.findMany({ where: { tenantId: user.tenantId, OR: [{ number: { contains: query } }, { title: { contains: query } }] }, take: 10 }),
+        prisma.purchaseRequisition.findMany({ where: { tenantId: user.tenantId, deletedAt: null, number: { contains: query } }, take: 10 }),
+        prisma.rFQ.findMany({ where: { tenantId: user.tenantId, deletedAt: null, OR: [{ number: { contains: query } }, { title: { contains: query } }] }, take: 10 }),
         prisma.purchaseOrder.findMany({ where: { tenantId: user.tenantId, number: { contains: query } }, take: 10 }),
         prisma.supplier.findMany({ where: { tenantId: user.tenantId, OR: [{ legalName: { contains: query } }, { code: { contains: query } }] }, take: 10 }),
       ])

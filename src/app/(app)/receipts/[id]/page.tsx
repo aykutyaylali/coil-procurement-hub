@@ -41,7 +41,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
           </p>
         </div>
         <a href={`/receipts/${receipt.id}/pdf`} target="_blank" rel="noopener" className="mr-3 rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">PDF</a>
-        <Link href="/receipts" className="text-sm text-primary hover:underline">â† Listeye dön</Link>
+        <Link href="/receipts" className="text-sm text-primary hover:underline">← Listeye dön</Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

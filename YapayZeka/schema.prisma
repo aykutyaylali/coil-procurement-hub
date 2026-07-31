@@ -1,0 +1,1662 @@
+// ==========================================================================
+// Coil Procurement Hub - Prisma Şeması
+// --------------------------------------------------------------------------
+// Taşınabilirlik notu (dev: SQLite, prod: PostgreSQL):
+//  - Para tutarları decimal-as-String olarak saklanır ve decimal.js ile
+//    hesaplanır (floating-point yok). Bkz. src/lib/money.ts
+//  - Enum alanları String + uygulama sabitleri (src/lib/enums.ts) ile yönetilir
+//  - Esnek/serbest yapı gereken alanlar JSON metni (String) olarak saklanır
+//  - Bu yaklaşım şemayı PostgreSQL'e sorunsuz taşınabilir kılar
+//  Prod'a geçişte datasource provider = "postgresql" yapmanız yeterlidir.
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ORGANİZASYON & KİRACI (TENANT)
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  // Marka/tema/para birimi vb. ayarlar (JSON metni)
+  settings  String   @default("{}")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies         Company[]
+  users             User[]
+  roles             Role[]
+  suppliers         Supplier[]
+  items             Item[]
+  categories        Category[]
+  unitsOfMeasure    UnitOfMeasure[]
+  currencies        Currency[]
+  taxCodes          TaxCode[]
+  exchangeRates     ExchangeRate[]
+  approvalWorkflows ApprovalWorkflow[]
+  requisitions      PurchaseRequisition[]
+  rfqs              RFQ[]
+  purchaseOrders    PurchaseOrder[]
+  contracts         Contract[]
+  invoices          Invoice[]
+  budgets           Budget[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  emailMessages     EmailMessage[]
+  integrationJobs   IntegrationJob[]
+  attachments       Attachment[]
+  tasks             Task[]
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  code        String
+  name        String
+  legalName   String?
+  taxOffice   String?
+  taxNumber   String?
+  baseCurrency String  @default("TRY")
+  logoUrl     String?
+  settings    String   @default("{}")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sites          Site[]
+  departments    Department[]
+  costCenters    CostCenter[]
+  projects       Project[]
+  warehouses     Warehouse[]
+  addresses      Address[]
+  requisitions   PurchaseRequisition[]
+  rfqs           RFQ[]
+  purchaseOrders PurchaseOrder[]
+  budgets        Budget[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  code      String
+  name      String
+  timezone  String   @default("Europe/Istanbul")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  departments  Department[]
+  warehouses   Warehouse[]
+  requisitions PurchaseRequisition[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  siteId    String?
+  site      Site?    @relation(fields: [siteId], references: [id])
+  code      String
+  name      String
+  managerId String?
+  isActive  Boolean  @default(true)
+
+  users        User[]
+  requisitions PurchaseRequisition[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model CostCenter {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  code      String
+  name      String
+  isActive  Boolean  @default(true)
+
+  requisitions PurchaseRequisition[]
+  budgets      Budget[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  code      String
+  name      String
+  budgetAmount String? // decimal-as-string
+  currency  String   @default("TRY")
+  isActive  Boolean  @default(true)
+
+  requisitions PurchaseRequisition[]
+  budgets      Budget[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  siteId    String?
+  site      Site?    @relation(fields: [siteId], references: [id])
+  code      String
+  name      String
+  isActive  Boolean  @default(true)
+
+  goodsReceipts GoodsReceipt[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id])
+  type       String  @default("DELIVERY") // DELIVERY | BILLING | SUPPLIER
+  title      String
+  line1      String
+  line2      String?
+  city       String?
+  district   String?
+  postalCode String?
+  country    String  @default("TR")
+  isDefault  Boolean @default(false)
+
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// KULLANICI, ROL, YETKİ, VEKÂLET
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  email         String
+  passwordHash  String?
+  name          String
+  title         String?
+  phone         String?
+  locale        String   @default("tr")
+  timezone      String   @default("Europe/Istanbul")
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  managerId     String?
+  manager       User?    @relation("UserManager", fields: [managerId], references: [id])
+  reports       User[]   @relation("UserManager")
+
+  isActive      Boolean  @default(true)
+  isSystemAdmin Boolean  @default(false)
+  // Geçmiş veriden içe aktarılan talep sahipleri (giriş yapamaz; passwordHash null)
+  isImported    Boolean  @default(false)
+  importBatchId String?
+
+  // MFA
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?
+
+  // Güvenlik
+  failedLoginCount Int    @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userRoles         UserRole[]
+  scopes            UserScope[]
+  sessions          Session[]
+  passwordResets    PasswordResetToken[]
+  delegationsGiven  Delegation[] @relation("DelegationFrom")
+  delegationsTaken  Delegation[] @relation("DelegationTo")
+  approvalActions   ApprovalAction[]
+  requisitions      PurchaseRequisition[] @relation("RequisitionRequester")
+  comments          Comment[]
+  tasks             Task[]      @relation("TaskAssignee")
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  supplierUser      SupplierContact? // tedarikçi portal kullanıcısı bağlantısı
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  key         String   // Örn: PURCHASING_SPECIALIST
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  // Yetki anahtarları listesi (JSON string array)
+  permissions String   @default("[]")
+
+  userRoles UserRole[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+// Kayıt bazlı (satır) yetki: kullanıcının erişebileceği şirket/tesis/departman/proje
+model UserScope {
+  id         String @id @default(cuid())
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopeType  String // COMPANY | SITE | DEPARTMENT | PROJECT | COST_CENTER
+  scopeId    String
+
+  @@unique([userId, scopeType, scopeId])
+  @@index([userId])
+}
+
+model Delegation {
+  id         String   @id @default(cuid())
+  fromUserId String
+  fromUser   User     @relation("DelegationFrom", fields: [fromUserId], references: [id])
+  toUserId   String
+  toUser     User     @relation("DelegationTo", fields: [toUserId], references: [id])
+  reason     String?
+  startsAt   DateTime
+  endsAt     DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+// ---------------------------------------------------------------------------
+// ONAY AKIŞ MOTORU
+// ---------------------------------------------------------------------------
+
+model ApprovalWorkflow {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  key         String
+  name        String
+  documentType String  // REQUISITION | RFQ | PURCHASE_ORDER | INVOICE_EXCEPTION | SUPPLIER_BANK | CONTRACT
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  rules     ApprovalRule[]
+  instances ApprovalInstance[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model ApprovalRule {
+  id          String  @id @default(cuid())
+  workflowId  String
+  workflow    ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  name        String
+  priority    Int     @default(0)
+  // Koşullar (JSON): { minAmount, maxAmount, currency, categoryId, companyId, projectId, urgency, riskLevel }
+  conditions  String  @default("{}")
+  isActive    Boolean @default(true)
+
+  steps ApprovalStep[]
+
+  @@index([workflowId])
+}
+
+model ApprovalStep {
+  id            String @id @default(cuid())
+  ruleId        String
+  rule          ApprovalRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  sequence      Int
+  name          String
+  // Onaycı belirleme: MANAGER | ROLE | USER | DEPARTMENT_MANAGER
+  approverType  String
+  approverValue String? // roleKey veya userId
+  slaHours      Int?
+  // Aynı kişi kendi talebini onaylayamasın kuralı
+  enforceSegregation Boolean @default(true)
+
+  @@index([ruleId])
+}
+
+model ApprovalInstance {
+  id           String   @id @default(cuid())
+  workflowId   String
+  workflow     ApprovalWorkflow @relation(fields: [workflowId], references: [id])
+  documentType String
+  documentId   String
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  currentStep  Int      @default(0)
+  // Çözümlenmiş adım listesi (JSON): her adımda approverUserId, status
+  stepsState   String   @default("[]")
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  actions ApprovalAction[]
+
+  @@index([status])
+  @@index([documentType, documentId])
+  @@index([workflowId])
+}
+
+model ApprovalAction {
+  id          String   @id @default(cuid())
+  instanceId  String
+  instance    ApprovalInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepSequence Int
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  // APPROVE | REJECT | REQUEST_CHANGE | REQUEST_INFO | FORWARD | COMMENT
+  action      String
+  note        String?
+  forwardToUserId String?
+  actedOnBehalfOf String? // vekâlet: asıl onaycının userId'si
+  createdAt   DateTime @default(now())
+
+  @@index([instanceId])
+}
+
+// ---------------------------------------------------------------------------
+// KATALOG: KATEGORİ, ÜRÜN, BİRİM, PARA, VERGİ, KUR
+// ---------------------------------------------------------------------------
+
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  code      String
+  name      String
+  parentId  String?
+  parent    Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  managerId String?
+  isActive  Boolean  @default(true)
+  isImported Boolean @default(false)
+  importBatchId String?
+
+  items        Item[]
+  requisitions RequisitionLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Item {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  code          String
+  altCodes      String?  // JSON array
+  gtipCode      String?
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  name          String
+  description   String?
+  specs         String?  // teknik özellikler (JSON)
+  brand         String?
+  manufacturer  String?
+  baseUomId     String?
+  baseUom       UnitOfMeasure? @relation(fields: [baseUomId], references: [id])
+  minOrderQty   String?  // decimal-as-string
+  leadTimeDays  Int?
+  lastPurchasePrice String? // decimal-as-string
+  lastPurchaseCurrency String?
+  // Tercih edilen tedarikçiler (JSON array: [{supplierId}]) ve birim dönüşümleri
+  preferredSuppliers String? // JSON
+  unitConversions    String? // JSON: [{fromUom, toUom, factor}]
+  manufacturerCode   String?
+  isService     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([categoryId])
+}
+
+model UnitOfMeasure {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  code     String
+  name     String
+  isActive Boolean @default(true)
+
+  items Item[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Currency {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  code     String // TRY, USD, EUR...
+  name     String
+  symbol   String?
+  decimals Int    @default(2)
+  isActive Boolean @default(true)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model ExchangeRate {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  base       String   // TRY
+  quote      String   // USD
+  rate       String   // decimal-as-string (1 quote = rate base)
+  source     String   @default("TCMB") // TCMB | MANUAL | MOCK
+  rateDate   DateTime
+  createdBy  String?
+  reason     String?  // manuel kur nedeni
+  createdAt  DateTime @default(now())
+
+  @@unique([tenantId, base, quote, rateDate, source])
+  @@index([tenantId, quote, rateDate])
+}
+
+model TaxCode {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  code     String
+  name     String
+  kind     String  @default("VAT") // VAT | WITHHOLDING | STOPAJ | OTHER
+  rate     String  // decimal-as-string, örn "20"
+  // Tevkifat oranı (payda/pay) JSON: {"numerator":5,"denominator":10}
+  withholdingRatio String?
+  isActive Boolean @default(true)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// TEDARİKÇİ
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  code           String
+  legalName      String
+  shortName      String?
+  // Yerli/yabancı ayrımı ve uluslararası alanlar
+  supplierType   String   @default("DOMESTIC") // DOMESTIC | FOREIGN
+  taxIdType      String?  // VKN | TCKN | VAT | EIN | OTHER
+  taxOffice      String?
+  taxNumber      String?
+  country        String   @default("TR") // ISO ülke kodu
+  // Ülkeye göre esnek adres (Türkiye formatına bağlı değil)
+  addressLine    String?
+  city           String?
+  stateRegion    String?
+  postalCode     String?
+  website        String?
+  // Tercihler / varsayılanlar
+  preferredLanguage String @default("tr") // tr | en
+  defaultCurrency   String @default("TRY")
+  defaultIncoterm   String?
+  defaultPaymentTermDays Int?
+  currencies     String?  // JSON array
+  incoterms      String?  // JSON array
+  paymentTermDays Int?
+  // Rol/statü
+  isManufacturer Boolean  @default(false)
+  isDistributor  Boolean  @default(false)
+  isExporter     Boolean  @default(false)
+  // Kullanılabildiği operasyon türleri (JSON array): DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
+  operationTypes String   @default("[]")
+  riskLevel      String   @default("LOW") // LOW | MEDIUM | HIGH
+  status         String   @default("DRAFT") // DRAFT | ONBOARDING | PENDING_APPROVAL | ACTIVE | REJECTED | BLACKLISTED | INACTIVE
+  isBlacklisted  Boolean  @default(false)
+  blacklistReason String?
+  performanceScore String? // decimal-as-string
+  esgInfo        String?  // JSON
+  sanctionsChecked Boolean @default(false)
+  isImported     Boolean  @default(false)
+  importBatchId  String?
+  onboardingToken String? @unique
+  onboardingTokenExpiresAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // soft delete
+
+  contacts     SupplierContact[]
+  bankAccounts SupplierBankAccount[]
+  documents    SupplierDocument[]
+  categories   SupplierCategoryLink[]
+  scores       SupplierScore[]
+  risks        SupplierRisk[]
+  audits       SupplierAudit[]
+  capas        CAPA[]
+  nonConformances NonConformance[]
+  contracts    Contract[]
+  rfqInvites   RFQSupplier[]
+  bids         Bid[]
+  purchaseOrders PurchaseOrder[]
+  shipments    Shipment[]
+  invoices     Invoice[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, taxNumber])
+  @@index([tenantId, legalName])
+}
+
+model SupplierContact {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  name       String
+  title      String?
+  email      String?
+  phone      String?
+  isPrimary  Boolean  @default(false)
+  // Portal kullanıcısı (opsiyonel)
+  userId     String?  @unique
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([supplierId])
+}
+
+model SupplierBankAccount {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  bankName   String
+  iban       String
+  // Uluslararası banka bilgileri
+  swiftBic   String?
+  correspondentBank String?
+  bankCountry String?
+  currency   String   @default("TRY")
+  accountHolder String?
+  // Banka değişikliği çift onay durumu
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  approvedBy String?
+  secondApprovedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+  @@index([iban])
+}
+
+model SupplierDocument {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  type       String   // CERTIFICATE | INSURANCE | NDA | QUALITY | TAX | OTHER
+  name       String
+  attachmentId String?
+  validFrom  DateTime?
+  validUntil DateTime?
+  status     String   @default("VALID") // VALID | EXPIRING | EXPIRED
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+}
+
+model SupplierCategoryLink {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  categoryId String
+
+  @@unique([supplierId, categoryId])
+  @@index([supplierId])
+}
+
+model SupplierScore {
+  id           String   @id @default(cuid())
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  period       String   // 2026-Q1
+  purchasingScore String // decimal-as-string
+  qualityScore    String // decimal-as-string
+  purchasingClass String? // P1 | P2 | P3
+  qualityClass    String? // Q1 | Q2 | Q3
+  breakdown    String?  // JSON kriter kırılımı
+  createdAt    DateTime @default(now())
+
+  @@index([supplierId])
+}
+
+model SupplierRisk {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  category   String   // FINANCIAL | OPERATIONAL | COMPLIANCE | ESG
+  level      String   // LOW | MEDIUM | HIGH
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+}
+
+model SupplierAudit {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  title      String
+  auditDate  DateTime?
+  result     String?  // PASS | CONDITIONAL | FAIL
+  score      String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+}
+
+model CAPA {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  ncrId      String?
+  ncr        NonConformance? @relation(fields: [ncrId], references: [id])
+  code       String
+  title      String
+  type       String   @default("CORRECTIVE") // CORRECTIVE | PREVENTIVE | 8D
+  status     String   @default("OPEN") // OPEN | IN_PROGRESS | DONE
+  rootCause  String?
+  action     String?  // düzeltici/önleyici faaliyet
+  responsibleUserId String?
+  dueDate    DateTime?
+  verifiedBy String?
+  verifiedAt DateTime?
+  closedAt   DateTime?
+  description String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([ncrId])
+}
+
+// ---------------------------------------------------------------------------
+// SÖZLEŞME
+// ---------------------------------------------------------------------------
+
+model Contract {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  code        String
+  title       String
+  type        String   @default("FRAMEWORK")
+  status      String   @default("DRAFT") // DRAFT | ACTIVE | EXPIRED | TERMINATED
+  startDate   DateTime?
+  endDate     DateTime?
+  autoRenew   Boolean  @default(false)
+  noticeDate  DateTime?
+  currency    String   @default("TRY")
+  totalLimit  String?  // decimal-as-string
+  usedAmount  String   @default("0")
+  slaTerms    String?  // JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ContractItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([supplierId])
+}
+
+model ContractItem {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  itemId     String?
+  description String
+  unitPrice  String   // decimal-as-string
+  currency   String   @default("TRY")
+  uom        String?
+
+  @@index([contractId])
+}
+
+// ---------------------------------------------------------------------------
+// SATINALMA TALEBİ
+// ---------------------------------------------------------------------------
+
+model PurchaseRequisition {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  number        String
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  siteId        String?
+  site          Site?    @relation(fields: [siteId], references: [id])
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  costCenterId  String?
+  costCenter    CostCenter? @relation(fields: [costCenterId], references: [id])
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id])
+  requesterId   String
+  requester     User     @relation("RequisitionRequester", fields: [requesterId], references: [id])
+
+  status        String   @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | REJECTED | ASSIGNED | IN_RFQ | ORDERED | CLOSED | CANCELLED
+  priority      String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  purchaseType  String   @default("GOODS") // GOODS | SERVICE | EXPENSE
+  // Operasyon türü: DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
+  operationType String   @default("DOMESTIC_PURCHASE")
+  // İhracat bağlantılı alımlar için
+  exportProjectNo String?
+  targetCountry   String?
+  currency      String   @default("TRY")
+  neededBy      DateTime?
+  deliveryAddressId String?
+  justification String?
+  internalNote  String?  // tedarikçiye gösterilmez
+  estimatedTotal String  @default("0") // decimal-as-string
+  assignedBuyerId String?
+  // Çift gönderim/çift tıklama koruması (idempotency): aynı istek anahtarı tek talep üretir
+  clientRequestId String?
+  // Geçmiş veriden içe aktarma
+  isImported    Boolean  @default(false)
+  importBatchId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines     RequisitionLine[]
+  rfqLines  RFQLine[]
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, clientRequestId])
+  @@index([tenantId, status])
+  @@index([tenantId, status, createdAt])
+  @@index([companyId])
+  @@index([requesterId])
+}
+
+model RequisitionLine {
+  id            String   @id @default(cuid())
+  requisitionId String
+  requisition   PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  lineNo        Int
+  itemId        String?
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  description   String
+  specs         String?
+  quantity      String   // decimal-as-string
+  uom           String?
+  estUnitPrice  String   @default("0") // decimal-as-string
+  currency      String   @default("TRY")
+  taxCodeId     String?
+  neededBy      DateTime?
+  warehouseId   String?
+  allowAlternative Boolean @default(true)
+  allowPartial  Boolean @default(true)
+  status        String  @default("OPEN") // OPEN | IN_RFQ | ORDERED | CLOSED | CANCELLED
+
+  rfqLines RFQLine[]
+
+  @@index([requisitionId])
+}
+
+// ---------------------------------------------------------------------------
+// RFQ (TEKLİF TALEBİ)
+// ---------------------------------------------------------------------------
+
+model RFQ {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  number        String
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  title         String
+  description   String?
+  status        String   @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | SENT | OPEN | CLARIFICATION | EVALUATION | NEGOTIATION | AWARDED | CANCELLED | CLOSED
+  operationType String   @default("DOMESTIC_PURCHASE") // DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
+  sealed        Boolean  @default(false) // kapalı teklif usulü
+  currencyOptions String @default("[\"TRY\"]") // JSON array
+  dueAt         DateTime?
+  openAt        DateTime?
+  deliveryAddressId String?
+  paymentTerms  String?
+  incoterm      String?
+  incotermLocation String?
+  warrantyTerms String?
+  qualityTerms  String?
+  evaluationCriteria String? // JSON: ağırlıklı puanlama
+  round         Int      @default(1)
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines     RFQLine[]
+  suppliers RFQSupplier[]
+  bids      Bid[]
+  messages  RFQMessage[]
+  questions SupplierQuestion[]
+  award     AwardDecision?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([companyId])
+}
+
+model RFQLine {
+  id            String   @id @default(cuid())
+  rfqId         String
+  rfq           RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  lineNo        Int
+  requisitionId String?
+  requisition   PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
+  requisitionLineId String?
+  requisitionLine   RequisitionLine? @relation(fields: [requisitionLineId], references: [id])
+  itemId        String?
+  description   String
+  specs         String?
+  quantity      String   // decimal-as-string
+  uom           String?
+  neededBy      DateTime?
+
+  bidLines BidLine[]
+
+  @@index([rfqId])
+}
+
+model RFQSupplier {
+  id          String   @id @default(cuid())
+  rfqId       String
+  rfq         RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  // Magic link token (hash saklanır)
+  tokenHash   String   @unique
+  tokenExpiresAt DateTime
+  // Benzersiz gelen e-posta eşleştirme referansı
+  replyToken  String   @unique
+  status      String   @default("INVITED") // INVITED | VIEWED | RESPONDED | DECLINED | NO_RESPONSE
+  invitedAt   DateTime @default(now())
+  viewedAt    DateTime?
+  respondedAt DateTime?
+  remindersSent Int    @default(0)
+
+  bids Bid[]
+
+  @@unique([rfqId, supplierId])
+  @@index([rfqId])
+  @@index([supplierId])
+}
+
+model SupplierQuestion {
+  id         String   @id @default(cuid())
+  rfqId      String
+  rfq        RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId String
+  question   String
+  answer     String?
+  answeredBy String?
+  isPublic   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([rfqId])
+}
+
+model RFQMessage {
+  id         String   @id @default(cuid())
+  rfqId      String
+  rfq        RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId String?
+  direction  String   // OUTBOUND | INBOUND
+  fromAddress String?
+  subject    String?
+  body       String?
+  emailMessageId String?
+  createdAt  DateTime @default(now())
+
+  @@index([rfqId])
+}
+
+// ---------------------------------------------------------------------------
+// TEKLİF (BID)
+// ---------------------------------------------------------------------------
+
+model Bid {
+  id            String   @id @default(cuid())
+  rfqId         String
+  rfq           RFQ      @relation(fields: [rfqId], references: [id])
+  rfqSupplierId String
+  rfqSupplier   RFQSupplier @relation(fields: [rfqSupplierId], references: [id])
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  round         Int      @default(1)
+  status        String   @default("DRAFT") // DRAFT | SUBMITTED | REVISED | SHORTLISTED | AWARDED | REJECTED
+  currency      String   @default("TRY")
+  validUntil    DateTime?
+  paymentTermDays Int?
+  incoterm      String?
+  freightAmount String  @default("0")
+  insuranceAmount String @default("0")
+  otherCharges  String  @default("0")
+  note          String?
+  submittedAt   DateTime?
+  // Teklif kaynağı: PORTAL (tedarikçi magic-link) | MANUAL (satınalma girdi) | EMAIL
+  source        String   @default("PORTAL")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines     BidLine[]
+  revisions BidRevision[]
+  evaluation BidEvaluation?
+
+  @@index([rfqId])
+  @@index([supplierId])
+}
+
+model BidLine {
+  id          String   @id @default(cuid())
+  bidId       String
+  bid         Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  rfqLineId   String
+  rfqLine     RFQLine  @relation(fields: [rfqLineId], references: [id])
+  willQuote   Boolean  @default(true)
+  brand       String?
+  model       String?
+  manufacturer String?
+  origin      String?
+  gtipCode    String?
+  unitPrice   String   @default("0") // decimal-as-string
+  discountPct String   @default("0")
+  taxRate     String   @default("20")
+  // Kalem bazında para birimi (bazı kalem TL, bazı USD/EUR olabilir). Boşsa teklif para birimi.
+  currency    String?
+  minOrderQty String?
+  leadTimeDays Int?
+  deliveryDate DateTime?
+  warranty    String?
+  isAlternative Boolean @default(false)
+  technicalDeviation String?
+  note        String?
+
+  @@index([bidId])
+  @@index([rfqLineId])
+}
+
+model BidRevision {
+  id        String   @id @default(cuid())
+  bidId     String
+  bid       Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  round     Int
+  // Teklifin o turdaki tam anlık görüntüsü (JSON)
+  snapshot  String
+  createdAt DateTime @default(now())
+
+  @@index([bidId])
+}
+
+model BidEvaluation {
+  id          String   @id @default(cuid())
+  bidId       String   @unique
+  bid         Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  priceScore  String?
+  deliveryScore String?
+  qualityScore String?
+  technicalScore String?
+  riskScore   String?
+  totalScore  String?
+  // Kriter ağırlıkları ve skor kırılımı (JSON)
+  breakdown   String?
+  evaluatedBy String?
+  createdAt   DateTime @default(now())
+
+  @@index([bidId])
+}
+
+model AwardDecision {
+  id          String   @id @default(cuid())
+  rfqId       String   @unique
+  rfq         RFQ      @relation(fields: [rfqId], references: [id])
+  // Satır bazlı seçim (split award desteği) JSON:
+  // [{ rfqLineId, bidId, supplierId, quantity }]
+  awards      String
+  justification String  // seçim gerekçesi (zorunlu)
+  lowestNotChosenReason String?
+  decidedBy   String
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt   DateTime @default(now())
+
+  @@index([rfqId])
+}
+
+// ---------------------------------------------------------------------------
+// SATINALMA SİPARİŞİ
+// ---------------------------------------------------------------------------
+
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  number        String
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  rfqId         String?
+  awardDecisionId String?
+  status        String   @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | SENT | ACKNOWLEDGED | PARTIALLY_CONFIRMED | CONFIRMED | PARTIALLY_SHIPPED | SHIPPED | PARTIALLY_RECEIVED | RECEIVED | INVOICED | CLOSED | CANCELLED
+  operationType String   @default("DOMESTIC_PURCHASE") // DOMESTIC_PURCHASE | IMPORT_PURCHASE | EXPORT_RELATED_PURCHASE
+  language      String   @default("tr") // belge/e-posta dili (tedarikçi tercihine göre)
+  orderDate     DateTime @default(now())
+  currency      String   @default("TRY")
+  exchangeRate  String?
+  exchangeRateSource String? // TCMB | MANUAL
+  paymentTerms  String?
+  paymentMethod String?  // CASH_ADVANCE | WIRE | CAD | LC | ACCREDITIVE | OTHER
+  incoterm      String?
+  incotermLocation String?
+  deliveryAddressId String?
+  billingAddressId  String?
+  notes         String?
+  revision      Int      @default(0)
+  subtotal      String   @default("0")
+  taxTotal      String   @default("0")
+  grandTotal    String   @default("0")
+  // İthalat / ihracat bağlantılı alanlar
+  supplierCountry String?
+  originCountry   String?
+  transportMode   String?  // ROAD | AIR | SEA | RAIL | COURIER
+  forwarder       String?
+  customsBroker   String?
+  departureCustoms String?
+  arrivalCustoms  String?
+  estShipDate     DateTime?
+  estArrivalDate  DateTime?
+  exportProjectNo String?
+  targetCountry   String?
+  isExportRegistered Boolean @default(false)
+  // Uzun kuyruk ithalat/gümrük bilgileri (esneklik için JSON)
+  importInfo      String?  // JSON: {grossWeight, netWeight, packages, hsCode, blNo, ...}
+  landedCostTotal String   @default("0")
+  isImported      Boolean  @default(false)
+  importBatchId   String?
+  sourceRowNo     Int?
+  requesterName   String?
+  requisitionNumber String?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines         PurchaseOrderLine[]
+  revisions     OrderRevision[]
+  confirmations OrderConfirmation[]
+  shipments     Shipment[]
+  goodsReceipts GoodsReceipt[]
+  invoices      Invoice[]
+  landedCosts   LandedCostItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([supplierId])
+}
+
+model PurchaseOrderLine {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineNo      Int
+  itemId      String?
+  categoryId  String?
+  description String
+  quantity    String?  // decimal-as-string (import'ta bos ise null)
+  uom         String?
+  currency    String?  // satir bazli orijinal para birimi (import)
+  unitPrice   String?  // decimal-as-string; import'ta bos ise null (0 ile doldurulmaz)
+  discountPct String   @default("0")
+  taxRate     String?  // import'ta bos ise null
+  withholdingRatio String?
+  lineTotal   String?  // decimal-as-string
+  // Tarihsel/import degerleri
+  originalLineTotal  String? // Kalem Tutari (PB) - orijinal para birimi
+  historicalTryTotal String? // Kalem Tutari (TL) - tarihsel TL (yeniden hesaplanmaz)
+  note        String?
+  dataQualityFlags String? // JSON: eksik alanlar
+  importBatchId String?
+  sourceRowNo Int?
+  // Landed cost dağıtımı (ithalat toplam maliyeti bu satıra düşen pay)
+  allocatedLandedCost String @default("0")
+  // Ağırlık/hacim (landed cost dağıtımı için)
+  weight      String?
+  volume      String?
+  neededBy    DateTime?
+  // Takip miktarları
+  confirmedQty String  @default("0")
+  shippedQty  String   @default("0")
+  receivedQty String   @default("0")
+  rejectedQty String   @default("0")
+  invoicedQty String   @default("0")
+
+  goodsReceiptLines GoodsReceiptLine[]
+  invoiceLines      InvoiceLine[]
+
+  @@index([orderId])
+}
+
+model OrderRevision {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  revision  Int
+  snapshot  String   // JSON
+  reason    String?
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model OrderConfirmation {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  action      String   // ACCEPT | REJECT | CHANGE_REQUEST
+  confirmedDeliveryDate DateTime?
+  note        String?
+  attachmentId String?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// LOJİSTİK & MAL KABUL & KALİTE
+// ---------------------------------------------------------------------------
+
+model Shipment {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  asnNumber   String?
+  shipDate    DateTime?
+  expectedArrival DateTime?
+  carrier     String?
+  vehiclePlate String?
+  trackingNo  String?
+  grossWeight String?
+  netWeight   String?
+  status      String   @default("CREATED") // CREATED | IN_TRANSIT | ARRIVED | RECEIVED
+  createdAt   DateTime @default(now())
+
+  lines ShipmentLine[]
+
+  @@index([orderId])
+}
+
+model ShipmentLine {
+  id          String   @id @default(cuid())
+  shipmentId  String
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  orderLineId String
+  quantity    String
+
+  @@index([shipmentId])
+}
+
+model GoodsReceipt {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  number      String
+  receivedById String
+  waybillNo   String?
+  status      String   @default("DRAFT") // DRAFT | POSTED
+  note        String?
+  receivedAt  DateTime @default(now())
+
+  lines GoodsReceiptLine[]
+  inspections QualityInspection[]
+
+  @@index([orderId])
+}
+
+model GoodsReceiptLine {
+  id            String   @id @default(cuid())
+  receiptId     String
+  receipt       GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  orderLineId   String
+  orderLine     PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
+  acceptedQty   String   @default("0")
+  rejectedQty   String   @default("0")
+  disposition   String   @default("ACCEPTED") // ACCEPTED | PARTIAL | DAMAGED | WRONG_ITEM | REJECTED | QUARANTINE
+  lotNumber     String?
+  serialNumber  String?
+  binLocation   String?
+  note          String?
+
+  @@index([receiptId])
+  @@index([orderLineId])
+}
+
+model QualityInspection {
+  id          String   @id @default(cuid())
+  receiptId   String
+  receipt     GoodsReceipt @relation(fields: [receiptId], references: [id])
+  status      String   @default("PENDING") // PENDING | PASS | CONDITIONAL | FAIL
+  planRef     String?  // kontrol planı referansı
+  sampleSize  String?
+  sampleResult String? // numune/ölçüm sonuçları (JSON veya metin)
+  testsJson   String? // bobin testleri: [{name,method,spec,measured,result}] JSON dizisi
+  inspectedBy String?
+  inspectedAt DateTime?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  nonConformances NonConformance[]
+
+  @@index([receiptId])
+}
+
+model NonConformance {
+  id           String   @id @default(cuid())
+  inspectionId String
+  inspection   QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  code         String
+  title        String?
+  type         String   @default("QUALITY") // QUALITY | SUPPLIER_COMPLAINT | PROCESS
+  severity     String   @default("MINOR") // MINOR | MAJOR | CRITICAL
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE (kapandı)
+  description  String?
+  rootCause    String?
+  correctiveAction String?
+  preventiveAction String?
+  disposition  String?  // iade | yeniden sevk | hurda | şartlı kabul
+  responsibleUserId String?
+  dueDate      DateTime?
+  verifiedBy   String?
+  verifiedAt   DateTime?
+  closedAt     DateTime?
+  cost         String?  // uygunsuzluk maliyeti (decimal-as-string)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  capas        CAPA[]
+
+  @@index([inspectionId])
+  @@index([supplierId])
+}
+
+// ---------------------------------------------------------------------------
+// FATURA & 3'LÜ EŞLEŞTİRME
+// ---------------------------------------------------------------------------
+
+model Invoice {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  orderId       String?
+  order         PurchaseOrder? @relation(fields: [orderId], references: [id])
+  number        String   // tedarikçi fatura numarası
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  currency      String   @default("TRY")
+  exchangeRate  String?
+  netAmount     String   @default("0")
+  taxAmount     String   @default("0")
+  withholdingAmount String @default("0")
+  grandTotal    String   @default("0")
+  payableAmount String   @default("0")
+  status        String   @default("DRAFT") // DRAFT | MATCHING | MATCHED | BLOCKED | APPROVED | PAID | CANCELLED
+  paymentStatus String   @default("UNPAID") // UNPAID | PARTIAL | PAID
+  blockReason   String?
+  source        String   @default("MANUAL") // MANUAL | UPLOAD | EMAIL | EINVOICE | ERP
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines   InvoiceLine[]
+  matches InvoiceMatch[]
+
+  // Mükerrer fatura engeli: aynı tedarikçi + numara benzersiz
+  @@unique([tenantId, supplierId, number])
+  @@index([tenantId, status])
+  @@index([supplierId])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderLineId String?
+  orderLine   PurchaseOrderLine? @relation(fields: [orderLineId], references: [id])
+  description String
+  quantity    String   @default("0")
+  unitPrice   String   @default("0")
+  taxRate     String   @default("20")
+  lineTotal   String   @default("0")
+
+  @@index([invoiceId])
+}
+
+model InvoiceMatch {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  // 3'lü eşleştirme sonucu (JSON): PO vs GR vs Invoice sapmaları
+  result      String
+  matchType   String   @default("THREE_WAY") // TWO_WAY | THREE_WAY
+  passed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+// ---------------------------------------------------------------------------
+// LANDED COST (İTHALAT TOPLAM MALİYET KALEMLERİ)
+// ---------------------------------------------------------------------------
+
+model LandedCostItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  costType    String   // FREIGHT | INSURANCE | CUSTOMS_DUTY | EXTRA_CUSTOMS_DUTY | STAMP_TAX | STORAGE | ORDINO | BROKERAGE | PORT | OTHER
+  description String?
+  amount      String   // decimal-as-string
+  currency    String   @default("TRY")
+  // Dağıtım yöntemi: QUANTITY | WEIGHT | VOLUME | VALUE
+  allocationMethod String @default("VALUE")
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// BÜTÇE
+// ---------------------------------------------------------------------------
+
+model Budget {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  costCenterId String?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
+  projectId    String?
+  project      Project? @relation(fields: [projectId], references: [id])
+  categoryId   String?
+  fiscalYear   Int
+  period       String   @default("YEAR") // YEAR | MONTH
+  currency     String   @default("TRY")
+  plannedAmount String  @default("0")
+  createdAt    DateTime @default(now())
+
+  transactions BudgetTransaction[]
+
+  @@index([tenantId])
+  @@index([companyId])
+}
+
+model BudgetTransaction {
+  id        String   @id @default(cuid())
+  budgetId  String
+  budget    Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  type      String   // RESERVE | RELEASE | COMMIT | INVOICE | PAYMENT
+  amount    String   // decimal-as-string (işaretli)
+  refType   String?  // REQUISITION | PURCHASE_ORDER | INVOICE
+  refId     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([budgetId])
+  @@index([refType, refId])
+}
+
+// ---------------------------------------------------------------------------
+// ORTAK: YORUM, DOSYA, BİLDİRİM, GÖREV, E-POSTA, ENTEGRASYON, DENETİM
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  body       String
+  isInternal Boolean  @default(true) // true => tedarikçi göremez
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  entityType String
+  entityId   String
+  fileName   String
+  mimeType   String
+  size       Int
+  storageKey String
+  isInternal Boolean  @default(false)
+  scanStatus String   @default("PENDING") // PENDING | CLEAN | INFECTED | SKIPPED
+  uploadedById String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  type       String
+  title      String
+  body       String?
+  link       String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Task {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  assigneeId String
+  assignee   User     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  title      String
+  description String?
+  entityType String?
+  entityId   String?
+  priority   String   @default("NORMAL")
+  status     String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  dueAt      DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([assigneeId, status])
+}
+
+model EmailMessage {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  direction   String   // OUTBOUND | INBOUND
+  provider    String
+  status      String   @default("QUEUED") // QUEUED | SENDING | SENT | FAILED | BOUNCED | RECEIVED | UNMATCHED
+  fromAddress String
+  toAddress   String
+  replyTo     String?
+  subject     String
+  bodyText    String?
+  bodyHtml    String?
+  templateKey String?
+  refType     String?  // RFQ | PURCHASE_ORDER | SUPPLIER
+  refId       String?
+  messageId   String?  // provider message id
+  errorText   String?
+  attempts    Int      @default(0)
+  scheduledAt DateTime @default(now())
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  events EmailEvent[]
+
+  @@index([tenantId, status])
+  @@index([refType, refId])
+}
+
+model EmailEvent {
+  id        String   @id @default(cuid())
+  messageId String
+  message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  type      String   // QUEUED | SENT | DELIVERED | OPENED | CLICKED | BOUNCED | FAILED
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+model IntegrationJob {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  connector   String   // SAP | LOGO | NETSIS | TCMB | CSV ...
+  operation   String
+  direction   String   // INBOUND | OUTBOUND
+  status      String   @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED
+  idempotencyKey String? @unique
+  payload     String?  // JSON
+  result      String?
+  errorText   String?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  finishedAt  DateTime?
+
+  @@index([tenantId, status])
+}
+
+// ---------------------------------------------------------------------------
+// GEÇMİŞ VERİ İÇE AKTARMA (IMPORT)
+// ---------------------------------------------------------------------------
+
+model ImportBatch {
+  id          String   @id @default(cuid())
+  tenantId    String
+  fileName    String
+  sheetName   String   @default("Kalem Detayları")
+  status      String   @default("DRY_RUN") // DRY_RUN | COMMITTED | ROLLED_BACK
+  totalRows   Int      @default(0)
+  ordersCreated   Int  @default(0)
+  linesCreated    Int  @default(0)
+  suppliersCreated Int @default(0)
+  categoriesCreated Int @default(0)
+  stats       String   @default("{}") // JSON: mutabakat ve özet
+  fileKey     String?  // depolanan kaynak dosya anahtarı
+  createdById String
+  createdAt   DateTime @default(now())
+  committedAt DateTime?
+  rolledBackAt DateTime?
+
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // CREATE | UPDATE | DELETE | STATUS_CHANGE | LOGIN | APPROVE ...
+  entityType  String
+  entityId    String
+  before      String?  // JSON
+  after       String?  // JSON
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  correlationId String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt])
+}

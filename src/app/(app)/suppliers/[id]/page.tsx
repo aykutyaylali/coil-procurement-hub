@@ -9,6 +9,9 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { opLabel } from "@/domain/operations";
+import { env } from "@/lib/env";
+import { OnboardingLinkCard } from "./onboarding-link";
+import { PortalAccessCard, type PortalStatus } from "./portal-access";
 
 export default async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +21,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
   const s = await prisma.supplier.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      contacts: true,
+      contacts: { include: { user: { select: { isActive: true, passwordHash: true } } } },
       bankAccounts: true,
       documents: true,
       scores: { orderBy: { createdAt: "desc" }, take: 4 },
@@ -29,6 +32,22 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
 
   let ops: string[] = [];
   try { ops = JSON.parse(s.operationTypes); } catch { /* */ }
+
+  // Portal erişim durumu: portal kullanıcısı olan kişiden türet
+  const portalContact = s.contacts.find((c) => c.userId) ?? null;
+  const primaryEmail = s.contacts.find((c) => c.isPrimary && c.email)?.email ?? s.contacts.find((c) => c.email)?.email ?? null;
+  let portalStatus: PortalStatus = "NONE";
+  let portalInviteUrl: string | null = null;
+  if (portalContact?.userId) {
+    const revoked = !!portalContact.portalInviteRevokedAt;
+    const hasPw = !!portalContact.user?.passwordHash;
+    const isActive = !!portalContact.user?.isActive;
+    portalStatus = revoked || (hasPw && !isActive) ? "PASSIVE" : hasPw ? "ACTIVE" : "INVITED";
+    if (portalContact.portalInviteToken && !revoked) {
+      portalInviteUrl = `${env.APP_URL}/reset-password/${portalContact.portalInviteToken}`;
+    }
+  }
+  const portalEmail = portalContact?.email ?? primaryEmail;
 
   return (
     <div>
@@ -94,6 +113,12 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-6">
+          {canEdit && (
+            <PortalAccessCard supplierId={s.id} email={portalEmail} status={portalStatus} inviteUrl={portalInviteUrl} />
+          )}
+          {canEdit && (
+            <OnboardingLinkCard supplierId={s.id} tokenActive={!!s.onboardingTokenExpiresAt && s.onboardingTokenExpiresAt.getTime() > Date.now()} />
+          )}
           <Card>
             <CardHeader><CardTitle>Ticari Bilgiler</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">

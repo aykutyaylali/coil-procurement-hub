@@ -1,3 +1,7 @@
+-- Baseline (tam güncel şema, PostgreSQL). Fresh prod DB'ye 'prisma migrate deploy' ile uygulanır.
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateTable
 CREATE TABLE "Tenant" (
     "id" TEXT NOT NULL,
@@ -124,6 +128,8 @@ CREATE TABLE "User" (
     "managerId" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isSystemAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "isImported" BOOLEAN NOT NULL DEFAULT false,
+    "importBatchId" TEXT,
     "mfaEnabled" BOOLEAN NOT NULL DEFAULT false,
     "mfaSecret" TEXT,
     "failedLoginCount" INTEGER NOT NULL DEFAULT 0,
@@ -309,6 +315,9 @@ CREATE TABLE "Item" (
     "leadTimeDays" INTEGER,
     "lastPurchasePrice" TEXT,
     "lastPurchaseCurrency" TEXT,
+    "preferredSuppliers" TEXT,
+    "unitConversions" TEXT,
+    "manufacturerCode" TEXT,
     "isService" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -426,6 +435,9 @@ CREATE TABLE "SupplierContact" (
     "phone" TEXT,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
     "userId" TEXT,
+    "portalInviteToken" TEXT,
+    "portalInviteCreatedAt" TIMESTAMP(3),
+    "portalInviteRevokedAt" TIMESTAMP(3),
 
     CONSTRAINT "SupplierContact_pkey" PRIMARY KEY ("id")
 );
@@ -597,8 +609,12 @@ CREATE TABLE "PurchaseRequisition" (
     "internalNote" TEXT,
     "estimatedTotal" TEXT NOT NULL DEFAULT '0',
     "assignedBuyerId" TEXT,
+    "clientRequestId" TEXT,
+    "isImported" BOOLEAN NOT NULL DEFAULT false,
+    "importBatchId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "PurchaseRequisition_pkey" PRIMARY KEY ("id")
 );
@@ -651,6 +667,7 @@ CREATE TABLE "RFQ" (
     "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "RFQ_pkey" PRIMARY KEY ("id")
 );
@@ -735,6 +752,7 @@ CREATE TABLE "Bid" (
     "otherCharges" TEXT NOT NULL DEFAULT '0',
     "note" TEXT,
     "submittedAt" TIMESTAMP(3),
+    "source" TEXT NOT NULL DEFAULT 'PORTAL',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -755,6 +773,7 @@ CREATE TABLE "BidLine" (
     "unitPrice" TEXT NOT NULL DEFAULT '0',
     "discountPct" TEXT NOT NULL DEFAULT '0',
     "taxRate" TEXT NOT NULL DEFAULT '20',
+    "currency" TEXT,
     "minOrderQty" TEXT,
     "leadTimeDays" INTEGER,
     "deliveryDate" TIMESTAMP(3),
@@ -854,9 +873,12 @@ CREATE TABLE "PurchaseOrder" (
     "sourceRowNo" INTEGER,
     "requesterName" TEXT,
     "requisitionNumber" TEXT,
+    "productionStage" TEXT,
+    "promisedDeliveryDate" TIMESTAMP(3),
     "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "PurchaseOrder_pkey" PRIMARY KEY ("id")
 );
@@ -990,6 +1012,7 @@ CREATE TABLE "QualityInspection" (
     "planRef" TEXT,
     "sampleSize" TEXT,
     "sampleResult" TEXT,
+    "testsJson" TEXT,
     "inspectedBy" TEXT,
     "inspectedAt" TIMESTAMP(3),
     "note" TEXT,
@@ -1047,6 +1070,7 @@ CREATE TABLE "Invoice" (
     "source" TEXT NOT NULL DEFAULT 'MANUAL',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
 );
@@ -1125,14 +1149,101 @@ CREATE TABLE "BudgetTransaction" (
 -- CreateTable
 CREATE TABLE "Comment" (
     "id" TEXT NOT NULL,
+    "tenantId" TEXT,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "body" TEXT NOT NULL,
     "isInternal" BOOLEAN NOT NULL DEFAULT true,
+    "parentId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "POParticipant" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "addedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "POParticipant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "POProductionUpdate" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "stage" TEXT NOT NULL,
+    "note" TEXT,
+    "estDate" TIMESTAMP(3),
+    "updatedById" TEXT NOT NULL,
+    "isInternal" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "POProductionUpdate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TechnicalReview" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "orderLineId" TEXT,
+    "supplierId" TEXT NOT NULL,
+    "createdById" TEXT NOT NULL,
+    "reviewType" TEXT NOT NULL,
+    "currentValue" TEXT,
+    "proposedValue" TEXT,
+    "reason" TEXT,
+    "technicalExplanation" TEXT,
+    "impact" TEXT,
+    "risk" TEXT,
+    "priority" TEXT NOT NULL DEFAULT 'NORMAL',
+    "deadline" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TechnicalReview_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TechnicalReviewAction" (
+    "id" TEXT NOT NULL,
+    "reviewId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "byUserId" TEXT NOT NULL,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TechnicalReviewAction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CommentMention" (
+    "id" TEXT NOT NULL,
+    "commentId" TEXT NOT NULL,
+    "mentionedUserId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommentMention_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ThreadRead" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "lastReadAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ThreadRead_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1382,6 +1493,9 @@ CREATE INDEX "ApprovalRule_workflowId_idx" ON "ApprovalRule"("workflowId");
 CREATE INDEX "ApprovalStep_ruleId_idx" ON "ApprovalStep"("ruleId");
 
 -- CreateIndex
+CREATE INDEX "ApprovalInstance_status_idx" ON "ApprovalInstance"("status");
+
+-- CreateIndex
 CREATE INDEX "ApprovalInstance_documentType_documentId_idx" ON "ApprovalInstance"("documentType", "documentId");
 
 -- CreateIndex
@@ -1439,10 +1553,16 @@ CREATE INDEX "Supplier_tenantId_idx" ON "Supplier"("tenantId");
 CREATE INDEX "Supplier_tenantId_taxNumber_idx" ON "Supplier"("tenantId", "taxNumber");
 
 -- CreateIndex
+CREATE INDEX "Supplier_tenantId_legalName_idx" ON "Supplier"("tenantId", "legalName");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Supplier_tenantId_code_key" ON "Supplier"("tenantId", "code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SupplierContact_userId_key" ON "SupplierContact"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SupplierContact_portalInviteToken_key" ON "SupplierContact"("portalInviteToken");
 
 -- CreateIndex
 CREATE INDEX "SupplierContact_supplierId_idx" ON "SupplierContact"("supplierId");
@@ -1493,6 +1613,9 @@ CREATE INDEX "ContractItem_contractId_idx" ON "ContractItem"("contractId");
 CREATE INDEX "PurchaseRequisition_tenantId_status_idx" ON "PurchaseRequisition"("tenantId", "status");
 
 -- CreateIndex
+CREATE INDEX "PurchaseRequisition_tenantId_status_createdAt_idx" ON "PurchaseRequisition"("tenantId", "status", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "PurchaseRequisition_companyId_idx" ON "PurchaseRequisition"("companyId");
 
 -- CreateIndex
@@ -1500,6 +1623,9 @@ CREATE INDEX "PurchaseRequisition_requesterId_idx" ON "PurchaseRequisition"("req
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PurchaseRequisition_tenantId_number_key" ON "PurchaseRequisition"("tenantId", "number");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseRequisition_tenantId_clientRequestId_key" ON "PurchaseRequisition"("tenantId", "clientRequestId");
 
 -- CreateIndex
 CREATE INDEX "RequisitionLine_requisitionId_idx" ON "RequisitionLine"("requisitionId");
@@ -1566,6 +1692,9 @@ CREATE INDEX "AwardDecision_rfqId_idx" ON "AwardDecision"("rfqId");
 
 -- CreateIndex
 CREATE INDEX "PurchaseOrder_tenantId_status_idx" ON "PurchaseOrder"("tenantId", "status");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_tenantId_createdAt_idx" ON "PurchaseOrder"("tenantId", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "PurchaseOrder_supplierId_idx" ON "PurchaseOrder"("supplierId");
@@ -1638,6 +1767,48 @@ CREATE INDEX "BudgetTransaction_refType_refId_idx" ON "BudgetTransaction"("refTy
 
 -- CreateIndex
 CREATE INDEX "Comment_entityType_entityId_idx" ON "Comment"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "Comment_parentId_idx" ON "Comment"("parentId");
+
+-- CreateIndex
+CREATE INDEX "POParticipant_tenantId_idx" ON "POParticipant"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "POParticipant_userId_idx" ON "POParticipant"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "POParticipant_orderId_userId_key" ON "POParticipant"("orderId", "userId");
+
+-- CreateIndex
+CREATE INDEX "POProductionUpdate_orderId_idx" ON "POProductionUpdate"("orderId");
+
+-- CreateIndex
+CREATE INDEX "POProductionUpdate_tenantId_idx" ON "POProductionUpdate"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "TechnicalReview_orderId_idx" ON "TechnicalReview"("orderId");
+
+-- CreateIndex
+CREATE INDEX "TechnicalReview_tenantId_idx" ON "TechnicalReview"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "TechnicalReview_supplierId_idx" ON "TechnicalReview"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "TechnicalReviewAction_reviewId_idx" ON "TechnicalReviewAction"("reviewId");
+
+-- CreateIndex
+CREATE INDEX "CommentMention_mentionedUserId_idx" ON "CommentMention"("mentionedUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CommentMention_commentId_mentionedUserId_key" ON "CommentMention"("commentId", "mentionedUserId");
+
+-- CreateIndex
+CREATE INDEX "ThreadRead_entityType_entityId_idx" ON "ThreadRead"("entityType", "entityId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ThreadRead_userId_entityType_entityId_key" ON "ThreadRead"("userId", "entityType", "entityId");
 
 -- CreateIndex
 CREATE INDEX "Attachment_tenantId_idx" ON "Attachment"("tenantId");
@@ -1988,6 +2159,24 @@ ALTER TABLE "BudgetTransaction" ADD CONSTRAINT "BudgetTransaction_budgetId_fkey"
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "POParticipant" ADD CONSTRAINT "POParticipant_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "POProductionUpdate" ADD CONSTRAINT "POProductionUpdate_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TechnicalReview" ADD CONSTRAINT "TechnicalReview_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TechnicalReviewAction" ADD CONSTRAINT "TechnicalReviewAction_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "TechnicalReview"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Attachment" ADD CONSTRAINT "Attachment_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2016,3 +2205,4 @@ ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_tenantId_fkey" FOREIGN KEY ("ten
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

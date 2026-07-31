@@ -624,6 +624,12 @@ model SupplierContact {
   // Portal kullanıcısı (opsiyonel)
   userId     String?  @unique
   user       User?    @relation(fields: [userId], references: [id])
+  // Kalıcı portal davet bağlantısı (süresiz; admin pasife alana kadar geçerli).
+  // Ham token saklanır ki admin cari sayfasında linki tekrar görüp kopyalayabilsin
+  // (yalnız iç/yetkili sayfada gösterilir). Revoke edilince login+link kapanır.
+  portalInviteToken     String?   @unique
+  portalInviteCreatedAt DateTime?
+  portalInviteRevokedAt DateTime?
 
   @@index([supplierId])
 }
@@ -1156,6 +1162,9 @@ model PurchaseOrder {
   // geçmiş POProductionUpdate'te. enum: PLANNING | WAITING_RAW_MATERIAL | PRODUCTION_STARTED
   //  | QUALITY_INSPECTION | READY_FOR_SHIPMENT | LOADED | SHIPPED | COMPLETED
   productionStage String?
+  // Öngörülen teslim tarihi (proje seviyesi). Planlamada bir kez girilir; sonraki
+  // aşamalarda taşınır — tedarikçi her aşamada tekrar girmez, sadece değiştirmek isterse.
+  promisedDeliveryDate DateTime?
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

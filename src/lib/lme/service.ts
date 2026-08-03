@@ -61,7 +61,13 @@ async function fetchMock(input: LmeFetchInput, now: Date): Promise<LmeFetchResul
  * açıkça belirtilir). Günlük spot = son kapanış; haftalık = dönem günlerinin ortalaması.
  */
 async function fetchWeb(input: LmeFetchInput, now: Date): Promise<LmeFetchResult> {
-  const url = "https://query1.finance.yahoo.com/v8/finance/chart/HG=F?interval=1d&range=1mo";
+  const DAY = 86_400; // saniye
+  const weekly = input.kind === "WEEKLY_AVG" && !!input.periodStart && !!input.periodEnd;
+  // İSTENEN tarih aralığını tam çek (period1/period2) — son 1 aya düşme bug'ı giderilir.
+  const p1 = weekly ? Math.floor(input.periodStart!.getTime() / 1000) : Math.floor(input.priceDate.getTime() / 1000) - 8 * DAY;
+  const p2 = (weekly ? Math.floor(input.periodEnd!.getTime() / 1000) : Math.floor(input.priceDate.getTime() / 1000)) + DAY; // bitişi dahil et
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/HG=F?period1=${p1}&period2=${p2}&interval=1d`;
+
   let json: unknown;
   try {
     const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CoilProcurementHub/1.0)" }, signal: AbortSignal.timeout(9000) });
@@ -70,31 +76,32 @@ async function fetchWeb(input: LmeFetchInput, now: Date): Promise<LmeFetchResult
   } catch (e) {
     throw new Error(`Canlı LME/bakır verisi çekilemedi (${String((e as Error).message).slice(0, 60)}). Tekrar deneyin veya değeri manuel girin.`);
   }
-  const res = (json as { chart?: { result?: { meta?: { regularMarketPrice?: number }; timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] } }[] } })?.chart?.result?.[0];
+  const res = (json as { chart?: { result?: { timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] } }[] } })?.chart?.result?.[0];
   const ts = res?.timestamp;
   const close = res?.indicators?.quote?.[0]?.close;
   if (!res || !ts || !close) throw new Error("Bakır fiyat kaynağı beklenmeyen yanıt verdi. Değeri manuel girin.");
 
   const points = ts.map((t, i) => ({ date: new Date(t * 1000), lb: close[i] })).filter((p): p is { date: Date; lb: number } => typeof p.lb === "number");
-  if (points.length === 0) throw new Error("Bakır fiyat kaynağında geçerli veri bulunamadı.");
+  if (points.length === 0) throw new Error("Seçilen dönem için canlı bakır verisi bulunamadı. Tarih/dönemi değiştirin veya değeri manuel girin.");
   const dstr = (dd: Date) => dd.toISOString().slice(0, 10);
 
   let usdPerLb: number;
   let label: string;
-  if (input.kind === "WEEKLY_AVG" && input.periodStart && input.periodEnd) {
-    const a = dstr(input.periodStart), b = dstr(input.periodEnd);
-    const inRange = points.filter((p) => { const dd = dstr(p.date); return dd >= a && dd <= b; });
-    const used = inRange.length ? inRange : points.slice(-5);
-    usdPerLb = used.reduce((s, p) => s + p.lb, 0) / used.length;
-    label = `Haftalık Ort. (${used.length} işlem günü)`;
+  if (weekly) {
+    usdPerLb = points.reduce((s, p) => s + p.lb, 0) / points.length; // dönemin gerçek ortalaması
+    label = `Haftalık Ort. (${points.length} işlem günü)`;
   } else {
-    usdPerLb = res.meta?.regularMarketPrice ?? points[points.length - 1]!.lb;
-    label = "Günlük Spot";
+    const last = points[points.length - 1]!; // döneme en yakın son kapanış
+    usdPerLb = last.lb;
+    label = `Günlük (${dstr(last.date)})`;
   }
-  const usdPerTon = toStr(mul(usdPerLb.toString(), LBS_PER_METRIC_TON), 2);
+
+  const adjust = Number.isFinite(env.LME_COMEX_ADJUST) && env.LME_COMEX_ADJUST > 0 ? env.LME_COMEX_ADJUST : 1;
+  const usdPerTon = toStr(mul(mul(usdPerLb.toString(), LBS_PER_METRIC_TON), adjust.toString()), 2);
+  const adjNote = adjust !== 1 ? ` · LME kal. ×${adjust}` : "";
   return {
     usdPerTon,
-    source: `Yahoo Finance · COMEX Bakır HG=F → LME eşdeğeri (USD/ton) · ${label} · ${fmt(now)}`,
+    source: `Yahoo Finance · COMEX Bakır HG=F → LME eşdeğeri (USD/ton) · ${label}${adjNote} · ${fmt(now)}`,
     fetchedAt: now,
     provider: "web",
   };

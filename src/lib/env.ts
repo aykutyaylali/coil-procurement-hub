@@ -45,6 +45,9 @@ const envSchema = z.object({
   LME_PROVIDER: z.enum(["web", "mock", "fastmarkets", "lme_api"]).default("web"),
   LME_API_URL: z.string().optional(),
   LME_API_KEY: z.string().optional(),
+  // COMEX→LME kalibrasyon katsayısı (web provider). COMEX bakır, LME'nin genelde ~%1-4
+  // üzerindedir; 0.97 gibi bir değer LME'ye yaklaştırır. Varsayılan 1 = ham COMEX.
+  LME_COMEX_ADJUST: z.coerce.number().default(1),
   ANTIVIRUS_PROVIDER: z.enum(["clamav", "none"]).default("none"),
 
   FEATURE_AI: z

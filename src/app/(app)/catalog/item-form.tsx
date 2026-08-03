@@ -68,7 +68,7 @@ export function ItemForm({
           {f.pricingType === "LME_COPPER" && (
             <>
               <div className="space-y-1.5"><Label>LME Katsayısı</Label><Input value={f.lmeCoefficient ?? ""} onChange={(e) => set({ lmeCoefficient: e.target.value })} placeholder="1,0000 (örn. 1,01 = %101)" /></div>
-              <div className="space-y-1.5"><Label>Varsayılan Prim/İşçilik (USD/kg)</Label><Input value={f.defaultPremiumUsdPerKg ?? ""} onChange={(e) => set({ defaultPremiumUsdPerKg: e.target.value })} placeholder="örn. 0,50" /></div>
+              <div className="space-y-1.5"><Label>Varsayılan İşçilik / Prim (USD/kg)</Label><Input value={f.defaultPremiumUsdPerKg ?? ""} onChange={(e) => set({ defaultPremiumUsdPerKg: e.target.value })} placeholder="örn. 0,50" /></div>
               <div className="space-y-1.5"><Label>Varsayılan Ek Maliyet (USD/kg)</Label><Input value={f.defaultExtraCostUsdPerKg ?? ""} onChange={(e) => set({ defaultExtraCostUsdPerKg: e.target.value })} placeholder="örn. 0,10" /></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Fiyatlandırma Notu</Label><Input value={f.pricingNote ?? ""} onChange={(e) => set({ pricingNote: e.target.value })} placeholder="Sarcam bakır tel — LME + prim" /></div>
             </>

@@ -47,7 +47,7 @@ export async function buildPurchaseOrderPdf(id: string, tenantId: string, locale
           { label: tr(locale, "LME (USD/ton)", "LME (USD/ton)"), value: l.lmeUsdPerTon! },
           { label: tr(locale, "LME (USD/kg)", "LME (USD/kg)"), value: lmeUsdPerKg(l.lmeUsdPerTon!) },
           { label: tr(locale, "LME Katsayısı", "LME Coefficient"), value: l.lmeCoefficient ?? "1" },
-          { label: tr(locale, "Prim/İşçilik (USD/kg)", "Premium/Labor (USD/kg)"), value: l.premiumUsdPerKg ?? "0" },
+          { label: tr(locale, "İşçilik / Prim (USD/kg)", "Labor / Premium (USD/kg)"), value: l.premiumUsdPerKg ?? "0" },
           { label: tr(locale, "Ek Maliyet (USD/kg)", "Extra Cost (USD/kg)"), value: l.extraCostUsdPerKg ?? "0" },
           { label: tr(locale, "Net Tel Fiyatı (USD/kg)", "Net Wire Price (USD/kg)"), value: r.unitUsdPerKg, strong: true },
           { label: tr(locale, "TCMB USD/TRY Kuru", "USD/TRY Rate"), value: l.usdTryRate ?? "-" },

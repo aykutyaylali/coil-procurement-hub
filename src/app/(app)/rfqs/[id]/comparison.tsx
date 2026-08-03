@@ -255,7 +255,7 @@ export function Comparison({
                           {bl.pricingType === "LME_COPPER" && (
                             <div className="mt-0.5 rounded bg-amber-50 px-1.5 py-1 text-[10px] leading-tight text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                               <div>LME {bl.lmePriceDate ? new Date(bl.lmePriceDate).toLocaleDateString("tr-TR") : "—"} · {Number(bl.lmeUsdPerTon ?? 0).toLocaleString("tr-TR")} $/t × {bl.lmeCoefficient ?? "1"}</div>
-                              <div>+prim {bl.premiumUsdPerKg || "0"} +ek {bl.extraCostUsdPerKg || "0"} → <b>{bl.unitPrice} $/kg</b>{bl.usdTryRate ? <> · <b>{toStr(mul(bl.unitPrice, bl.usdTryRate), 4)} ₺/kg</b></> : null}</div>
+                              <div>+işçilik {bl.premiumUsdPerKg || "0"} +ek {bl.extraCostUsdPerKg || "0"} → <b>{bl.unitPrice} $/kg</b>{bl.usdTryRate ? <> · <b>{toStr(mul(bl.unitPrice, bl.usdTryRate), 4)} ₺/kg</b></> : null}</div>
                             </div>
                           )}
                           {isBest && <div className="text-[10px] font-semibold text-emerald-600">EN DÜŞÜK</div>}

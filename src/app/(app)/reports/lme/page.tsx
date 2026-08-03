@@ -117,11 +117,11 @@ export default async function LmeReportsPage({ searchParams }: { searchParams: P
 
         {/* (b) Sarcam Prim/İşçilik Değişim Geçmişi */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Prim/İşçilik Değişim Geçmişi</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">İşçilik / Prim Değişim Geçmişi</CardTitle></CardHeader>
           <CardContent className="p-0">
             {rows.length === 0 ? <EmptyState title="Veri yok" /> : (
               <Table>
-                <THead><TR><TH>Sipariş Tarihi</TH><TH>PO</TH><TH>Malzeme</TH><TH className="text-right">Prim USD/kg</TH><TH className="text-right">Ek USD/kg</TH></TR></THead>
+                <THead><TR><TH>Sipariş Tarihi</TH><TH>PO</TH><TH>Malzeme</TH><TH className="text-right">İşçilik/Prim USD/kg</TH><TH className="text-right">Ek USD/kg</TH></TR></THead>
                 <TBody>{[...rows].sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime()).slice(0, 30).map((r, i) => (
                   <TR key={i}><TD>{formatDate(r.orderDate)}</TD><TD className="font-medium">{r.orderNumber}</TD><TD className="text-xs">{r.description}</TD><TD className="text-right font-mono">{r.premiumUsdPerKg}</TD><TD className="text-right font-mono">{r.extraCostUsdPerKg}</TD></TR>
                 ))}</TBody>
@@ -136,7 +136,7 @@ export default async function LmeReportsPage({ searchParams }: { searchParams: P
           <CardContent className="p-0">
             {byMaterial.length === 0 ? <EmptyState title="Veri yok" /> : (
               <Table>
-                <THead><TR><TH>Malzeme</TH><TH className="text-right">Adet</TH><TH className="text-right">Ort. LME $/t</TH><TH className="text-right">Ort. Prim</TH><TH className="text-right">Ort. USD/kg</TH><TH className="text-right">Ort. TL/kg</TH></TR></THead>
+                <THead><TR><TH>Malzeme</TH><TH className="text-right">Adet</TH><TH className="text-right">Ort. LME $/t</TH><TH className="text-right">Ort. İşçilik</TH><TH className="text-right">Ort. USD/kg</TH><TH className="text-right">Ort. TL/kg</TH></TR></THead>
                 <TBody>{byMaterial.map((m) => (
                   <TR key={m.description}><TD className="font-medium">{m.description}</TD><TD className="text-right">{m.count}</TD><TD className="text-right font-mono">{Number(m.avgLmeUsdTon).toLocaleString("tr-TR")}</TD><TD className="text-right font-mono">{m.avgPremium}</TD><TD className="text-right font-mono">{m.avgUsdKg}</TD><TD className="text-right font-mono font-medium">{m.avgTlKg}</TD></TR>
                 ))}</TBody>

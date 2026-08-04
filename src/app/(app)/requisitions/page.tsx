@@ -11,6 +11,7 @@ import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { formatMoneyOrDash } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Talepler" };
 
@@ -20,6 +21,7 @@ export default async function RequisitionsPage({
   searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const user = await requirePermission(PERMISSIONS.REQUISITION_VIEW);
+  const T = translator(user.locale as Locale);
   const canCreate = userCan(user, PERMISSIONS.REQUISITION_CREATE);
   const canSetPolicy = userCan(user, PERMISSIONS.REQUISITION_ASSIGN);
   const sp = await searchParams;
@@ -56,9 +58,9 @@ export default async function RequisitionsPage({
   return (
     <div>
       <PageHeader
-        title="Satınalma Talepleri"
-        description="Departman ihtiyaçları için talep oluşturun ve takip edin."
-        action={canCreate ? { label: "Yeni Talep", href: "/requisitions/new" } : undefined}
+        title={T("reqPage.title")}
+        description={T("reqPage.subtitle")}
+        action={canCreate ? { label: T("reqPage.new"), href: "/requisitions/new" } : undefined}
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -66,7 +68,7 @@ export default async function RequisitionsPage({
           href="/requisitions"
           className={`rounded-full border px-3 py-1 text-xs ${!sp.status ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
         >
-          Tümü
+          {T("reqPage.all")}
         </Link>
         {statuses.map((s) => (
           <Link
@@ -74,31 +76,31 @@ export default async function RequisitionsPage({
             href={`/requisitions?status=${s}`}
             className={`rounded-full border px-3 py-1 text-xs ${sp.status === s ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
           >
-            {statusLabel(s)}
+            {statusLabel(s, user.locale)}
           </Link>
         ))}
         {canSetPolicy && (
           <Link href="/requisitions/approval-policy" className="ml-auto rounded-full border px-3 py-1 text-xs hover:bg-accent" prefetch>
-            ⚙ Onay Politikası
+            ⚙ {T("reqPage.policy")}
           </Link>
         )}
       </div>
 
       <Card>
         {requisitions.length === 0 ? (
-          <EmptyState title="Talep bulunamadı" hint="Yeni Talep butonuyla ilk talebinizi oluşturun." />
+          <EmptyState title={T("reqPage.empty")} hint={T("reqPage.emptyHint")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Talep No</TH>
-                <TH>Şirket / Departman</TH>
-                <TH>Talep Eden</TH>
-                <TH>Kalem</TH>
-                <TH>Öncelik</TH>
-                <TH className="text-right">Tahmini Tutar</TH>
-                <TH>Durum</TH>
-                <TH>Tarih</TH>
+                <TH>{T("reqPage.colNumber")}</TH>
+                <TH>{T("reqPage.colCompanyDept")}</TH>
+                <TH>{T("reqPage.colRequester")}</TH>
+                <TH>{T("reqPage.colLines")}</TH>
+                <TH>{T("reqPage.colPriority")}</TH>
+                <TH className="text-right">{T("reqPage.colEstTotal")}</TH>
+                <TH>{T("reqPage.colStatus")}</TH>
+                <TH>{T("reqPage.colDate")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -115,10 +117,10 @@ export default async function RequisitionsPage({
                   </TD>
                   <TD className="text-sm">{r.requester.name}</TD>
                   <TD className="text-sm">{r._count.lines}</TD>
-                  <TD>{statusLabel(r.priority)}</TD>
+                  <TD>{statusLabel(r.priority, user.locale)}</TD>
                   <TD className="text-right font-medium">{formatMoneyOrDash(r.estimatedTotal, r.currency)}</TD>
                   <TD>
-                    <StatusBadge status={r.status} />
+                    <StatusBadge status={r.status} locale={user.locale} />
                   </TD>
                   <TD className="text-sm text-muted-foreground">{formatDate(r.createdAt)}</TD>
                 </TR>

@@ -10,11 +10,13 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Siparişler" };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requirePermission(PERMISSIONS.ORDER_VIEW);
+  const T = translator(user.locale as Locale);
   const sp = await searchParams;
   const page = parsePage(sp.page);
   const where = { tenantId: user.tenantId };
@@ -36,21 +38,21 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <PageHeader title="Satınalma Siparişleri" description="Onaylı tekliflerden oluşan siparişleri yönetin." />
+      <PageHeader title={T("ordPage.title")} description={T("ordPage.subtitle")} />
       <Card>
         {orders.length === 0 ? (
-          <EmptyState title="Henüz sipariş yok" hint="RFQ karara bağlandığında sipariş otomatik oluşur." />
+          <EmptyState title={T("ordPage.empty")} hint={T("ordPage.emptyHint")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Sipariş No</TH>
-                <TH>Tedarikçi</TH>
-                <TH>Şirket</TH>
-                <TH className="text-center">Kalem</TH>
-                <TH className="text-right">Tutar</TH>
-                <TH>Durum</TH>
-                <TH>Tarih</TH>
+                <TH>{T("ordPage.colNumber")}</TH>
+                <TH>{T("ordPage.colSupplier")}</TH>
+                <TH>{T("ordPage.colCompany")}</TH>
+                <TH className="text-center">{T("ordPage.colLines")}</TH>
+                <TH className="text-right">{T("ordPage.colAmount")}</TH>
+                <TH>{T("ordPage.colStatus")}</TH>
+                <TH>{T("ordPage.colDate")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -66,7 +68,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                   <TD className="text-center">{o._count.lines}</TD>
                   <TD className="text-right font-medium">{formatMoney(o.grandTotal, o.currency)}</TD>
                   <TD>
-                    <StatusBadge status={o.status} />
+                    <StatusBadge status={o.status} locale={user.locale} />
                   </TD>
                   <TD className="text-sm text-muted-foreground">{formatDate(o.orderDate)}</TD>
                 </TR>

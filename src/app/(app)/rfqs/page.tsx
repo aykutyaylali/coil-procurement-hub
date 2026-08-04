@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Teklif Talepleri" };
 
@@ -15,6 +16,7 @@ const EVAL_STATUSES = ["SENT", "OPEN", "EVALUATION", "CLARIFICATION", "NEGOTIATI
 
 export default async function RfqsPage({ searchParams }: { searchParams: Promise<{ filter?: string; status?: string }> }) {
   const user = await requirePermission(PERMISSIONS.RFQ_VIEW);
+  const T = translator(user.locale as Locale);
   const sp = await searchParams;
 
   const where = {
@@ -41,21 +43,18 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
   });
 
   const chips = [
-    { key: "", label: "Tümü", href: "/rfqs" },
-    { key: "responded", label: `Teklif Geldi${respondedCount ? ` (${respondedCount})` : ""}`, href: "/rfqs?filter=responded", highlight: true },
-    { key: "SENT", label: "Gönderildi", href: "/rfqs?status=SENT" },
-    { key: "OPEN", label: "Teklifler toplanıyor", href: "/rfqs?status=OPEN" },
-    { key: "EVALUATION", label: "Değerlendirme", href: "/rfqs?status=EVALUATION" },
-    { key: "AWARDED", label: "Karara Bağlandı", href: "/rfqs?status=AWARDED" },
+    { key: "", label: T("rfqPage.chipAll"), href: "/rfqs" },
+    { key: "responded", label: `${T("rfqPage.chipResponded")}${respondedCount ? ` (${respondedCount})` : ""}`, href: "/rfqs?filter=responded", highlight: true },
+    { key: "SENT", label: T("rfqPage.chipSent"), href: "/rfqs?status=SENT" },
+    { key: "OPEN", label: T("rfqPage.chipCollecting"), href: "/rfqs?status=OPEN" },
+    { key: "EVALUATION", label: T("rfqPage.chipEvaluation"), href: "/rfqs?status=EVALUATION" },
+    { key: "AWARDED", label: T("rfqPage.chipAwarded"), href: "/rfqs?status=AWARDED" },
   ];
   const active = sp.filter === "responded" ? "responded" : (sp.status ?? "");
 
   return (
     <div>
-      <PageHeader
-        title="Teklif Talepleri (RFQ)"
-        description="Onaylı taleplerden teklif talebi oluşturun, tedarikçilere gönderin ve gelen teklifleri karşılaştırın."
-      />
+      <PageHeader title={T("rfqPage.title")} description={T("rfqPage.subtitle")} />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {chips.map((c) => (
@@ -78,19 +77,19 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
       <Card>
         {rfqs.length === 0 ? (
           <EmptyState
-            title={sp.filter === "responded" ? "Değerlendirilecek teklif yok" : "RFQ yok"}
-            hint="Onaylanmış bir talebin detay sayfasından kalem seçip 'RFQ oluştur' ile başlayın."
+            title={sp.filter === "responded" ? T("rfqPage.emptyResponded") : T("rfqPage.empty")}
+            hint={T("rfqPage.emptyHint")}
           />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>RFQ No</TH>
-                <TH>Başlık</TH>
-                <TH className="text-center">Kalem</TH>
-                <TH className="text-center">Yanıtlayan</TH>
-                <TH>Son Tarih</TH>
-                <TH>Durum</TH>
+                <TH>{T("rfqPage.colNumber")}</TH>
+                <TH>{T("rfqPage.colTitle")}</TH>
+                <TH className="text-center">{T("rfqPage.colLines")}</TH>
+                <TH className="text-center">{T("rfqPage.colResponders")}</TH>
+                <TH>{T("rfqPage.colDueDate")}</TH>
+                <TH>{T("rfqPage.colStatus")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -112,14 +111,14 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
                     <TD className="text-center">{r._count.lines}</TD>
                     <TD className="text-center">
                       {responded > 0 ? (
-                        <Badge tone="success">{responded}/{invited} yanıtladı</Badge>
+                        <Badge tone="success">{T("rfqPage.answered", { responded, invited })}</Badge>
                       ) : (
                         <span className="text-sm text-muted-foreground">0/{invited}</span>
                       )}
                     </TD>
                     <TD className="text-sm text-muted-foreground">{r.dueAt ? formatDateTime(r.dueAt) : "-"}</TD>
                     <TD>
-                      <StatusBadge status={r.status} />
+                      <StatusBadge status={r.status} locale={user.locale} />
                     </TD>
                   </TR>
                 );

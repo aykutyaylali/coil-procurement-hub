@@ -1,7 +1,7 @@
 "use client";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Icons from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/app/(auth)/actions";
@@ -25,9 +25,24 @@ export function Topbar({
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Menü dışına tıklama / Esc ile kapanır (macOS tarzı davranış).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [menuOpen]);
+
+  const initials = userName.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+  const isDark = theme === "dark";
+  const segBtn = (active: boolean) => `flex-1 px-2.5 py-1 transition-colors ${active ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`;
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 min-w-0 items-center gap-2 border-b bg-card/80 px-3 backdrop-blur sm:gap-3 sm:px-4">
+    <header className="sticky top-0 z-20 flex h-14 min-w-0 items-center gap-2 border-b border-border/60 bg-card/70 px-3 backdrop-blur-md sm:gap-3 sm:px-4">
       {mobileMenu}
       <form
         className="relative hidden max-w-md flex-1 md:block"
@@ -41,7 +56,7 @@ export function Topbar({
         <input
           name="q"
           placeholder="Talep, RFQ, sipariş, tedarikçi ara..."
-          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </form>
 
@@ -62,56 +77,55 @@ export function Topbar({
             </span>
           )}
         </Button>
-        <div className="flex overflow-hidden rounded-md border text-xs" title="Dil / Language">
-          <button
-            onClick={() => updateLocale("tr")}
-            className={`px-2 py-1 ${locale === "tr" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-          >
-            TR
-          </button>
-          <button
-            onClick={() => updateLocale("en")}
-            className={`px-2 py-1 ${locale === "en" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-          >
-            EN
-          </button>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          title="Tema Değiştir"
-        >
-          <Icons.Sun className="size-4 dark:hidden" />
-          <Icons.Moon className="hidden size-4 dark:block" />
-        </Button>
 
-        <div className="relative">
+        {/* Kullanıcı menüsü — yalnız avatar; ad/rol/tema/dil/çıkış menüde toplanır. */}
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
+            aria-label="Kullanıcı menüsü"
+            aria-expanded={menuOpen}
+            className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary ring-2 ring-transparent transition hover:ring-primary/20"
           >
-            <div className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-              {userName.charAt(0)}
-            </div>
-            <div className="hidden text-left sm:block">
-              <div className="text-sm font-medium leading-tight">{userName}</div>
-              <div className="text-[11px] leading-tight text-muted-foreground">{userTitle}</div>
-            </div>
+            {initials}
           </button>
+
           {menuOpen && (
-            <div className="absolute right-0 mt-1 w-48 rounded-md border bg-popover p-1 shadow-lg">
-              <button
-                onClick={() => router.push("/profile")}
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-accent"
-              >
-                <Icons.User className="size-4" /> Profil
+            <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-border/60 bg-popover p-1.5 shadow-lg">
+              {/* Kimlik başlığı */}
+              <div className="flex items-center gap-3 px-2.5 py-2">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-base font-semibold text-primary">{initials}</div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{userName}</div>
+                  <div className="truncate text-xs text-muted-foreground">{userTitle}</div>
+                </div>
+              </div>
+              <div className="my-1 h-px bg-border/70" />
+
+              <button onClick={() => { setMenuOpen(false); router.push("/profile"); }} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-accent">
+                <Icons.User className="size-4 text-muted-foreground" /> Profil
               </button>
+
+              {/* Tema */}
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2 text-sm">
+                <span className="flex items-center gap-2.5"><Icons.SunMoon className="size-4 text-muted-foreground" /> Tema</span>
+                <div className="flex overflow-hidden rounded-lg border text-xs">
+                  <button onClick={() => setTheme("light")} className={segBtn(!isDark)}>Açık</button>
+                  <button onClick={() => setTheme("dark")} className={segBtn(isDark)}>Koyu</button>
+                </div>
+              </div>
+
+              {/* Dil */}
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2 text-sm">
+                <span className="flex items-center gap-2.5"><Icons.Languages className="size-4 text-muted-foreground" /> Dil</span>
+                <div className="flex overflow-hidden rounded-lg border text-xs">
+                  <button onClick={() => updateLocale("tr")} className={segBtn(locale === "tr")}>TR</button>
+                  <button onClick={() => updateLocale("en")} className={segBtn(locale === "en")}>EN</button>
+                </div>
+              </div>
+
+              <div className="my-1 h-px bg-border/70" />
               <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-accent"
-                >
+                <button type="submit" className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-destructive hover:bg-destructive/10">
                   <Icons.LogOut className="size-4" /> Çıkış Yap
                 </button>
               </form>

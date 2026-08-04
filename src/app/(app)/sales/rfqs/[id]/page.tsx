@@ -9,6 +9,7 @@ import { statusTone } from "@/lib/enums";
 import { formatDate } from "@/lib/dates";
 import { countryFlag } from "@/lib/country";
 import { RFQ_STATUS_LABEL } from "../rfq-row-actions";
+import { ConvertToOfferButton } from "./convert-button";
 
 export default async function SalesRfqDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,8 +34,8 @@ export default async function SalesRfqDetailPage({ params }: { params: Promise<{
           <p className="mt-1 text-sm text-muted-foreground">{countryFlag(rfq.customer.country)} {rfq.customer.name} · {formatDate(rfq.requestDate)}</p>
         </div>
         <div className="flex items-center gap-3">
-          {canManage && rfq.status !== "OFFERED" && (
-            <Link href={`/sales/offers/new?rfqId=${rfq.id}`} className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90">Teklife Dönüştür →</Link>
+          {canManage && rfq.status !== "CANCELLED" && rfq.status !== "REJECTED" && (
+            <ConvertToOfferButton rfqId={rfq.id} />
           )}
           <Link href="/sales/rfqs" className="text-sm text-primary hover:underline">← Liste</Link>
         </div>

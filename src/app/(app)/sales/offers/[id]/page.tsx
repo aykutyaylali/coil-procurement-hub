@@ -1,0 +1,119 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { requirePermission, userCan } from "@/lib/auth/context";
+import { PERMISSIONS } from "@/lib/rbac";
+import { prisma } from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
+import { statusTone } from "@/lib/enums";
+import { formatDate, formatDateTime } from "@/lib/dates";
+import { formatMoney } from "@/lib/money";
+import { countryFlag } from "@/lib/country";
+import { AttachmentUploader } from "@/components/attachments/attachment-uploader";
+import { OFFER_STATUS_LABEL, revisionLabel } from "../status";
+import { OfferInfoForm, type OfferInfoInitial } from "./offer-info-form";
+import { OfferNotes, type NoteItem } from "./offer-notes";
+import { ReviseButton } from "./revise-button";
+
+const TABS = [
+  { key: "info", label: "OFFER INFO" },
+  { key: "notes", label: "NOTES" },
+  { key: "docs", label: "DOCS" },
+];
+
+const dInput = (dt: Date | null | undefined): string => (dt ? new Date(dt).toISOString().slice(0, 10) : "");
+
+export default async function SalesOfferEditorPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const { id } = await params;
+  const { tab } = await searchParams;
+  const activeTab = TABS.some((t) => t.key === tab) ? tab! : "info";
+  const user = await requirePermission(PERMISSIONS.SALES_VIEW);
+  const canManage = userCan(user, PERMISSIONS.SALES_MANAGE);
+
+  const offer = await prisma.salesOffer.findFirst({
+    where: { id, tenantId: user.tenantId, deletedAt: null },
+    include: { customer: true, salesRfq: { select: { id: true, number: true } }, technicalDetail: true },
+  });
+  if (!offer) notFound();
+
+  const [salesReps, lmeRecords, notes] = await Promise.all([
+    prisma.user.findMany({ where: { tenantId: user.tenantId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.lmeRecord.findMany({ where: { tenantId: user.tenantId, status: "APPROVED" }, orderBy: { priceDate: "desc" }, take: 40, select: { id: true, priceDate: true, kind: true, usdPerTon: true } }),
+    prisma.salesOfferNote.findMany({ where: { offerId: offer.id }, orderBy: { createdAt: "desc" } }),
+  ]);
+
+  const noteAuthorIds = Array.from(new Set(notes.map((n) => n.createdById)));
+  const authors = noteAuthorIds.length
+    ? Object.fromEntries((await prisma.user.findMany({ where: { id: { in: noteAuthorIds } }, select: { id: true, name: true } })).map((u) => [u.id, u.name] as const))
+    : {};
+
+  const t = offer.technicalDetail;
+  const initial: OfferInfoInitial = {
+    id: offer.id, number: offer.number, status: offer.status, currency: offer.currency, totalAmount: offer.totalAmount,
+    offerDate: dInput(offer.offerDate), validUntil: dInput(offer.validUntil), deliveryDate: dInput(offer.deliveryDate),
+    invoiced: offer.invoiced, reason: offer.reason ?? "", salesRepId: offer.salesRepId ?? "",
+    tech: {
+      manufacturer: t?.manufacturer ?? "", type: t?.type ?? "", power: t?.power ?? "", voltage: t?.voltage ?? "",
+      numberOfPole: t?.numberOfPole?.toString() ?? "", numberOfCoils: t?.numberOfCoils?.toString() ?? "", numberOfSlot: t?.numberOfSlot?.toString() ?? "",
+      numberOfSet: t?.numberOfSet?.toString() ?? "", numberOfTurns: t?.numberOfTurns?.toString() ?? "", insulationType: t?.insulationType ?? "",
+      typeOfCoil: t?.typeOfCoil ?? "", wireWidth: t?.wireWidth ?? "", wireThickness: t?.wireThickness ?? "", lmeRecordId: t?.lmeRecordId ?? "",
+    },
+  };
+  const lmeOptions = lmeRecords.map((l) => ({ id: l.id, usdPerTon: l.usdPerTon, label: `${formatDate(l.priceDate)} · ${l.kind === "WEEKLY_AVG" ? "Haftalık" : "Günlük"} · ${formatMoney(l.usdPerTon, "USD")}/ton` }));
+  const noteItems: NoteItem[] = notes.map((n) => ({ id: n.id, title: n.title, body: n.body, author: authors[n.createdById] ?? "—", createdAt: formatDateTime(n.createdAt) }));
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold">{offer.number}</h1>
+            <Badge tone={statusTone(offer.status)}>{OFFER_STATUS_LABEL[offer.status] ?? offer.status}</Badge>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{revisionLabel(offer.revisionNo)}</span>
+            {offer.invoiced && <span className="text-xs text-green-600">✓ Faturalı</span>}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {countryFlag(offer.customer.country)} {offer.customer.name}
+            {offer.customer.industry ? ` · ${offer.customer.industry}` : ""} · {formatMoney(offer.totalAmount, offer.currency)}
+            {offer.salesRfq ? <> · <Link href={`/sales/rfqs/${offer.salesRfq.id}`} className="text-primary hover:underline">{offer.salesRfq.number}</Link></> : null}
+            {offer.revisionDate ? ` · Son revizyon: ${formatDate(offer.revisionDate)}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {canManage && <ReviseButton offerId={offer.id} />}
+          <Link href="/sales/offers" className="text-sm text-primary hover:underline">← Liste</Link>
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-1 border-b">
+        {TABS.map((tb) => (
+          <Link key={tb.key} href={`/sales/offers/${offer.id}?tab=${tb.key}`}
+            className={`rounded-t-md px-4 py-2 text-sm font-medium ${activeTab === tb.key ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            {tb.label}
+          </Link>
+        ))}
+      </div>
+
+      {activeTab === "info" && (
+        canManage
+          ? <OfferInfoForm initial={initial} salesReps={salesReps} lmeOptions={lmeOptions} />
+          : <ReadOnlyInfo offer={offer} tech={t} lmeLabel={lmeOptions.find((l) => l.id === t?.lmeRecordId)?.label} />
+      )}
+      {activeTab === "notes" && <OfferNotes offerId={offer.id} notes={noteItems} canManage={canManage} />}
+      {activeTab === "docs" && (
+        <AttachmentUploader entityType="SalesOffer" entityId={offer.id} label="Teklif Dokümanları" accept="image/png,image/jpeg,image/webp,application/pdf,.xlsx,.docx" isInternal={false} canEdit={canManage} />
+      )}
+    </div>
+  );
+}
+
+function ReadOnlyInfo({ offer, tech, lmeLabel }: { offer: { currency: string; totalAmount: string; reason: string | null }; tech: { manufacturer: string | null; type: string | null; power: string | null } | null; lmeLabel?: string }) {
+  return (
+    <div className="space-y-2 rounded-md border p-4 text-sm">
+      <p><span className="text-muted-foreground">Tutar:</span> {formatMoney(offer.totalAmount, offer.currency)}</p>
+      <p><span className="text-muted-foreground">Üretici / Tip / Güç:</span> {[tech?.manufacturer, tech?.type, tech?.power].filter(Boolean).join(" · ") || "—"}</p>
+      <p><span className="text-muted-foreground">LME Referansı:</span> {lmeLabel ?? "—"}</p>
+      {offer.reason && <p><span className="text-muted-foreground">Not:</span> {offer.reason}</p>}
+      <p className="text-xs text-muted-foreground">Düzenleme için sales.manage yetkisi gerekir.</p>
+    </div>
+  );
+}

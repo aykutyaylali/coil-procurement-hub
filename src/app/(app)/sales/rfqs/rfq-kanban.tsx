@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { setSalesRfqStatus } from "../actions";
-import { RFQ_STATUS_LABEL } from "./status";
+import { useI18n } from "@/components/i18n-provider";
 import { countryFlag } from "@/lib/country";
 
 export type KanbanCard = {
@@ -11,16 +11,17 @@ export type KanbanCard = {
   status: string; salesRepName: string | null; industry: string | null; offersCount: number;
 };
 
-const COLUMNS: { key: string; label: string; accent: string }[] = [
-  { key: "REQUEST", label: RFQ_STATUS_LABEL.REQUEST!, accent: "border-t-sky-500" },
-  { key: "IN_PROCESS", label: RFQ_STATUS_LABEL.IN_PROCESS!, accent: "border-t-amber-500" },
-  { key: "OFFERED", label: RFQ_STATUS_LABEL.OFFERED!, accent: "border-t-green-500" },
-  { key: "REJECTED", label: RFQ_STATUS_LABEL.REJECTED!, accent: "border-t-red-500" },
+const COLUMNS: { key: string; accent: string }[] = [
+  { key: "REQUEST", accent: "border-t-sky-500" },
+  { key: "IN_PROCESS", accent: "border-t-amber-500" },
+  { key: "OFFERED", accent: "border-t-green-500" },
+  { key: "REJECTED", accent: "border-t-red-500" },
 ];
 const NEXT: Record<string, string | null> = { REQUEST: "IN_PROCESS", IN_PROCESS: "OFFERED", OFFERED: null, REJECTED: null };
 
 export function RfqKanban({ cards: initial, canManage }: { cards: KanbanCard[]; canManage: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [cards, setCards] = useState(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function RfqKanban({ cards: initial, canManage }: { cards: KanbanCard[]; 
               className={`rounded-lg border border-t-4 ${col.accent} bg-muted/20 p-2 transition-colors ${overCol === col.key ? "ring-2 ring-primary/40" : ""}`}
             >
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-sm font-medium">{col.label}</span>
+                <span className="text-sm font-medium">{t(`salesRfq.status.${col.key}`)}</span>
                 <span className="rounded-full bg-background px-2 text-xs text-muted-foreground">{colCards.length}</span>
               </div>
               <div className="space-y-2">
@@ -66,24 +67,24 @@ export function RfqKanban({ cards: initial, canManage }: { cards: KanbanCard[]; 
                   >
                     <div className="flex items-center justify-between">
                       <Link href={`/sales/rfqs/${c.id}`} className="font-medium text-primary hover:underline">{c.number}</Link>
-                      {c.offersCount > 0 && <span className="text-xs text-green-600">{c.offersCount} teklif</span>}
+                      {c.offersCount > 0 && <span className="text-xs text-green-600">{t("salesRfq.kanban.offers", { n: c.offersCount })}</span>}
                     </div>
                     <p className="mt-0.5 text-xs text-foreground/80">{countryFlag(c.country)} {c.customerName}</p>
                     <p className="text-xs text-muted-foreground">{[c.industry, c.salesRepName].filter(Boolean).join(" · ") || "—"}</p>
                     {canManage && NEXT[col.key] && (
                       <button onClick={() => move(c.id, NEXT[col.key]!)} className="mt-1.5 text-xs text-primary hover:underline">
-                        → {RFQ_STATUS_LABEL[NEXT[col.key]!]}
+                        → {t(`salesRfq.status.${NEXT[col.key]!}`)}
                       </button>
                     )}
                   </div>
                 ))}
-                {colCards.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Boş</p>}
+                {colCards.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">{t("salesRfq.kanban.empty")}</p>}
               </div>
             </div>
           );
         })}
       </div>
-      {canManage && <p className="mt-3 text-xs text-muted-foreground">İpucu: Kartları sürükleyip bırakarak veya “→” ile bir sonraki aşamaya taşıyabilirsiniz.</p>}
+      {canManage && <p className="mt-3 text-xs text-muted-foreground">{t("salesRfq.kanban.hint")}</p>}
     </div>
   );
 }

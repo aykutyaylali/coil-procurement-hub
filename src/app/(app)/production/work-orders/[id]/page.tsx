@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/lib/enums";
+import { translator, type Locale } from "@/lib/i18n";
 import { formatDate } from "@/lib/dates";
 import { stationProgress, woProgressPct, liveStatus, type ProdLogRow, type StationRow } from "@/domain/production";
 import { WO_STATUS_LABEL, LOG_STATUS_BADGE } from "../../constants";
@@ -23,6 +24,7 @@ const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 export default async function WorkOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.PRODUCTION_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.PRODUCTION_MANAGE);
 
   const wo = await prisma.workOrder.findFirst({ where: { id, tenantId: user.tenantId } });
@@ -54,23 +56,23 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   return (
     <div>
       <PageHeader
-        title={`İş Emri ${wo.number}`}
+        title={T("prodWo.detailTitle", { n: wo.number })}
         description={`${wo.customerName ?? "—"} · ${wo.coilType?.replace(/_/g, " ") ?? "—"}`}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Badge tone={statusTone(wo.status)}>{WO_STATUS_LABEL[wo.status] ?? wo.status}</Badge>
+        <Badge tone={statusTone(wo.status)}>{WO_STATUS_LABEL[wo.status] ? T(`prodWo.woStatus.${wo.status}`) : wo.status}</Badge>
         {wo.line && <Badge tone="neutral">{wo.line}</Badge>}
-        <span className="text-sm text-muted-foreground">Tamamlanan: <b className="tabular-nums text-foreground">{wo.completedCoils}/{wo.targetCoils}</b> (%{overallPct})</span>
+        <span className="text-sm text-muted-foreground">{T("prodWo.completedLabel")} <b className="tabular-nums text-foreground">{wo.completedCoils}/{wo.targetCoils}</b> (%{overallPct})</span>
         <div className="ml-auto flex gap-2">
-          <a href={`/production/work-orders/${wo.id}/label?lang=tr`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"><Printer className="size-4" /> Barkod (TR)</a>
-          <a href={`/production/work-orders/${wo.id}/label?lang=en`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"><Printer className="size-4" /> Barkod (EN)</a>
+          <a href={`/production/work-orders/${wo.id}/label?lang=tr`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"><Printer className="size-4" /> {T("prodWo.barcodeTr")}</a>
+          <a href={`/production/work-orders/${wo.id}/label?lang=en`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"><Printer className="size-4" /> {T("prodWo.barcodeEn")}</a>
         </div>
       </div>
 
       {/* İstasyon bazlı ilerleme */}
       <Card className="mb-6">
-        <CardHeader><CardTitle className="text-base">İstasyon Bazlı İlerleme</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("prodWo.stationProgressTitle")}</CardTitle></CardHeader>
         <CardContent className="space-y-2.5">
           {progress.map((p) => (
             <div key={p.code} className="flex items-center gap-3">
@@ -84,11 +86,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
       {/* Üretim kayıtları */}
       <Card className="mb-6">
-        <CardHeader><CardTitle className="text-base">Üretim / Barkod Kayıtları</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("prodWo.logsTitle")}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {logs.length === 0 ? <EmptyState title="Kayıt yok" hint="Saha terminalinden barkod okutuldukça burada listelenir." /> : (
+          {logs.length === 0 ? <EmptyState title={T("prodWo.logsEmptyTitle")} hint={T("prodWo.logsEmptyHint")} /> : (
             <Table>
-              <THead><TR><TH>Operatör</TH><TH>İstasyon</TH><TH className="text-center">Üretim</TH><TH className="text-center">Fire</TH><TH>Giriş</TH><TH>Çıkış</TH><TH className="text-center">Süre (dk)</TH><TH>Durum</TH></TR></THead>
+              <THead><TR><TH>{T("prodWo.thOperator")}</TH><TH>{T("prodWo.thStation")}</TH><TH className="text-center">{T("prodWo.thProduction")}</TH><TH className="text-center">{T("prodWo.thScrap")}</TH><TH>{T("prodWo.thCheckIn")}</TH><TH>{T("prodWo.thCheckOut")}</TH><TH className="text-center">{T("prodWo.thDurationMin")}</TH><TH>{T("prodWo.thStatus")}</TH></TR></THead>
               <TBody>{logs.map((l) => {
                 const st = liveStatus(l);
                 const badge = LOG_STATUS_BADGE[st]!;
@@ -101,7 +103,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
                     <TD className="text-sm text-muted-foreground">{formatDate(l.checkInAt, undefined, "dd.MM HH:mm")}</TD>
                     <TD className="text-sm text-muted-foreground">{l.checkOutAt ? formatDate(l.checkOutAt, undefined, "dd.MM HH:mm") : "—"}</TD>
                     <TD className="text-center tabular-nums">{l.elapsedMinutes ?? "—"}</TD>
-                    <TD className="text-sm">{badge.dot} {badge.label}</TD>
+                    <TD className="text-sm">{badge.dot} {T(`prodWo.logStatus.${st}`)}</TD>
                   </TR>
                 );
               })}</TBody>
@@ -113,14 +115,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       {/* Düzenleme (yalnız yönetim) */}
       {canManage ? (
         <>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">İş Emrini Düzenle</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{T("prodWo.editTitle")}</h2>
           <WorkOrderForm initial={initial} customers={customers} />
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">Notlar: {wo.notes ?? "—"}</p>
+        <p className="text-sm text-muted-foreground">{T("prodWo.notesLabel")} {wo.notes ?? "—"}</p>
       )}
       <div className="mt-4">
-        <Link href="/production/work-orders" className="text-sm text-primary hover:underline">← İş emri listesine dön</Link>
+        <Link href="/production/work-orders" className="text-sm text-primary hover:underline">{T("prodWo.backToList")}</Link>
       </div>
     </div>
   );

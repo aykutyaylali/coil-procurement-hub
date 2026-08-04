@@ -8,10 +8,12 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.CATALOG_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.CATALOG_MANAGE);
 
   const item = await prisma.item.findFirst({
@@ -39,26 +41,26 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold">{item.code}</h1>
-            <Badge tone={item.isService ? "info" : "default"}>{item.isService ? "Hizmet" : "Malzeme"}</Badge>
-            {!item.isActive && <Badge tone="danger">Pasif</Badge>}
+            <Badge tone={item.isService ? "info" : "default"}>{item.isService ? T("cat.type.service") : T("cat.type.material")}</Badge>
+            {!item.isActive && <Badge tone="danger">{T("cat.detail.inactive")}</Badge>}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{item.name}{item.category ? ` · ${item.category.name}` : ""}</p>
         </div>
         <div className="flex items-center gap-3">
-          {canManage && <Link href={`/catalog/${item.id}/edit`} className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">Düzenle</Link>}
-          <Link href="/catalog" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+          {canManage && <Link href={`/catalog/${item.id}/edit`} className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">{T("cat.detail.edit")}</Link>}
+          <Link href="/catalog" className="text-sm text-primary hover:underline">{T("cat.detail.backToList")}</Link>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <CardHeader><CardTitle>Fiyat Geçmişi</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("cat.detail.priceHistory")}</CardTitle></CardHeader>
             <CardContent className="p-0">
               <Table>
-                <THead><TR><TH>Sipariş</TH><TH>Tedarikçi</TH><TH className="text-right">Birim Fiyat</TH><TH>Tarih</TH></TR></THead>
+                <THead><TR><TH>{T("cat.detail.colOrder")}</TH><TH>{T("cat.detail.colSupplier")}</TH><TH className="text-right">{T("cat.detail.colUnitPrice")}</TH><TH>{T("cat.detail.colDate")}</TH></TR></THead>
                 <TBody>
-                  {priceHistory.length === 0 && <TR><TD colSpan={4} className="py-4 text-center text-sm text-muted-foreground">Bu ürün için sipariş geçmişi yok. Son alış: {item.lastPurchasePrice ? formatMoney(item.lastPurchasePrice, item.lastPurchaseCurrency ?? "TRY") : "-"}</TD></TR>}
+                  {priceHistory.length === 0 && <TR><TD colSpan={4} className="py-4 text-center text-sm text-muted-foreground">{T("cat.detail.noHistory")} {item.lastPurchasePrice ? formatMoney(item.lastPurchasePrice, item.lastPurchaseCurrency ?? "TRY") : "-"}</TD></TR>}
                   {priceHistory.map((p, i) => (
                     <TR key={i}>
                       <TD>{p.order.number}</TD>
@@ -74,33 +76,33 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
 
           {conversions.length > 0 && (
             <Card>
-              <CardHeader><CardTitle>Birim Dönüşümleri</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{T("cat.detail.unitConversions")}</CardTitle></CardHeader>
               <CardContent className="space-y-1 text-sm">
                 {conversions.map((c, i) => <div key={i}>1 {c.fromUom} = {c.factor} {c.toUom}</div>)}
               </CardContent>
             </Card>
           )}
 
-          {item.specs && <Card><CardHeader><CardTitle>Teknik Özellikler</CardTitle></CardHeader><CardContent className="text-sm">{item.specs}</CardContent></Card>}
+          {item.specs && <Card><CardHeader><CardTitle>{T("cat.detail.specs")}</CardTitle></CardHeader><CardContent className="text-sm">{item.specs}</CardContent></Card>}
         </div>
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("cat.detail.summary")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Birim" value={item.baseUom?.code ?? "-"} />
-              <Row label="Marka" value={item.brand ?? "-"} />
-              <Row label="Üretici" value={item.manufacturer ?? "-"} />
-              <Row label="GTİP" value={item.gtipCode ?? "-"} />
-              <Row label="Min. Sipariş" value={item.minOrderQty ?? "-"} />
-              <Row label="Termin" value={item.leadTimeDays ? `${item.leadTimeDays} gün` : "-"} />
-              <Row label="Son Alış" value={item.lastPurchasePrice ? formatMoney(item.lastPurchasePrice, item.lastPurchaseCurrency ?? "TRY") : "-"} />
+              <Row label={T("cat.detail.uom")} value={item.baseUom?.code ?? "-"} />
+              <Row label={T("cat.detail.brand")} value={item.brand ?? "-"} />
+              <Row label={T("cat.detail.manufacturer")} value={item.manufacturer ?? "-"} />
+              <Row label={T("cat.detail.gtip")} value={item.gtipCode ?? "-"} />
+              <Row label={T("cat.detail.minOrder")} value={item.minOrderQty ?? "-"} />
+              <Row label={T("cat.detail.leadTime")} value={item.leadTimeDays ? `${item.leadTimeDays} ${T("cat.detail.days")}` : "-"} />
+              <Row label={T("cat.detail.lastPurchase")} value={item.lastPurchasePrice ? formatMoney(item.lastPurchasePrice, item.lastPurchaseCurrency ?? "TRY") : "-"} />
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Tercih Edilen Tedarikçiler</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("cat.detail.preferredSuppliers")}</CardTitle></CardHeader>
             <CardContent className="space-y-1 text-sm">
-              {prefSuppliers.length === 0 && <p className="text-muted-foreground">Tanımlı değil</p>}
+              {prefSuppliers.length === 0 && <p className="text-muted-foreground">{T("cat.detail.notDefined")}</p>}
               {prefSuppliers.map((s) => <div key={s.id}>{s.legalName}</div>)}
             </CardContent>
           </Card>

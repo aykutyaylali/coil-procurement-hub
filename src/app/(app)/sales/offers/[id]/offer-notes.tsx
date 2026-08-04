@@ -5,6 +5,7 @@ import { Trash2, Bold, Italic, List } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { useI18n } from "@/components/i18n-provider";
 import { addOfferNote, deleteOfferNote } from "../../actions";
 
 export type NoteItem = { id: string; title: string | null; body: string; author: string; createdAt: string };
@@ -33,6 +34,7 @@ export function RichText({ body }: { body: string }) {
 
 export function OfferNotes({ offerId, notes, canManage }: { offerId: string; notes: NoteItem[]; canManage: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,8 +47,8 @@ export function OfferNotes({ offerId, notes, canManage }: { offerId: string; not
     const s = ta.selectionStart, e = ta.selectionEnd;
     const sel = body.slice(s, e);
     let insert: string;
-    if (linePrefix) insert = (sel || "madde").split("\n").map((l) => `${linePrefix}${l}`).join("\n");
-    else insert = `${marker}${sel || "metin"}${marker}`;
+    if (linePrefix) insert = (sel || t("salesOffer.notes.bulletPlaceholder")).split("\n").map((l) => `${linePrefix}${l}`).join("\n");
+    else insert = `${marker}${sel || t("salesOffer.notes.textPlaceholder")}${marker}`;
     const next = body.slice(0, s) + insert + body.slice(e);
     setBody(next);
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(s, s + insert.length); });
@@ -61,7 +63,7 @@ export function OfferNotes({ offerId, notes, canManage }: { offerId: string; not
     setTitle(""); setBody(""); router.refresh();
   }
   async function del(id: string) {
-    if (!confirm("Bu not silinsin mi?")) return;
+    if (!confirm(t("salesOffer.notes.deleteConfirm"))) return;
     const res = await deleteOfferNote(id);
     if (res.ok) router.refresh();
   }
@@ -70,29 +72,29 @@ export function OfferNotes({ offerId, notes, canManage }: { offerId: string; not
     <div className="grid gap-6 lg:grid-cols-3">
       {canManage && (
         <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="text-base">Yeni Not</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("salesOffer.notes.newNote")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {error && <p className="rounded bg-destructive/10 px-2 py-1 text-sm text-destructive">{error}</p>}
-            <div className="space-y-1.5"><Label>Başlık (opsiyonel)</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="örn. Müşteri görüşmesi" /></div>
+            <div className="space-y-1.5"><Label>{t("salesOffer.notes.titleLabel")}</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("salesOffer.notes.titlePlaceholder")} /></div>
             <div className="space-y-1.5">
-              <Label>İçerik *</Label>
+              <Label>{t("salesOffer.notes.contentLabel")}</Label>
               <div className="flex gap-1">
-                <button type="button" onClick={() => wrap("**")} title="Kalın" className="rounded border px-2 py-1 hover:bg-accent"><Bold className="size-3.5" /></button>
-                <button type="button" onClick={() => wrap("*")} title="İtalik" className="rounded border px-2 py-1 hover:bg-accent"><Italic className="size-3.5" /></button>
-                <button type="button" onClick={() => wrap("", "- ")} title="Madde" className="rounded border px-2 py-1 hover:bg-accent"><List className="size-3.5" /></button>
+                <button type="button" onClick={() => wrap("**")} title={t("salesOffer.notes.bold")} className="rounded border px-2 py-1 hover:bg-accent"><Bold className="size-3.5" /></button>
+                <button type="button" onClick={() => wrap("*")} title={t("salesOffer.notes.italic")} className="rounded border px-2 py-1 hover:bg-accent"><Italic className="size-3.5" /></button>
+                <button type="button" onClick={() => wrap("", "- ")} title={t("salesOffer.notes.bullet")} className="rounded border px-2 py-1 hover:bg-accent"><List className="size-3.5" /></button>
               </div>
-              <Textarea ref={taRef} value={body} onChange={(e) => setBody(e.target.value)} className="min-h-[120px]" placeholder="Not içeriği… **kalın**, *italik*, satır başına '- ' ile madde" />
+              <Textarea ref={taRef} value={body} onChange={(e) => setBody(e.target.value)} className="min-h-[120px]" placeholder={t("salesOffer.notes.bodyPlaceholder")} />
             </div>
-            <Button onClick={add} disabled={busy || !body.trim()}>{busy ? "Ekleniyor…" : "Not Ekle"}</Button>
+            <Button onClick={add} disabled={busy || !body.trim()}>{busy ? t("salesOffer.notes.adding") : t("salesOffer.notes.add")}</Button>
           </CardContent>
         </Card>
       )}
 
       <div className={canManage ? "lg:col-span-2" : "lg:col-span-3"}>
         <Card>
-          <CardHeader><CardTitle className="text-base">Zaman Çizelgesi ({notes.length})</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("salesOffer.notes.timeline", { n: notes.length })}</CardTitle></CardHeader>
           <CardContent>
-            {notes.length === 0 ? <p className="text-sm text-muted-foreground">Henüz not eklenmemiş.</p> : (
+            {notes.length === 0 ? <p className="text-sm text-muted-foreground">{t("salesOffer.notes.empty")}</p> : (
               <ol className="relative space-y-4 border-l pl-5">
                 {notes.map((n) => (
                   <li key={n.id} className="relative">
@@ -103,7 +105,7 @@ export function OfferNotes({ offerId, notes, canManage }: { offerId: string; not
                         <RichText body={n.body} />
                         <p className="mt-1 text-xs text-muted-foreground">{n.author} · {n.createdAt}</p>
                       </div>
-                      {canManage && <button onClick={() => del(n.id)} className="shrink-0 rounded p-1 text-destructive hover:bg-destructive/10" title="Sil"><Trash2 className="size-3.5" /></button>}
+                      {canManage && <button onClick={() => del(n.id)} className="shrink-0 rounded p-1 text-destructive hover:bg-destructive/10" title={t("salesOffer.notes.delete")}><Trash2 className="size-3.5" /></button>}
                     </div>
                   </li>
                 ))}

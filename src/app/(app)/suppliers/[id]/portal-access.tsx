@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { invitePortalUser, setPortalAccessActive } from "../actions";
+import { useI18n } from "@/components/i18n-provider";
 
 export type PortalStatus = "NONE" | "INVITED" | "ACTIVE" | "PASSIVE";
 
@@ -25,6 +26,7 @@ export function PortalAccessCard({
   inviteUrl: string | null;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -58,52 +60,52 @@ export function PortalAccessCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError("Kopyalanamadı; linki elle seçip kopyalayın.");
+      setError(t("supp.portal.copyError"));
     }
   }
 
   const badge =
-    status === "ACTIVE" ? <Badge tone="success">Aktif</Badge>
-    : status === "INVITED" ? <Badge tone="warning">Davet edildi — parola bekleniyor</Badge>
-    : status === "PASSIVE" ? <Badge tone="default">Pasif</Badge>
-    : <Badge tone="default">Davet edilmedi</Badge>;
+    status === "ACTIVE" ? <Badge tone="success">{t("supp.portal.badge.active")}</Badge>
+    : status === "INVITED" ? <Badge tone="warning">{t("supp.portal.badge.invited")}</Badge>
+    : status === "PASSIVE" ? <Badge tone="default">{t("supp.portal.badge.passive")}</Badge>
+    : <Badge tone="default">{t("supp.portal.badge.none")}</Badge>;
 
   return (
     <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2"><KeyRound className="size-4" /> Portal Erişimi</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="flex items-center gap-2"><KeyRound className="size-4" /> {t("supp.portal.title")}</CardTitle></CardHeader>
       <CardContent className="space-y-3 text-sm">
         {error && <p className="rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">{error}</p>}
 
         {/* Giriş bilgileri */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Durum</span>
+            <span className="text-muted-foreground">{t("supp.portal.statusLabel")}</span>
             {badge}
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Giriş e-postası</span>
+            <span className="text-muted-foreground">{t("supp.portal.loginEmail")}</span>
             <span className="font-mono text-xs">{email ?? "—"}</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Parola tedarikçi tarafından bağlantıyla belirlenir (güvenlik gereği görüntülenemez).
-            Portal girişi: <span className="font-mono">/login</span>
+            {t("supp.portal.passwordNote")}
+            {" "}{t("supp.portal.loginPath")}: <span className="font-mono">/login</span>
           </p>
         </div>
 
         {status === "NONE" && (
           <div className="space-y-2 border-t pt-3">
             <p className="text-xs text-muted-foreground">
-              {email ? "Birincil iletişim kişisi için portal kullanıcısı oluşturup kalıcı davet bağlantısı üretin." : "Önce e-postalı birincil iletişim kişisi ekleyin."}
+              {email ? t("supp.portal.none.hasEmail") : t("supp.portal.none.noEmail")}
             </p>
             <Button type="button" size="sm" onClick={invite} disabled={!email || busy === "invite"}>
-              <UserPlus className="mr-1.5 size-3.5" /> {busy === "invite" ? "Üretiliyor…" : "Portal Kullanıcısı Davet Et"}
+              <UserPlus className="mr-1.5 size-3.5" /> {busy === "invite" ? t("supp.portal.generating") : t("supp.portal.inviteUser")}
             </Button>
           </div>
         )}
 
         {(status === "INVITED" || status === "ACTIVE") && (
           <div className="space-y-2 border-t pt-3">
-            <p className="text-xs font-medium">Davet / Erişim Bağlantısı</p>
+            <p className="text-xs font-medium">{t("supp.portal.inviteLink")}</p>
             {url ? (
               <>
                 <div className="flex items-center gap-2">
@@ -112,17 +114,17 @@ export function PortalAccessCard({
                     {copied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Süresiz — siz pasife alana kadar geçerli. Bu bağlantıyı tedarikçiye iletin.</p>
+                <p className="text-[11px] text-muted-foreground">{t("supp.portal.linkNote")}</p>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">Bağlantı gizli. Yenilerseniz yeni bir bağlantı üretilir (eski geçersiz olur).</p>
+              <p className="text-xs text-muted-foreground">{t("supp.portal.linkHidden")}</p>
             )}
             <div className="flex flex-wrap gap-2 pt-1">
               <Button type="button" size="sm" variant="outline" onClick={invite} disabled={busy === "invite"}>
-                <RefreshCw className="mr-1.5 size-3.5" /> {busy === "invite" ? "…" : "Bağlantıyı Yenile"}
+                <RefreshCw className="mr-1.5 size-3.5" /> {busy === "invite" ? "…" : t("supp.portal.refreshLink")}
               </Button>
               <Button type="button" size="sm" variant="destructive" onClick={() => toggle(false)} disabled={busy === "revoke"}>
-                <Power className="mr-1.5 size-3.5" /> {busy === "revoke" ? "…" : "Pasife Al"}
+                <Power className="mr-1.5 size-3.5" /> {busy === "revoke" ? "…" : t("supp.portal.deactivate")}
               </Button>
             </div>
           </div>
@@ -130,13 +132,13 @@ export function PortalAccessCard({
 
         {status === "PASSIVE" && (
           <div className="space-y-2 border-t pt-3">
-            <p className="text-xs text-muted-foreground">Portal erişimi pasif. Yeniden aktif ederseniz bağlantı tekrar geçerli olur ve kullanıcı giriş yapabilir.</p>
+            <p className="text-xs text-muted-foreground">{t("supp.portal.passiveNote")}</p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" onClick={() => toggle(true)} disabled={busy === "activate"}>
-                <Power className="mr-1.5 size-3.5" /> {busy === "activate" ? "…" : "Yeniden Aktif Et"}
+                <Power className="mr-1.5 size-3.5" /> {busy === "activate" ? "…" : t("supp.portal.reactivate")}
               </Button>
               <Button type="button" size="sm" variant="outline" onClick={invite} disabled={busy === "invite"}>
-                <RefreshCw className="mr-1.5 size-3.5" /> {busy === "invite" ? "…" : "Yeni Davet Üret"}
+                <RefreshCw className="mr-1.5 size-3.5" /> {busy === "invite" ? "…" : t("supp.portal.newInvite")}
               </Button>
             </div>
           </div>

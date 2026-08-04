@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { countryFlag } from "@/lib/country";
+import { useI18n } from "@/components/i18n-provider";
 import { saveCustomer } from "../actions";
 
 export interface CustomerRow {
@@ -20,6 +21,7 @@ const INDUSTRIES = ["OEM", "REPAIR", "UTILITY", "OTHER"];
 const CURRENCIES = ["EUR", "USD", "TRY"];
 
 export function CustomerManager({ customers, salesReps, canManage }: { customers: CustomerRow[]; salesReps: Opt[]; canManage: boolean }) {
+  const { t } = useI18n();
   const router = useRouter();
   const empty: CustomerRow = { id: "", code: "", name: "", country: "TR", industry: "", contactName: "", contactEmail: "", contactPhone: "", salesRepId: "", defaultCurrency: "EUR", notes: "" };
   const [open, setOpen] = useState(false);
@@ -42,31 +44,31 @@ export function CustomerManager({ customers, salesReps, canManage }: { customers
 
   return (
     <div className="space-y-4">
-      {canManage && !open && <Button onClick={add}><Plus className="size-4" /> Yeni Müşteri</Button>}
+      {canManage && !open && <Button onClick={add}><Plus className="size-4" /> {t("salesCust.new")}</Button>}
       {open && (
         <Card>
-          <CardHeader><CardTitle className="text-base">{f.id ? "Müşteri Düzenle" : "Yeni Müşteri"}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{f.id ? t("salesCust.edit") : t("salesCust.new")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {error && <p className="rounded bg-destructive/10 px-2 py-1 text-sm text-destructive">{error}</p>}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1.5"><Label>Ad *</Label><Input value={f.name} onChange={(e) => set({ name: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Ülke (ISO)</Label><Input value={f.country} onChange={(e) => set({ country: e.target.value.toUpperCase().slice(0, 2) })} placeholder="TR, DE, US" /></div>
-              <div className="space-y-1.5"><Label>Sektör</Label><Select value={f.industry ?? ""} onChange={(e) => set({ industry: e.target.value })}><option value="">-</option>{INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}</Select></div>
-              <div className="space-y-1.5"><Label>İletişim Kişisi</Label><Input value={f.contactName ?? ""} onChange={(e) => set({ contactName: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>E-posta</Label><Input value={f.contactEmail ?? ""} onChange={(e) => set({ contactEmail: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Telefon</Label><Input value={f.contactPhone ?? ""} onChange={(e) => set({ contactPhone: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Satış Temsilcisi</Label><Select value={f.salesRepId ?? ""} onChange={(e) => set({ salesRepId: e.target.value })}><option value="">-</option>{salesReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></div>
-              <div className="space-y-1.5"><Label>Varsayılan Para Birimi</Label><Select value={f.defaultCurrency} onChange={(e) => set({ defaultCurrency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.name")}</Label><Input value={f.name} onChange={(e) => set({ name: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.country")}</Label><Input value={f.country} onChange={(e) => set({ country: e.target.value.toUpperCase().slice(0, 2) })} placeholder={t("salesCust.field.countryPlaceholder")} /></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.industry")}</Label><Select value={f.industry ?? ""} onChange={(e) => set({ industry: e.target.value })}><option value="">-</option>{INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}</Select></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.contactName")}</Label><Input value={f.contactName ?? ""} onChange={(e) => set({ contactName: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.email")}</Label><Input value={f.contactEmail ?? ""} onChange={(e) => set({ contactEmail: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.phone")}</Label><Input value={f.contactPhone ?? ""} onChange={(e) => set({ contactPhone: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.salesRep")}</Label><Select value={f.salesRepId ?? ""} onChange={(e) => set({ salesRepId: e.target.value })}><option value="">-</option>{salesReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></div>
+              <div className="space-y-1.5"><Label>{t("salesCust.field.defaultCurrency")}</Label><Select value={f.defaultCurrency} onChange={(e) => set({ defaultCurrency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select></div>
             </div>
-            <div className="space-y-1.5"><Label>Not</Label><Textarea value={f.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} className="min-h-[48px]" /></div>
-            <div className="flex gap-2"><Button size="sm" onClick={save} disabled={busy}>{busy ? "Kaydediliyor…" : "Kaydet"}</Button><Button size="sm" variant="outline" onClick={() => setOpen(false)} disabled={busy}>İptal</Button></div>
+            <div className="space-y-1.5"><Label>{t("salesCust.field.notes")}</Label><Textarea value={f.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} className="min-h-[48px]" /></div>
+            <div className="flex gap-2"><Button size="sm" onClick={save} disabled={busy}>{busy ? t("salesCust.saving") : t("salesCust.save")}</Button><Button size="sm" variant="outline" onClick={() => setOpen(false)} disabled={busy}>{t("salesCust.cancel")}</Button></div>
           </CardContent>
         </Card>
       )}
       <Card>
-        {customers.length === 0 ? <EmptyState title="Müşteri yok" hint={canManage ? "Yeni Müşteri ile ekleyin." : undefined} /> : (
+        {customers.length === 0 ? <EmptyState title={t("salesCust.empty.title")} hint={canManage ? t("salesCust.empty.hint") : undefined} /> : (
           <Table>
-            <THead><TR><TH>Kod</TH><TH>Ad</TH><TH>Ülke</TH><TH>Sektör</TH><TH>Satış Temsilcisi</TH><TH>PB</TH>{canManage && <TH></TH>}</TR></THead>
+            <THead><TR><TH>{t("salesCust.col.code")}</TH><TH>{t("salesCust.col.name")}</TH><TH>{t("salesCust.col.country")}</TH><TH>{t("salesCust.col.industry")}</TH><TH>{t("salesCust.col.salesRep")}</TH><TH>{t("salesCust.col.currency")}</TH>{canManage && <TH></TH>}</TR></THead>
             <TBody>{customers.map((c) => (
               <TR key={c.id}>
                 <TD className="font-mono text-xs">{c.code}</TD>

@@ -2,7 +2,7 @@ import { SkeletonHeader, SkeletonKpis, SkeletonCard, SkeletonTable } from "@/com
 
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Yükleniyor">
+    <div aria-busy="true" aria-label="Loading">
       <SkeletonHeader />
       <SkeletonKpis />
       <div className="mt-8"><SkeletonCard lines={5} /></div>

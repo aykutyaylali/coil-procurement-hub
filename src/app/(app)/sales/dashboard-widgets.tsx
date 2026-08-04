@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/money";
+import { translator, type Locale } from "@/lib/i18n";
 import type { PipelineStage, TrendPoint, MoneyByCurrency } from "@/domain/sales-analytics";
 
 const STAGE_COLOR: Record<string, string> = {
@@ -55,7 +56,8 @@ const monthLabel = (m: string) => {
 };
 
 /** Aylık teklif vs sipariş hacmi — gruplu dikey çubuk grafiği (tek para birimi). */
-export function TrendChart({ currency, points }: { currency: string; points: TrendPoint[] }) {
+export function TrendChart({ currency, points, locale }: { currency: string; points: TrendPoint[]; locale: Locale }) {
+  const T = translator(locale);
   const max = Math.max(1, ...points.flatMap((p) => [Number(p.offered), Number(p.ordered)]));
   return (
     <div>
@@ -67,8 +69,8 @@ export function TrendChart({ currency, points }: { currency: string; points: Tre
         {points.map((p) => (
           <div key={p.month} className="flex flex-1 flex-col items-center justify-end gap-1">
             <div className="flex w-full items-end justify-center gap-1" style={{ height: "110px" }}>
-              <div className="w-1/2 rounded-t bg-blue-500/70" style={{ height: `${(Number(p.offered) / max) * 100}%` }} title={`Teklif: ${formatMoney(p.offered, currency)}`} />
-              <div className="w-1/2 rounded-t bg-green-500/70" style={{ height: `${(Number(p.ordered) / max) * 100}%` }} title={`Sipariş: ${formatMoney(p.ordered, currency)}`} />
+              <div className="w-1/2 rounded-t bg-blue-500/70" style={{ height: `${(Number(p.offered) / max) * 100}%` }} title={`${T("salesDash.legend.offer")}: ${formatMoney(p.offered, currency)}`} />
+              <div className="w-1/2 rounded-t bg-green-500/70" style={{ height: `${(Number(p.ordered) / max) * 100}%` }} title={`${T("salesDash.legend.order")}: ${formatMoney(p.ordered, currency)}`} />
             </div>
             <span className="text-[10px] text-muted-foreground">{monthLabel(p.month)}</span>
           </div>

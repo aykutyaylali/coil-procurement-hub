@@ -8,12 +8,14 @@ import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
+import { translator, type Locale } from "@/lib/i18n";
 import { ImportCsv } from "./import-csv";
 
 export const metadata: Metadata = { title: "Ürün Kataloğu" };
 
 export default async function CatalogPage() {
   const user = await requirePermission(PERMISSIONS.CATALOG_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.CATALOG_MANAGE);
   const items = await prisma.item.findMany({
     where: { tenantId: user.tenantId },
@@ -24,22 +26,22 @@ export default async function CatalogPage() {
 
   return (
     <div>
-      <PageHeader title="Ürün ve Hizmet Kataloğu" description="Merkezi ürün/hizmet kartları, kategoriler ve fiyat geçmişi." action={canManage ? { label: "Yeni Ürün", href: "/catalog/new" } : undefined} />
+      <PageHeader title={T("cat.list.title")} description={T("cat.list.description")} action={canManage ? { label: T("cat.list.newItem"), href: "/catalog/new" } : undefined} />
       {canManage && <div className="mb-4"><ImportCsv /></div>}
       <Card>
         {items.length === 0 ? (
-          <EmptyState title="Katalog boş" hint="Seed verisi yükleyin veya ürün ekleyin." />
+          <EmptyState title={T("cat.list.emptyTitle")} hint={T("cat.list.emptyHint")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Kod</TH>
-                <TH>Ad</TH>
-                <TH>Kategori</TH>
-                <TH>Marka</TH>
-                <TH>Birim</TH>
-                <TH className="text-right">Son Alış</TH>
-                <TH>Tür</TH>
+                <TH>{T("cat.list.colCode")}</TH>
+                <TH>{T("cat.list.colName")}</TH>
+                <TH>{T("cat.list.colCategory")}</TH>
+                <TH>{T("cat.list.colBrand")}</TH>
+                <TH>{T("cat.list.colUom")}</TH>
+                <TH className="text-right">{T("cat.list.colLastPurchase")}</TH>
+                <TH>{T("cat.list.colType")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -53,7 +55,7 @@ export default async function CatalogPage() {
                   <TD className="text-right text-sm">
                     {i.lastPurchasePrice ? formatMoney(i.lastPurchasePrice, i.lastPurchaseCurrency ?? "TRY") : "-"}
                   </TD>
-                  <TD><Badge tone={i.isService ? "info" : "default"}>{i.isService ? "Hizmet" : "Malzeme"}</Badge></TD>
+                  <TD><Badge tone={i.isService ? "info" : "default"}>{i.isService ? T("cat.type.service") : T("cat.type.material")}</Badge></TD>
                 </TR>
               ))}
             </TBody>

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { formatMoney } from "@/lib/money";
+import { useI18n } from "@/components/i18n-provider";
 import { addContractItem, deleteContractItem, setContractStatus } from "../actions";
 
 export function ContractStatusActions({ id, status }: { id: string; status: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   async function change(s: "ACTIVE" | "EXPIRED" | "TERMINATED" | "DRAFT") {
     setBusy(true);
@@ -19,15 +21,16 @@ export function ContractStatusActions({ id, status }: { id: string; status: stri
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {status === "DRAFT" && <Button size="sm" variant="success" disabled={busy} onClick={() => change("ACTIVE")}>Aktifleştir</Button>}
-      {status === "ACTIVE" && <Button size="sm" variant="destructive" disabled={busy} onClick={() => change("TERMINATED")}>Feshet</Button>}
-      {status === "ACTIVE" && <Button size="sm" variant="outline" disabled={busy} onClick={() => change("EXPIRED")}>Süresi Doldu</Button>}
+      {status === "DRAFT" && <Button size="sm" variant="success" disabled={busy} onClick={() => change("ACTIVE")}>{t("con.action.activate")}</Button>}
+      {status === "ACTIVE" && <Button size="sm" variant="destructive" disabled={busy} onClick={() => change("TERMINATED")}>{t("con.action.terminate")}</Button>}
+      {status === "ACTIVE" && <Button size="sm" variant="outline" disabled={busy} onClick={() => change("EXPIRED")}>{t("con.action.expire")}</Button>}
     </div>
   );
 }
 
 export function ContractItems({ contractId, currency, items }: { contractId: string; currency: string; items: { id: string; description: string; unitPrice: string; uom: string | null }[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("");
   const [uom, setUom] = useState("");
@@ -45,9 +48,9 @@ export function ContractItems({ contractId, currency, items }: { contractId: str
   return (
     <div className="space-y-3">
       <Table>
-        <THead><TR><TH>Açıklama</TH><TH className="text-right">Birim Fiyat</TH><TH>Birim</TH><TH></TH></TR></THead>
+        <THead><TR><TH>{t("con.item.description")}</TH><TH className="text-right">{t("con.item.unitPrice")}</TH><TH>{t("con.item.uom")}</TH><TH></TH></TR></THead>
         <TBody>
-          {items.length === 0 && <TR><TD colSpan={4} className="py-4 text-center text-sm text-muted-foreground">Fiyat listesi kalemi yok</TD></TR>}
+          {items.length === 0 && <TR><TD colSpan={4} className="py-4 text-center text-sm text-muted-foreground">{t("con.item.empty")}</TD></TR>}
           {items.map((i) => (
             <TR key={i.id}>
               <TD className="font-medium">{i.description}</TD>
@@ -59,9 +62,9 @@ export function ContractItems({ contractId, currency, items }: { contractId: str
         </TBody>
       </Table>
       <div className="grid gap-2 sm:grid-cols-12">
-        <Input className="sm:col-span-7" placeholder="Yeni kalem açıklaması" value={desc} onChange={(e) => setDesc(e.target.value)} />
-        <Input className="sm:col-span-2" placeholder="Fiyat" value={price} onChange={(e) => setPrice(e.target.value)} />
-        <Input className="sm:col-span-2" placeholder="Birim" value={uom} onChange={(e) => setUom(e.target.value)} />
+        <Input className="sm:col-span-7" placeholder={t("con.item.newDescPlaceholder")} value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <Input className="sm:col-span-2" placeholder={t("con.item.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} />
+        <Input className="sm:col-span-2" placeholder={t("con.item.uomPlaceholder")} value={uom} onChange={(e) => setUom(e.target.value)} />
         <Button className="sm:col-span-1" disabled={busy} onClick={add}><Plus className="size-4" /></Button>
       </div>
     </div>

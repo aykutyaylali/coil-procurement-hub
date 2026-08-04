@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/components/i18n-provider";
 import { createOfferFromRfq } from "../../actions";
 
 export function ConvertToOfferButton({ rfqId }: { rfqId: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function convert() {
@@ -17,7 +19,7 @@ export function ConvertToOfferButton({ rfqId }: { rfqId: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <button onClick={convert} disabled={busy} className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-60">
-        {busy ? "Oluşturuluyor…" : "Teklife Dönüştür →"}
+        {busy ? t("salesRfq.convert.busy") : t("salesRfq.convert.label")}
       </button>
       {error && <span className="text-xs text-destructive">{error}</span>}
     </div>

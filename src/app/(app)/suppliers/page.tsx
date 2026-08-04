@@ -9,11 +9,13 @@ import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/tab
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { Pagination, parsePage, pageArgs } from "@/components/ui/pagination";
 import { opLabel } from "@/domain/operations";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Tedarikçiler" };
 
 export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requirePermission(PERMISSIONS.SUPPLIER_VIEW);
+  const T = translator(user.locale as Locale);
   const canCreate = userCan(user, PERMISSIONS.SUPPLIER_CREATE);
   const sp = await searchParams;
   const page = parsePage(sp.page);
@@ -35,24 +37,24 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   return (
     <div>
       <PageHeader
-        title="Tedarikçiler"
-        description="Yerli ve yabancı tedarikçi kartları, onboarding ve performans."
-        action={canCreate ? { label: "Yeni Tedarikçi", href: "/suppliers/new" } : undefined}
+        title={T("supp.title")}
+        description={T("supp.list.description")}
+        action={canCreate ? { label: T("supp.new"), href: "/suppliers/new" } : undefined}
       />
       <Card>
         {suppliers.length === 0 ? (
-          <EmptyState title="Tedarikçi yok" hint={canCreate ? "“Yeni Tedarikçi” ile ekleyin veya seed verisi yükleyin." : "Seed verisi yükleyin."} />
+          <EmptyState title={T("supp.list.empty.title")} hint={canCreate ? T("supp.list.empty.hint.canCreate") : T("supp.list.empty.hint.default")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Kod</TH>
-                <TH>Ünvan</TH>
-                <TH>Tür</TH>
-                <TH>Ülke</TH>
-                <TH>Operasyon</TH>
-                <TH className="text-center">Sipariş</TH>
-                <TH>Durum</TH>
+                <TH>{T("supp.col.code")}</TH>
+                <TH>{T("supp.col.legalName")}</TH>
+                <TH>{T("supp.col.type")}</TH>
+                <TH>{T("supp.col.country")}</TH>
+                <TH>{T("supp.col.operation")}</TH>
+                <TH className="text-center">{T("supp.col.orders")}</TH>
+                <TH>{T("supp.col.status")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -69,14 +71,14 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
                     </TD>
                     <TD>
                       <Badge tone={s.supplierType === "FOREIGN" ? "info" : "default"}>
-                        {s.supplierType === "FOREIGN" ? "Yabancı" : "Yerli"}
+                        {s.supplierType === "FOREIGN" ? T("supp.type.foreign") : T("supp.type.domestic")}
                       </Badge>
                     </TD>
                     <TD className="text-sm">{s.country}</TD>
-                    <TD className="text-xs text-muted-foreground">{ops.map((o) => opLabel(o, "tr")).join(", ") || "-"}</TD>
+                    <TD className="text-xs text-muted-foreground">{ops.map((o) => opLabel(o, user.locale as Locale)).join(", ") || "-"}</TD>
                     <TD className="text-center">{s._count.purchaseOrders}</TD>
                     <TD>
-                      <StatusBadge status={s.status} />
+                      <StatusBadge status={s.status} locale={user.locale} />
                     </TD>
                   </TR>
                 );

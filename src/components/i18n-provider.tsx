@@ -5,12 +5,12 @@ import {
   getDictionary,
   type Dictionary,
   type Locale,
-  type TranslationKey,
+  type TKey,
 } from "@/lib/i18n";
 
 interface I18nContextValue {
   locale: Locale;
-  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  t: (key: TKey, params?: Record<string, string | number>) => string;
 }
 
 const I18nContext = createContext<I18nContextValue>({
@@ -24,7 +24,7 @@ const I18nContext = createContext<I18nContextValue>({
  */
 export function I18nProvider({ locale, children }: { locale: Locale; children: React.ReactNode }) {
   const value = useMemo<I18nContextValue>(() => {
-    const dict: Dictionary = getDictionary(locale);
+    const dict = getDictionary(locale) as Record<string, string>;
     return {
       locale,
       t: (key, params) => {

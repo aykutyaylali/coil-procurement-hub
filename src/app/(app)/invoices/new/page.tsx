@@ -6,11 +6,13 @@ import { PageHeader } from "@/components/shell/page-header";
 import { NewInvoiceForm } from "./new-form";
 import { add, sub, gt } from "@/lib/money";
 import { getLatestRates } from "@/lib/exchange/service";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Yeni Fatura" };
 
 export default async function NewInvoicePage({ searchParams }: { searchParams: Promise<{ orderId?: string }> }) {
   const user = await requirePermission(PERMISSIONS.INVOICE_CREATE);
+  const T = translator(user.locale as Locale);
   const sp = await searchParams;
 
   const orders = await prisma.purchaseOrder.findMany({
@@ -52,7 +54,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Yeni Fatura" description="Sipariş ve mal kabul üzerinden fatura girin; üçlü eşleştirme otomatik çalışır." />
+      <PageHeader title={T("inv.new.title")} description={T("inv.new.description")} />
       <NewInvoiceForm orders={data} preselectOrderId={sp.orderId ?? ""} lmeRecords={lmeRecords} defaultUsdTry={defaultUsdTry} />
     </div>
   );

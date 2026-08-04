@@ -2,7 +2,7 @@ import { SkeletonHeader, Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Yükleniyor">
+    <div aria-busy="true" aria-label="Loading">
       <SkeletonHeader />
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10"><Skeleton className="h-14 w-full" /></div>

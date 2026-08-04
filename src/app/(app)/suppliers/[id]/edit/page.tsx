@@ -5,12 +5,14 @@ import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
 import { SupplierForm, type SupplierInitial } from "../../supplier-form";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Tedarikçi Düzenle" };
 
 export default async function EditSupplierPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.SUPPLIER_EDIT);
+  const T = translator(user.locale as Locale);
   const s = await prisma.supplier.findFirst({ where: { id, tenantId: user.tenantId, deletedAt: null } });
   if (!s) notFound();
 
@@ -49,7 +51,7 @@ export default async function EditSupplierPage({ params }: { params: Promise<{ i
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title={`Düzenle — ${s.legalName}`} description={`Tedarikçi kodu: ${s.code}`} />
+      <PageHeader title={T("supp.edit.title", { n: s.legalName })} description={T("supp.edit.subtitle", { n: s.code })} />
       <SupplierForm currencies={currencies.map((c) => c.code)} initial={initial} editMode />
     </div>
   );

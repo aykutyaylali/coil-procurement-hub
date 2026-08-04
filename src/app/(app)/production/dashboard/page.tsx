@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/lib/enums";
+import { translator, type Locale } from "@/lib/i18n";
 import {
   activeOperatorCount, activeLines, producedSince, scrapRatePct, elapsedMinutes,
   liveStatus, stationProgress, lineSummary,
@@ -20,6 +21,7 @@ export const metadata: Metadata = { title: "Üretim Panosu" };
 
 export default async function ProductionDashboardPage() {
   const user = await requirePermission(PERMISSIONS.PRODUCTION_VIEW);
+  const T = translator(user.locale as Locale);
   const t = user.tenantId;
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -68,24 +70,24 @@ export default async function ProductionDashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Üretim Panosu" description="MES / Shop Floor — canlı saha durumu, hat ve istasyon ilerlemesi." />
+      <PageHeader title={T("prodDash.title")} description={T("prodDash.description")} />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Aktif Çalışan" value={String(activeOps)} sub="açık oturum" />
-        <Kpi label="Aktif Hatlar" value={String(lines.length)} sub={lines.join(", ") || "—"} />
-        <Kpi label="Günlük Çıkan Bobin" value={String(dailyCoils)} sub="bugün üretilen" />
-        <Kpi label="Fire / Hata Oranı" value={`%${scrapPct}`} sub="bugün" tone={scrapPct >= 5 ? "danger" : undefined} />
+        <Kpi label={T("prodDash.kpiActiveOperators")} value={String(activeOps)} sub={T("prodDash.kpiActiveOperatorsSub")} />
+        <Kpi label={T("prodDash.kpiActiveLines")} value={String(lines.length)} sub={lines.join(", ") || "—"} />
+        <Kpi label={T("prodDash.kpiDailyCoils")} value={String(dailyCoils)} sub={T("prodDash.kpiDailyCoilsSub")} />
+        <Kpi label={T("prodDash.kpiScrapRate")} value={`%${scrapPct}`} sub={T("prodDash.kpiScrapRateSub")} tone={scrapPct >= 5 ? "danger" : undefined} />
       </div>
 
       {/* Hat bazlı ilerleme */}
       <Card className="mt-8">
-        <CardHeader><CardTitle className="text-base">Hat Bazlı İlerleme</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("prodDash.lineProgressTitle")}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {lineRows.length === 0 ? <p className="text-sm text-muted-foreground">Henüz iş emri yok.</p> : lineRows.map((l) => (
+          {lineRows.length === 0 ? <p className="text-sm text-muted-foreground">{T("prodDash.noWorkOrders")}</p> : lineRows.map((l) => (
             <div key={l.line} className="flex items-center gap-3">
               <div className="w-24 shrink-0 text-sm font-medium">{l.line}</div>
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${l.pct}%` }} /></div>
-              <div className="w-40 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{l.completed}/{l.target} · {l.activeWos} aktif İE</div>
+              <div className="w-40 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{l.completed}/{l.target} · {T("prodDash.activeWos", { n: l.activeWos })}</div>
             </div>
           ))}
         </CardContent>
@@ -93,11 +95,11 @@ export default async function ProductionDashboardPage() {
 
       {/* İş emri istasyon ilerlemesi */}
       <Card className="mt-8">
-        <CardHeader><CardTitle className="text-base">Aktif İş Emirleri — İstasyon İlerlemesi (LO → PRO → SPR → TEST)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("prodDash.woStationProgressTitle")}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {woProgress.length === 0 ? <EmptyState title="Üretimde iş emri yok" /> : (
+          {woProgress.length === 0 ? <EmptyState title={T("prodDash.noWoInProduction")} /> : (
             <Table>
-              <THead><TR><TH>İş Emri</TH><TH>Müşteri</TH><TH>Hat</TH>{MILESTONE_STATIONS.map((s) => <TH key={s} className="text-center">{s}</TH>)}<TH className="text-center">Toplam</TH></TR></THead>
+              <THead><TR><TH>{T("prodDash.thWorkOrder")}</TH><TH>{T("prodDash.thCustomer")}</TH><TH>{T("prodDash.thLine")}</TH>{MILESTONE_STATIONS.map((s) => <TH key={s} className="text-center">{s}</TH>)}<TH className="text-center">{T("prodDash.thTotal")}</TH></TR></THead>
               <TBody>{woProgress.map(({ wo, prog }) => (
                 <TR key={wo.id}>
                   <TD><Link href={`/production/work-orders/${wo.id}`} className="font-medium text-primary hover:underline">{wo.number}</Link></TD>
@@ -117,11 +119,11 @@ export default async function ProductionDashboardPage() {
 
       {/* Operatör zaman akışı */}
       <Card className="mt-8">
-        <CardHeader><CardTitle className="text-base">Operatör Zaman Akışı (Canlı)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("prodDash.operatorTimelineTitle")}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {openSessions.length === 0 ? <EmptyState title="Açık oturum yok" hint="Saha terminalinden operatör giriş yaptıkça burada görünür." /> : (
+          {openSessions.length === 0 ? <EmptyState title={T("prodDash.noOpenSession")} hint={T("prodDash.noOpenSessionHint")} /> : (
             <Table>
-              <THead><TR><TH>Operatör</TH><TH>İş Emri</TH><TH>İstasyon</TH><TH>Hat</TH><TH className="text-center">Üretim</TH><TH className="text-center">Süre</TH><TH>Durum</TH></TR></THead>
+              <THead><TR><TH>{T("prodDash.thOperator")}</TH><TH>{T("prodDash.thWorkOrder")}</TH><TH>{T("prodDash.thStation")}</TH><TH>{T("prodDash.thLine")}</TH><TH className="text-center">{T("prodDash.thProduction")}</TH><TH className="text-center">{T("prodDash.thDuration")}</TH><TH>{T("prodDash.thStatus")}</TH></TR></THead>
               <TBody>{openSessions.map((l) => {
                 const st = liveStatus(l);
                 const badge = LOG_STATUS_BADGE[st]!;
@@ -133,8 +135,8 @@ export default async function ProductionDashboardPage() {
                     <TD className="text-sm">{l.station.code}</TD>
                     <TD className="text-xs">{l.workOrder.line ? <Badge tone="neutral">{l.workOrder.line}</Badge> : "—"}</TD>
                     <TD className="text-center tabular-nums">{l.producedQty}</TD>
-                    <TD className="text-center text-xs tabular-nums text-muted-foreground">{Math.floor(mins / 60)}s {mins % 60}dk</TD>
-                    <TD className="text-sm">{badge.dot} {badge.label}</TD>
+                    <TD className="text-center text-xs tabular-nums text-muted-foreground">{T("prodDash.duration", { h: Math.floor(mins / 60), m: mins % 60 })}</TD>
+                    <TD className="text-sm">{badge.dot} {T(`prodDash.logStatus.${st}`)}</TD>
                   </TR>
                 );
               })}</TBody>

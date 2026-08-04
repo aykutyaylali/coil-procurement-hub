@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
+import { translator, type Locale } from "@/lib/i18n";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "Satış Paneli" };
 
 export default async function SalesDashboardPage() {
   const user = await requirePermission(PERMISSIONS.SALES_VIEW);
+  const T = translator(user.locale as Locale);
   const t = user.tenantId;
 
   const [customerCount, rfqsRaw, offersRaw, users] = await Promise.all([
@@ -44,40 +46,40 @@ export default async function SalesDashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Satış Paneli" description="Sales CRM & CPQ — pipeline, dönüşüm oranları ve performans analizi." />
+      <PageHeader title={T("salesDash.title")} description={T("salesDash.description")} />
 
       {/* Dönüşüm & kazanma oranları */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Aktif Müşteri" value={String(customerCount)} href="/sales/customers" />
-        <Kpi label="RFQ → Teklif Dönüşümü" value={`%${conv.rfqToOfferRate}`} sub={`${conv.rfqWithOffer}/${conv.rfqTotal} talep`} href="/sales/rfqs" />
-        <Kpi label="Win Rate (Teklif → Sipariş)" value={`%${conv.winRate}`} sub={`${conv.orderCount}/${conv.offerTotal} teklif`} href="/sales/offers" />
-        <Kpi label="Karara Bağlı Win Rate" value={`%${conv.decidedWinRate}`} sub={`${conv.orderCount}/${conv.decidedCount} sonuçlanan`} href="/sales/offers?status=ORDER" />
+        <Kpi label={T("salesDash.kpi.activeCustomers")} value={String(customerCount)} href="/sales/customers" />
+        <Kpi label={T("salesDash.kpi.rfqConversion")} value={`%${conv.rfqToOfferRate}`} sub={T("salesDash.kpi.rfqConvSub", { withOffer: conv.rfqWithOffer, total: conv.rfqTotal })} href="/sales/rfqs" />
+        <Kpi label={T("salesDash.kpi.winRate")} value={`%${conv.winRate}`} sub={T("salesDash.kpi.winRateSub", { orders: conv.orderCount, total: conv.offerTotal })} href="/sales/offers" />
+        <Kpi label={T("salesDash.kpi.decidedWinRate")} value={`%${conv.decidedWinRate}`} sub={T("salesDash.kpi.decidedWinRateSub", { orders: conv.orderCount, total: conv.decidedCount })} href="/sales/offers?status=ORDER" />
       </div>
 
       {/* Pipeline / Huni */}
       <Card className="mt-8">
-        <CardHeader><CardTitle className="text-base">Satış Hunisi (Pipeline)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("salesDash.funnel.title")}</CardTitle></CardHeader>
         <CardContent>
-          {offerRows.length === 0 && conv.rfqTotal === 0 ? <p className="text-sm text-muted-foreground">Henüz veri yok.</p> : <FunnelChart stages={pipeline} />}
+          {offerRows.length === 0 && conv.rfqTotal === 0 ? <p className="text-sm text-muted-foreground">{T("salesDash.noDataYet")}</p> : <FunnelChart stages={pipeline} />}
         </CardContent>
       </Card>
 
       {/* Top 5 müşteri & sektör */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <TopTable title="En Yüksek Kazanma — Müşteri (İlk 5)" rows={topCustomers} nameOf={(k) => customerName[k] ?? k} />
-        <TopTable title="En Yüksek Kazanma — Sektör (İlk 5)" rows={topIndustries} nameOf={(k) => k} />
+        <TopTable title={T("salesDash.top.customers")} rows={topCustomers} nameOf={(k) => customerName[k] ?? k} locale={user.locale as Locale} />
+        <TopTable title={T("salesDash.top.industries")} rows={topIndustries} nameOf={(k) => k} locale={user.locale as Locale} />
       </div>
 
       {/* Satış temsilcisi performansı */}
       <Card className="mt-8">
-        <CardHeader><CardTitle className="text-base">Satış Temsilcisi Performansı</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{T("salesDash.rep.title")}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {reps.length === 0 ? <EmptyState title="Teklif yok" /> : (
+          {reps.length === 0 ? <EmptyState title={T("salesDash.noOffers")} /> : (
             <Table>
-              <THead><TR><TH>Temsilci</TH><TH className="text-center">Açık</TH><TH>Açık Tutar</TH><TH className="text-center">Sipariş</TH><TH>Sipariş Tutarı</TH></TR></THead>
+              <THead><TR><TH>{T("salesDash.rep.col.rep")}</TH><TH className="text-center">{T("salesDash.rep.col.open")}</TH><TH>{T("salesDash.rep.col.openAmount")}</TH><TH className="text-center">{T("salesDash.rep.col.order")}</TH><TH>{T("salesDash.rep.col.orderAmount")}</TH></TR></THead>
               <TBody>{reps.map((r) => (
                 <TR key={r.key}>
-                  <TD className="font-medium">{r.key === "__none__" ? "— Atanmamış" : repName[r.key] ?? r.key}</TD>
+                  <TD className="font-medium">{r.key === "__none__" ? T("salesDash.rep.unassigned") : repName[r.key] ?? r.key}</TD>
                   <TD className="text-center tabular-nums">{r.openCount}</TD>
                   <TD><MoneyChips amount={r.openAmount} /></TD>
                   <TD className="text-center tabular-nums">{r.orderCount}</TD>
@@ -93,11 +95,11 @@ export default async function SalesDashboardPage() {
       <Card className="mt-8">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">Aylık Teklif & Sipariş Hacim Trendi</CardTitle>
+            <CardTitle className="text-base">{T("salesDash.trend.title")}</CardTitle>
             {/* Tek global lejant — para birimi başına tekrar edilmez. */}
             <span className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-blue-500/70" /> Teklif</span>
-              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-green-500/70" /> Sipariş</span>
+              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-blue-500/70" /> {T("salesDash.legend.offer")}</span>
+              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-green-500/70" /> {T("salesDash.legend.order")}</span>
             </span>
           </div>
         </CardHeader>
@@ -105,8 +107,8 @@ export default async function SalesDashboardPage() {
           {[["EUR", trendEUR], ["USD", trendUSD], ["TRY", trendTRY]].map(([cur, pts]) => {
             const points = pts as typeof trendEUR;
             return points.length === 0
-              ? <div key={cur as string} className="text-sm text-muted-foreground">{cur as string}: veri yok</div>
-              : <TrendChart key={cur as string} currency={cur as string} points={points} />;
+              ? <div key={cur as string} className="text-sm text-muted-foreground">{T("salesDash.currencyNoData", { currency: cur as string })}</div>
+              : <TrendChart key={cur as string} currency={cur as string} points={points} locale={user.locale as Locale} />;
           })}
         </CardContent>
       </Card>
@@ -128,14 +130,15 @@ function Kpi({ label, value, sub, href }: { label: string; value: string; sub?: 
   );
 }
 
-function TopTable({ title, rows, nameOf }: { title: string; rows: { key: string; offers: number; orders: number; winRate: number }[]; nameOf: (k: string) => string }) {
+function TopTable({ title, rows, nameOf, locale }: { title: string; rows: { key: string; offers: number; orders: number; winRate: number }[]; nameOf: (k: string) => string; locale: Locale }) {
+  const T = translator(locale);
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
       <CardContent className="p-0">
-        {rows.length === 0 ? <EmptyState title="Teklif yok" /> : (
+        {rows.length === 0 ? <EmptyState title={T("salesDash.noOffers")} /> : (
           <Table>
-            <THead><TR><TH>Ad</TH><TH className="text-center">Teklif</TH><TH className="text-center">Sipariş</TH><TH className="text-right">Win %</TH></TR></THead>
+            <THead><TR><TH>{T("salesDash.top.col.name")}</TH><TH className="text-center">{T("salesDash.top.col.offer")}</TH><TH className="text-center">{T("salesDash.top.col.order")}</TH><TH className="text-right">{T("salesDash.top.col.winPct")}</TH></TR></THead>
             <TBody>{rows.map((r) => (
               <TR key={r.key}>
                 <TD className="font-medium">{nameOf(r.key)}</TD>

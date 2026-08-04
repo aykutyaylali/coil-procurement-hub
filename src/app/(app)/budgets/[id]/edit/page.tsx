@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
+import { translator, type Locale } from "@/lib/i18n";
 import { BudgetForm } from "../../budget-form";
 
 export const metadata = { title: "Bütçe Düzenle" };
@@ -10,6 +11,7 @@ export const metadata = { title: "Bütçe Düzenle" };
 export default async function EditBudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.BUDGET_MANAGE);
+  const T = translator(user.locale as Locale);
   const [b, companies, costCenters, projects, categories, currencies] = await Promise.all([
     prisma.budget.findFirst({ where: { id, tenantId: user.tenantId } }),
     prisma.company.findMany({ where: { tenantId: user.tenantId }, select: { id: true, name: true } }),
@@ -21,7 +23,7 @@ export default async function EditBudgetPage({ params }: { params: Promise<{ id:
   if (!b) notFound();
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title={`Bütçe Düzenle · ${b.fiscalYear}`} />
+      <PageHeader title={T("bud.edit.title", { year: b.fiscalYear })} />
       <BudgetForm
         editMode companies={companies} costCenters={costCenters} projects={projects}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))} currencies={currencies.map((c) => c.code)}

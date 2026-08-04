@@ -8,11 +8,13 @@ import { StatusBadge } from "@/components/ui/badge";
 import { formatMoney, sub, d } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { statusLabel } from "@/lib/enums";
+import { translator, type Locale } from "@/lib/i18n";
 import { ContractStatusActions, ContractItems } from "./manage";
 
 export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.CONTRACT_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.CONTRACT_MANAGE);
 
   const c = await prisma.contract.findFirst({
@@ -33,13 +35,13 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold">{c.code}</h1>
-            <StatusBadge status={c.status} />
+            <StatusBadge status={c.status} locale={user.locale} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{c.title} · {c.supplier.legalName}</p>
         </div>
         <div className="flex items-center gap-3">
-          {canManage && <Link href={`/contracts/${c.id}/edit`} className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">Düzenle</Link>}
-          <Link href="/contracts" className="text-sm text-primary hover:underline">← Listeye dön</Link>
+          {canManage && <Link href={`/contracts/${c.id}/edit`} className="rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-accent">{T("con.edit")}</Link>}
+          <Link href="/contracts" className="text-sm text-primary hover:underline">{T("con.backToList")}</Link>
         </div>
       </div>
 
@@ -48,7 +50,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <CardHeader><CardTitle>Fiyat Listesi</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("con.section.priceList")}</CardTitle></CardHeader>
             <CardContent>
               {canManage ? (
                 <ContractItems contractId={c.id} currency={c.currency} items={c.items.map((i) => ({ id: i.id, description: i.description, unitPrice: i.unitPrice, uom: i.uom }))} />
@@ -59,11 +61,11 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Sürüm Geçmişi</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("con.section.history")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               {history.map((h) => (
                 <div key={h.id} className="rounded border-l-2 border-primary/40 bg-muted/30 px-3 py-2">
-                  <span className="font-medium">{h.user?.name ?? "Sistem"}</span> · {statusLabel(h.action)}
+                  <span className="font-medium">{h.user?.name ?? T("con.system")}</span> · {statusLabel(h.action, user.locale)}
                   <span className="ml-2 text-xs text-muted-foreground">{formatDateTime(h.createdAt)}</span>
                 </div>
               ))}
@@ -73,25 +75,25 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Özet</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("con.section.summary")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Tür" value={c.type} />
-              <Row label="Para Birimi" value={c.currency} />
-              <Row label="Başlangıç" value={c.startDate ? formatDate(c.startDate) : "-"} />
-              <Row label="Bitiş" value={c.endDate ? formatDate(c.endDate) : "-"} />
-              <Row label="Fesih İhbar" value={c.noticeDate ? formatDate(c.noticeDate) : "-"} />
-              <Row label="Otomatik Yenileme" value={c.autoRenew ? "Evet" : "Hayır"} />
+              <Row label={T("con.field.type")} value={T(`con.type.${c.type}` as never)} />
+              <Row label={T("con.field.currency")} value={c.currency} />
+              <Row label={T("con.field.start")} value={c.startDate ? formatDate(c.startDate) : "-"} />
+              <Row label={T("con.field.end")} value={c.endDate ? formatDate(c.endDate) : "-"} />
+              <Row label={T("con.field.notice")} value={c.noticeDate ? formatDate(c.noticeDate) : "-"} />
+              <Row label={T("con.field.autoRenew")} value={c.autoRenew ? T("con.yes") : T("con.no")} />
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Limit Kullanımı</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{T("con.section.limitUsage")}</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Toplam Limit" value={c.totalLimit ? formatMoney(c.totalLimit, c.currency) : "-"} />
-              <Row label="Kullanılan" value={formatMoney(c.usedAmount, c.currency)} />
-              <Row label="Kalan" value={remaining != null ? formatMoney(remaining, c.currency) : "-"} tone={remaining != null && d(remaining).isNegative() ? "danger" : undefined} />
+              <Row label={T("con.field.totalLimit")} value={c.totalLimit ? formatMoney(c.totalLimit, c.currency) : "-"} />
+              <Row label={T("con.field.used")} value={formatMoney(c.usedAmount, c.currency)} />
+              <Row label={T("con.field.remaining")} value={remaining != null ? formatMoney(remaining, c.currency) : "-"} tone={remaining != null && d(remaining).isNegative() ? "danger" : undefined} />
             </CardContent>
           </Card>
-          {c.slaTerms && <Card><CardHeader><CardTitle>SLA / Şartlar</CardTitle></CardHeader><CardContent className="text-sm">{c.slaTerms}</CardContent></Card>}
+          {c.slaTerms && <Card><CardHeader><CardTitle>{T("con.section.sla")}</CardTitle></CardHeader><CardContent className="text-sm">{c.slaTerms}</CardContent></Card>}
         </div>
       </div>
     </div>

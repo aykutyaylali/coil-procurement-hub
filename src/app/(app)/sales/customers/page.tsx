@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requirePermission, userCan } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
+import { translator, type Locale } from "@/lib/i18n";
 import { PageHeader } from "@/components/shell/page-header";
 import { CustomerManager, type CustomerRow } from "./customer-manager";
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = { title: "Müşteriler" };
 
 export default async function CustomersPage() {
   const user = await requirePermission(PERMISSIONS.SALES_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.SALES_MANAGE);
 
   const [customers, salesReps] = await Promise.all([
@@ -25,7 +27,7 @@ export default async function CustomersPage() {
 
   return (
     <div>
-      <PageHeader title="Müşteriler" description="Satış müşteri kartları (ad, ülke, sektör, satış temsilcisi)." />
+      <PageHeader title={T("salesCust.title")} description={T("salesCust.description")} />
       <CustomerManager customers={rows} salesReps={salesReps} canManage={canManage} />
     </div>
   );

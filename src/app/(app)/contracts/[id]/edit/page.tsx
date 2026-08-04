@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
+import { translator, type Locale } from "@/lib/i18n";
 import { ContractForm } from "../../contract-form";
 
 export const metadata = { title: "Sözleşme Düzenle" };
@@ -10,6 +11,7 @@ export const metadata = { title: "Sözleşme Düzenle" };
 export default async function EditContractPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.CONTRACT_MANAGE);
+  const T = translator(user.locale as Locale);
   const [c, suppliers, currencies] = await Promise.all([
     prisma.contract.findFirst({ where: { id, tenantId: user.tenantId } }),
     prisma.supplier.findMany({ where: { tenantId: user.tenantId, deletedAt: null }, select: { id: true, legalName: true }, orderBy: { legalName: "asc" } }),
@@ -20,7 +22,7 @@ export default async function EditContractPage({ params }: { params: Promise<{ i
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title={`Sözleşme Düzenle · ${c.code}`} />
+      <PageHeader title={T("con.editTitle", { code: c.code })} />
       <ContractForm
         editMode
         suppliers={suppliers.map((s) => ({ id: s.id, name: s.legalName }))}

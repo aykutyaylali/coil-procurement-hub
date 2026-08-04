@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
+import { translator, type Locale } from "@/lib/i18n";
 import { ItemForm } from "../../item-form";
 
 export const metadata = { title: "Ürün Düzenle" };
@@ -10,6 +11,7 @@ export const metadata = { title: "Ürün Düzenle" };
 export default async function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const T = translator(user.locale as Locale);
   const [item, categories, uoms, suppliers] = await Promise.all([
     prisma.item.findFirst({ where: { id, tenantId: user.tenantId } }),
     prisma.category.findMany({ where: { tenantId: user.tenantId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -24,7 +26,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title={`Ürün Düzenle · ${item.code}`} />
+      <PageHeader title={`${T("cat.edit.title")} · ${item.code}`} />
       <ItemForm
         editMode categories={categories} uoms={uoms} suppliers={suppliers.map((s) => ({ id: s.id, name: s.legalName }))}
         initial={{

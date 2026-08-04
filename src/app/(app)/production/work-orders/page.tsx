@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/lib/enums";
+import { translator, type Locale } from "@/lib/i18n";
 import { formatDate } from "@/lib/dates";
 import { woProgressPct } from "@/domain/production";
 import { WORK_ORDER_STATUS, WO_STATUS_LABEL, PRODUCTION_LINES } from "../constants";
@@ -17,6 +18,7 @@ export const metadata: Metadata = { title: "İş Emirleri" };
 
 export default async function WorkOrdersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requirePermission(PERMISSIONS.PRODUCTION_VIEW);
+  const T = translator(user.locale as Locale);
   const canManage = userCan(user, PERMISSIONS.PRODUCTION_MANAGE);
   const sp = await searchParams;
 
@@ -36,14 +38,14 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
 
   return (
     <div>
-      <PageHeader title="İş Emirleri" description="Üretim iş emirleri — hedef/tamamlanan bobin takibi ve barkod etiketi." action={canManage ? { label: "Yeni İş Emri", href: "/production/work-orders/new" } : undefined} />
+      <PageHeader title={T("prodWo.listTitle")} description={T("prodWo.listDescription")} action={canManage ? { label: T("prodWo.newWorkOrder"), href: "/production/work-orders/new" } : undefined} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {WORK_ORDER_STATUS.map((s) => (
           <Link key={s} href={`/production/work-orders?status=${s}`}>
             <Card className="transition-colors hover:border-primary/50">
               <CardContent className="pt-4">
-                <p className="text-sm text-muted-foreground">{WO_STATUS_LABEL[s]}</p>
+                <p className="text-sm text-muted-foreground">{T(`prodWo.woStatus.${s}`)}</p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">{countBy[s] ?? 0}</p>
               </CardContent>
             </Card>
@@ -54,18 +56,18 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
       <Card className="mb-4">
         <CardContent className="pt-4">
           <form method="get" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1"><label className="text-xs font-medium">Ara (No / Müşteri)</label><input name="q" defaultValue={sp.q ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm" placeholder="WO-… / ABB" /></div>
-            <div className="space-y-1"><label className="text-xs font-medium">Durum</label><select name="status" defaultValue={sp.status ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">Tümü</option>{WORK_ORDER_STATUS.map((s) => <option key={s} value={s}>{WO_STATUS_LABEL[s]}</option>)}</select></div>
-            <div className="space-y-1"><label className="text-xs font-medium">Hat</label><select name="line" defaultValue={sp.line ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">Tümü</option>{PRODUCTION_LINES.map((l) => <option key={l} value={l}>{l}</option>)}</select></div>
-            <div className="flex items-end"><button className="h-9 w-full rounded-md bg-primary px-3 text-sm text-primary-foreground">Filtrele</button></div>
+            <div className="space-y-1"><label className="text-xs font-medium">{T("prodWo.searchLabel")}</label><input name="q" defaultValue={sp.q ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm" placeholder="WO-… / ABB" /></div>
+            <div className="space-y-1"><label className="text-xs font-medium">{T("prodWo.filterStatus")}</label><select name="status" defaultValue={sp.status ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">{T("prodWo.filterAll")}</option>{WORK_ORDER_STATUS.map((s) => <option key={s} value={s}>{T(`prodWo.woStatus.${s}`)}</option>)}</select></div>
+            <div className="space-y-1"><label className="text-xs font-medium">{T("prodWo.filterLine")}</label><select name="line" defaultValue={sp.line ?? ""} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="">{T("prodWo.filterAll")}</option>{PRODUCTION_LINES.map((l) => <option key={l} value={l}>{l}</option>)}</select></div>
+            <div className="flex items-end"><button className="h-9 w-full rounded-md bg-primary px-3 text-sm text-primary-foreground">{T("prodWo.filterSubmit")}</button></div>
           </form>
         </CardContent>
       </Card>
 
       <Card>
-        {orders.length === 0 ? <EmptyState title="İş emri bulunamadı" hint={canManage ? "Yeni İş Emri ile ekleyin." : undefined} /> : (
+        {orders.length === 0 ? <EmptyState title={T("prodWo.emptyTitle")} hint={canManage ? T("prodWo.emptyHint") : undefined} /> : (
           <Table>
-            <THead><TR><TH>No</TH><TH>Müşteri</TH><TH>Hat</TH><TH>Bobin</TH><TH className="text-center">Hedef</TH><TH>İlerleme</TH><TH>Teslim</TH><TH>Durum</TH><TH className="text-right">İşlem</TH></TR></THead>
+            <THead><TR><TH>{T("prodWo.thNumber")}</TH><TH>{T("prodWo.thCustomer")}</TH><TH>{T("prodWo.thLine")}</TH><TH>{T("prodWo.thCoil")}</TH><TH className="text-center">{T("prodWo.thTarget")}</TH><TH>{T("prodWo.thProgress")}</TH><TH>{T("prodWo.thDelivery")}</TH><TH>{T("prodWo.thStatus")}</TH><TH className="text-right">{T("prodWo.thAction")}</TH></TR></THead>
             <TBody>{orders.map((o) => {
               const pct = woProgressPct(o);
               return (
@@ -82,7 +84,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
                     </div>
                   </TD>
                   <TD className="text-sm text-muted-foreground">{o.endDate ? formatDate(o.endDate) : "—"}</TD>
-                  <TD><Badge tone={statusTone(o.status)}>{WO_STATUS_LABEL[o.status] ?? o.status}</Badge></TD>
+                  <TD><Badge tone={statusTone(o.status)}>{WO_STATUS_LABEL[o.status] ? T(`prodWo.woStatus.${o.status}`) : o.status}</Badge></TD>
                   <TD className="text-right"><WorkOrderRowActions id={o.id} status={o.status} canManage={canManage} /></TD>
                 </TR>
               );

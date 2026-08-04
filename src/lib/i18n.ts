@@ -14,6 +14,12 @@ export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "tr";
 
 export type TranslationKey = keyof typeof tr;
+/**
+ * Çağrılabilir çeviri anahtarı tipi: bilinen anahtarlar (otomatik tamamlama korunur)
+ * + dinamik olarak üretilen anahtarlar (ör. `prodWo.woStatus.${status}`). Bulunamayan
+ * anahtar çalışma zamanında anahtarın kendisine geri düşer (güvenli).
+ */
+export type TKey = TranslationKey | (string & {});
 export type Dictionary = Record<TranslationKey, string>;
 
 const dictionaries: Record<Locale, Dictionary> = { tr, en };
@@ -31,12 +37,12 @@ export function isLocale(value: unknown): value is Locale {
  * params ile {isim} tarzı yer tutucular değiştirilir.
  */
 export function t(
-  key: TranslationKey,
+  key: TKey,
   locale: Locale = DEFAULT_LOCALE,
   params?: Record<string, string | number>,
 ): string {
-  const dict = getDictionary(locale);
-  let text: string = dict[key] ?? tr[key] ?? (key as string);
+  const dict = getDictionary(locale) as Record<string, string>;
+  let text: string = dict[key] ?? (tr as Record<string, string>)[key] ?? (key as string);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       text = text.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
@@ -47,7 +53,7 @@ export function t(
 
 /** Bir locale için t fonksiyonu üreticisi (kısayol). */
 export function translator(locale: Locale) {
-  return (key: TranslationKey, params?: Record<string, string | number>) => t(key, locale, params);
+  return (key: TKey, params?: Record<string, string | number>) => t(key, locale, params);
 }
 
 // --- Yerele duyarlı biçimlendirme ---

@@ -9,11 +9,13 @@ import { Table, THead, TBody, TR, TH, TD, EmptyState } from "@/components/ui/tab
 import { StatusBadge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
+import { translator, type Locale } from "@/lib/i18n";
 
 export const metadata: Metadata = { title: "Faturalar" };
 
 export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const user = await requirePermission(PERMISSIONS.INVOICE_VIEW);
+  const T = translator(user.locale as Locale);
   const canCreate = userCan(user, PERMISSIONS.INVOICE_CREATE);
   const sp = await searchParams;
   const invoices = await prisma.invoice.findMany({
@@ -26,24 +28,24 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <PageHeader
-        title="Faturalar"
-        description="Üçlü eşleştirme (PO–Mal Kabul–Fatura) ve ödeme takibi."
-        action={canCreate ? { label: "Yeni Fatura", href: "/invoices/new" } : undefined}
+        title={T("inv.title")}
+        description={T("inv.description")}
+        action={canCreate ? { label: T("inv.new"), href: "/invoices/new" } : undefined}
       />
       <Card>
         {invoices.length === 0 ? (
-          <EmptyState title="Fatura yok" hint="Fatura girişi veya e-Fatura entegrasyonu ile faturalar burada görünür." />
+          <EmptyState title={T("inv.empty.title")} hint={T("inv.empty.hint")} />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Fatura No</TH>
-                <TH>Tedarikçi</TH>
-                <TH>Sipariş</TH>
-                <TH className="text-right">Tutar</TH>
-                <TH>Vade</TH>
-                <TH>Durum</TH>
-                <TH>Ödeme</TH>
+                <TH>{T("inv.col.number")}</TH>
+                <TH>{T("inv.col.supplier")}</TH>
+                <TH>{T("inv.col.order")}</TH>
+                <TH className="text-right">{T("inv.col.amount")}</TH>
+                <TH>{T("inv.col.due")}</TH>
+                <TH>{T("inv.col.status")}</TH>
+                <TH>{T("inv.col.payment")}</TH>
               </TR>
             </THead>
             <TBody>
@@ -54,8 +56,8 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                   <TD className="text-sm text-muted-foreground">{i.order?.number ?? "-"}</TD>
                   <TD className="text-right font-medium">{formatMoney(i.grandTotal, i.currency)}</TD>
                   <TD className="text-sm">{i.dueDate ? formatDate(i.dueDate) : "-"}</TD>
-                  <TD><StatusBadge status={i.status} /></TD>
-                  <TD><StatusBadge status={i.paymentStatus} /></TD>
+                  <TD><StatusBadge status={i.status} locale={user.locale} /></TD>
+                  <TD><StatusBadge status={i.paymentStatus} locale={user.locale} /></TD>
                 </TR>
               ))}
             </TBody>

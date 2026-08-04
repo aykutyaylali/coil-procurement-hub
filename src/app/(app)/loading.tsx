@@ -7,7 +7,7 @@ import { SkeletonHeader, SkeletonKpis, SkeletonTable } from "@/components/ui/ske
  */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Yükleniyor">
+    <div aria-busy="true" aria-label="Loading">
       <SkeletonHeader />
       <SkeletonKpis />
       <div className="mt-8">

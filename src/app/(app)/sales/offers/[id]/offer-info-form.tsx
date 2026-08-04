@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { useI18n } from "@/components/i18n-provider";
 import { div, d, formatMoney } from "@/lib/money";
 import { saveOfferInfo } from "../../actions";
-import { OFFER_STATUS, OFFER_STATUS_LABEL } from "../status";
+import { OFFER_STATUS } from "../status";
 
 type Opt = { id: string; name: string };
 type LmeOpt = { id: string; label: string; usdPerTon: string };
@@ -25,6 +26,7 @@ export type OfferInfoInitial = {
 
 export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: OfferInfoInitial; salesReps: Opt[]; lmeOptions: LmeOpt[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [f, setF] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +48,7 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
     });
     setBusy(false);
     if (!res.ok) return setError(res.error);
-    setOkMsg("Kaydedildi.");
+    setOkMsg(t("salesOffer.form.saved"));
     router.refresh();
   }
 
@@ -56,23 +58,23 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
       {okMsg && <p className="rounded bg-green-500/10 px-3 py-2 text-sm text-green-600">{okMsg}</p>}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Genel Bilgiler</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("salesOffer.form.general")}</CardTitle></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1.5"><Label>Teklif No</Label><Input value={f.number} disabled className="opacity-70" /></div>
-          <div className="space-y-1.5"><Label>Teklif Tarihi</Label><Input type="date" value={f.offerDate} onChange={(e) => set({ offerDate: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Durum</Label><Select value={f.status} onChange={(e) => set({ status: e.target.value })}>{OFFER_STATUS.map((s) => <option key={s} value={s}>{OFFER_STATUS_LABEL[s]}</option>)}</Select></div>
-          <div className="space-y-1.5"><Label>Satış Temsilcisi</Label><Select value={f.salesRepId} onChange={(e) => set({ salesRepId: e.target.value })}><option value="">-</option>{salesReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></div>
-          <div className="space-y-1.5"><Label>Para Birimi</Label><Select value={f.currency} onChange={(e) => set({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select></div>
-          <div className="space-y-1.5"><Label>Teklif Tutarı</Label><Input aria-label="Teklif Tutarı" value={f.totalAmount} onChange={(e) => set({ totalAmount: e.target.value })} placeholder="0,00" inputMode="decimal" /></div>
-          <div className="space-y-1.5"><Label>Geçerlilik Tarihi</Label><Input type="date" value={f.validUntil} onChange={(e) => set({ validUntil: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Teslim Tarihi</Label><Input type="date" value={f.deliveryDate} onChange={(e) => set({ deliveryDate: e.target.value })} /></div>
-          <div className="flex items-end gap-2 pb-1"><input id="invoiced" type="checkbox" checked={f.invoiced} onChange={(e) => set({ invoiced: e.target.checked })} className="size-4" /><Label htmlFor="invoiced" className="!mb-0">Faturalandı</Label></div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3"><Label>Gerekçe / Not (kapanış / red)</Label><Textarea value={f.reason} onChange={(e) => set({ reason: e.target.value })} className="min-h-[52px]" /></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.number")}</Label><Input value={f.number} disabled className="opacity-70" /></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.offerDate")}</Label><Input type="date" value={f.offerDate} onChange={(e) => set({ offerDate: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.status")}</Label><Select value={f.status} onChange={(e) => set({ status: e.target.value })}>{OFFER_STATUS.map((s) => <option key={s} value={s}>{t(`salesOffer.status.${s}`)}</option>)}</Select></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.salesRep")}</Label><Select value={f.salesRepId} onChange={(e) => set({ salesRepId: e.target.value })}><option value="">-</option>{salesReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.currency")}</Label><Select value={f.currency} onChange={(e) => set({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.amount")}</Label><Input aria-label={t("salesOffer.field.amount")} value={f.totalAmount} onChange={(e) => set({ totalAmount: e.target.value })} placeholder="0,00" inputMode="decimal" /></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.validUntil")}</Label><Input type="date" value={f.validUntil} onChange={(e) => set({ validUntil: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label>{t("salesOffer.field.deliveryDate")}</Label><Input type="date" value={f.deliveryDate} onChange={(e) => set({ deliveryDate: e.target.value })} /></div>
+          <div className="flex items-end gap-2 pb-1"><input id="invoiced" type="checkbox" checked={f.invoiced} onChange={(e) => set({ invoiced: e.target.checked })} className="size-4" /><Label htmlFor="invoiced" className="!mb-0">{t("salesOffer.field.invoicedFlag")}</Label></div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3"><Label>{t("salesOffer.field.reason")}</Label><Textarea value={f.reason} onChange={(e) => set({ reason: e.target.value })} className="min-h-[52px]" /></div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Bobin & Motor Teknik Parametreleri</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("salesOffer.form.techParams")}</CardTitle></CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Manufacturer" value={f.tech.manufacturer} onChange={(v) => setTech({ manufacturer: v })} />
           <Field label="Type" value={f.tech.type} onChange={(v) => setTech({ type: v })} />
@@ -91,21 +93,21 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">LME Bakır Referansı</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("salesOffer.lme.title")}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">İmalatta kullanılacak bakır için en son onaylı LME verisini referans maliyet olarak seçin. Snapshot değil, referanstır.</p>
+          <p className="text-xs text-muted-foreground">{t("salesOffer.lme.hint")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Onaylı LME Kaydı</Label>
-              <Select aria-label="Onaylı LME Kaydı" value={f.tech.lmeRecordId} onChange={(e) => setTech({ lmeRecordId: e.target.value })}>
-                <option value="">Referans yok</option>
+              <Label>{t("salesOffer.lme.record")}</Label>
+              <Select aria-label={t("salesOffer.lme.record")} value={f.tech.lmeRecordId} onChange={(e) => setTech({ lmeRecordId: e.target.value })}>
+                <option value="">{t("salesOffer.lme.none")}</option>
                 {lmeOptions.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
               </Select>
             </div>
             {selectedLme && lmeUsdPerKg && (
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">LME (USD/ton)</span><span className="font-medium tabular-nums">{formatMoney(selectedLme.usdPerTon, "USD")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Referans (USD/kg)</span><span className="font-medium tabular-nums">{formatMoney(lmeUsdPerKg, "USD")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("salesOffer.lme.usdPerTon")}</span><span className="font-medium tabular-nums">{formatMoney(selectedLme.usdPerTon, "USD")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("salesOffer.lme.usdPerKg")}</span><span className="font-medium tabular-nums">{formatMoney(lmeUsdPerKg, "USD")}</span></div>
               </div>
             )}
           </div>
@@ -113,8 +115,8 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
       </Card>
 
       <div className="flex gap-2">
-        <Button onClick={save} disabled={busy}>{busy ? "Kaydediliyor…" : "Kaydet"}</Button>
-        <Button variant="outline" onClick={() => router.push("/sales/offers")} disabled={busy}>Listeye Dön</Button>
+        <Button onClick={save} disabled={busy}>{busy ? t("salesOffer.form.saving") : t("salesOffer.form.save")}</Button>
+        <Button variant="outline" onClick={() => router.push("/sales/offers")} disabled={busy}>{t("salesOffer.form.backToList")}</Button>
       </div>
     </div>
   );

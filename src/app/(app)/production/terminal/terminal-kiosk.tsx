@@ -6,11 +6,13 @@ import {
   type OperatorInfo, type SessionInfo,
 } from "../actions";
 import { LOG_STATUS_BADGE } from "../constants";
+import { useI18n } from "@/components/i18n-provider";
 
 type Station = { id: string; code: string; name: string };
 const STATION_KEY = "prod.terminal.stationId";
 
 export function TerminalKiosk({ stations }: { stations: Station[] }) {
+  const { t, locale } = useI18n();
   const [stationId, setStationId] = useState<string>(stations[0]?.id ?? "");
   const [operator, setOperator] = useState<OperatorInfo | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
@@ -45,15 +47,15 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
         const r = await resolveOperator(value);
         if (!r.ok) { setError(r.error); return; }
         setOperator(r.data);
-        flashMsg(`Hoş geldin, ${r.data.name}`);
+        flashMsg(t("prodTerm.welcome", { name: r.data.name }));
       } else if (!session) {
-        if (!stationId) { setError("Önce istasyon seçin."); return; }
+        if (!stationId) { setError(t("prodTerm.selectStationFirst")); return; }
         const wo = await resolveWorkOrder(value);
         if (!wo.ok) { setError(wo.error); return; }
         const s = await startSession({ stationId, operatorId: operator.id, workOrderId: wo.data.id, barcode: value });
         if (!s.ok) { setError(s.error); return; }
         setSession(s.data);
-        flashMsg(`İş emri açıldı: ${s.data.workOrderNumber}`);
+        flashMsg(t("prodTerm.workOrderOpened", { no: s.data.workOrderNumber }));
       }
       setScan("");
     } finally {
@@ -89,7 +91,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
       <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-card p-5 shadow-sm">
         <ScanLine className="size-6 text-primary" />
         <div className="flex-1">
-          <label className="text-xs font-medium text-muted-foreground">Bu Terminalin İstasyonu</label>
+          <label className="text-xs font-medium text-muted-foreground">{t("prodTerm.thisTerminalStation")}</label>
           <select
             value={stationId}
             onChange={(e) => setStationId(e.target.value)}
@@ -100,8 +102,8 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
           </select>
         </div>
         {operator && (
-          <button onClick={resetAll} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-accent" title="Operatör değiştir / sıfırla">
-            <RotateCcw className="size-4" /> Sıfırla
+          <button onClick={resetAll} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-accent" title={t("prodTerm.resetTitle")}>
+            <RotateCcw className="size-4" /> {t("prodTerm.reset")}
           </button>
         )}
       </div>
@@ -109,9 +111,9 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
       {/* Adım göstergesi — bağlantı çizgileri daire MERKEZLERİ arasında hizalanır */}
       <Stepper
         steps={[
-          { n: 1, label: "Operatör", done: Boolean(operator), active: !operator },
-          { n: 2, label: "İş Emri", done: Boolean(session), active: Boolean(operator) && !session },
-          { n: 3, label: "Üretim", done: false, active: Boolean(session) },
+          { n: 1, label: t("prodTerm.stepOperator"), done: Boolean(operator), active: !operator },
+          { n: 2, label: t("prodTerm.stepWorkOrder"), done: Boolean(session), active: Boolean(operator) && !session },
+          { n: 3, label: t("prodTerm.stepProduction"), done: false, active: Boolean(session) },
         ]}
       />
 
@@ -124,7 +126,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
           <UserCheck className="size-8 text-primary" />
           <div>
             <div className="text-lg font-semibold">{operator.name}</div>
-            <div className="text-sm text-muted-foreground">{operator.badgeCode} · {operator.title ?? "Operatör"}{operator.line ? ` · ${operator.line}` : ""}</div>
+            <div className="text-sm text-muted-foreground">{operator.badgeCode} · {operator.title ?? t("prodTerm.operatorFallback")}{operator.line ? ` · ${operator.line}` : ""}</div>
           </div>
         </div>
       )}
@@ -133,7 +135,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
       {!session && (
         <form onSubmit={onScan} className="rounded-2xl bg-card p-8 text-center shadow-sm">
           <p className="mb-3 text-lg font-medium">
-            {!operator ? "Operatör Rozetini Okutun veya Enter'a Basın" : "İş Emri / Bobin Barkodunu Okutun"}
+            {!operator ? t("prodTerm.scanOperatorPrompt") : t("prodTerm.scanWorkOrderPrompt")}
           </p>
           <input
             ref={inputRef}
@@ -147,11 +149,11 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
           />
           <div className="mt-5 flex justify-center gap-3">
             <button type="submit" disabled={busy || !scan.trim()} className="inline-flex min-h-14 items-center justify-center rounded-xl bg-blue-700 px-10 py-4 text-xl font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-50">
-              {busy ? "…" : "Onayla"}
+              {busy ? "…" : t("prodTerm.confirm")}
             </button>
-            {scan && <button type="button" onClick={() => setScan("")} className="inline-flex min-h-14 items-center justify-center rounded-xl border px-8 py-4 text-lg font-medium hover:bg-accent">Temizle</button>}
+            {scan && <button type="button" onClick={() => setScan("")} className="inline-flex min-h-14 items-center justify-center rounded-xl border px-8 py-4 text-lg font-medium hover:bg-accent">{t("prodTerm.clear")}</button>}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Barkod okuyucu çalışmıyorsa değeri klavye/numpad ile yazıp Enter'a basın.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("prodTerm.scannerHelp")}</p>
         </form>
       )}
 
@@ -160,47 +162,47 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
         <div className="rounded-2xl bg-card p-8 shadow-sm">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">İş Emri</div>
+              <div className="text-sm text-muted-foreground">{t("prodTerm.workOrder")}</div>
               <div className="text-2xl font-bold">{session.workOrderNumber}</div>
-              <div className="text-sm text-muted-foreground">İstasyon: {session.stationCode} · {session.stationName}</div>
+              <div className="text-sm text-muted-foreground">{t("prodTerm.stationLabel", { station: `${session.stationCode} · ${session.stationName}` })}</div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">Toplam Tamamlanan</div>
+              <div className="text-sm text-muted-foreground">{t("prodTerm.totalCompleted")}</div>
               <div className="text-2xl font-bold tabular-nums">{session.completedCoils}<span className="text-base font-normal text-muted-foreground">/{session.targetCoils}</span></div>
-              <div className="text-sm">{badge?.dot} {badge?.label}</div>
+              <div className="text-sm">{badge?.dot} {t(`prodTerm.logStatus.${session.status}`)}</div>
             </div>
           </div>
 
           {/* Bu oturum sayaçları */}
           <div className="mb-5 grid grid-cols-2 gap-3">
             <div className="rounded-lg border bg-green-500/5 p-4 text-center">
-              <div className="text-sm text-muted-foreground">Bu Oturum — Üretim</div>
+              <div className="text-sm text-muted-foreground">{t("prodTerm.sessionProduction")}</div>
               <div className="text-4xl font-bold tabular-nums text-green-600">{session.producedQty}</div>
             </div>
             <div className="rounded-lg border bg-amber-500/5 p-4 text-center">
-              <div className="text-sm text-muted-foreground">Bu Oturum — Fire</div>
+              <div className="text-sm text-muted-foreground">{t("prodTerm.sessionScrap")}</div>
               <div className="text-4xl font-bold tabular-nums text-amber-600">{session.scrapQty}</div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => act(() => recordCoil(session.logId, 1), "+1 bobin")} disabled={busy || session.status === "PAUSED"} className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-green-600 py-5 text-2xl font-bold text-white disabled:opacity-50">
-              <Plus className="size-7" /> Bobin Tamamlandı (+1)
+            <button onClick={() => act(() => recordCoil(session.logId, 1), t("prodTerm.flashCoil"))} disabled={busy || session.status === "PAUSED"} className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-green-600 py-5 text-2xl font-bold text-white disabled:opacity-50">
+              <Plus className="size-7" /> {t("prodTerm.coilDone")}
             </button>
-            <button onClick={() => act(() => recordScrap(session.logId, 1), "fire +1")} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-4 text-lg font-semibold text-white disabled:opacity-50">
-              <AlertTriangle className="size-5" /> Fire / Hata (+1)
+            <button onClick={() => act(() => recordScrap(session.logId, 1), t("prodTerm.flashScrap"))} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-4 text-lg font-semibold text-white disabled:opacity-50">
+              <AlertTriangle className="size-5" /> {t("prodTerm.scrapError")}
             </button>
             {session.status === "PAUSED" ? (
-              <button onClick={() => act(() => setSessionStatus(session.logId, "ACTIVE"), "devam")} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg bg-primary py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50">
-                <Play className="size-5" /> Devam Et
+              <button onClick={() => act(() => setSessionStatus(session.logId, "ACTIVE"), t("prodTerm.flashResume"))} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg bg-primary py-4 text-lg font-semibold text-primary-foreground disabled:opacity-50">
+                <Play className="size-5" /> {t("prodTerm.resume")}
               </button>
             ) : (
-              <button onClick={() => act(() => setSessionStatus(session.logId, "PAUSED"), "mola")} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg border py-4 text-lg font-semibold hover:bg-accent disabled:opacity-50">
-                <Pause className="size-5" /> Mola
+              <button onClick={() => act(() => setSessionStatus(session.logId, "PAUSED"), t("prodTerm.flashPause"))} disabled={busy} className="flex items-center justify-center gap-2 rounded-lg border py-4 text-lg font-semibold hover:bg-accent disabled:opacity-50">
+                <Pause className="size-5" /> {t("prodTerm.pause")}
               </button>
             )}
             <button onClick={async () => { await act(() => checkOut(session.logId)); endSession(); }} disabled={busy} className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-destructive py-4 text-lg font-semibold text-white disabled:opacity-50">
-              <LogOut className="size-5" /> Tamamla / Çıkış Yap
+              <LogOut className="size-5" /> {t("prodTerm.completeCheckout")}
             </button>
           </div>
         </div>

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/lib/enums";
 import { formatDate } from "@/lib/dates";
 import { countryFlag } from "@/lib/country";
-import { RFQ_STATUS_LABEL } from "../rfq-row-actions";
+import { RFQ_STATUS_LABEL } from "../status";
 import { ConvertToOfferButton } from "./convert-button";
 
 export default async function SalesRfqDetailPage({ params }: { params: Promise<{ id: string }> }) {

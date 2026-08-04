@@ -63,7 +63,7 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
           <div className="space-y-1.5"><Label>Durum</Label><Select value={f.status} onChange={(e) => set({ status: e.target.value })}>{OFFER_STATUS.map((s) => <option key={s} value={s}>{OFFER_STATUS_LABEL[s]}</option>)}</Select></div>
           <div className="space-y-1.5"><Label>Satış Temsilcisi</Label><Select value={f.salesRepId} onChange={(e) => set({ salesRepId: e.target.value })}><option value="">-</option>{salesReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</Select></div>
           <div className="space-y-1.5"><Label>Para Birimi</Label><Select value={f.currency} onChange={(e) => set({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select></div>
-          <div className="space-y-1.5"><Label>Teklif Tutarı</Label><Input value={f.totalAmount} onChange={(e) => set({ totalAmount: e.target.value })} placeholder="0,00" inputMode="decimal" /></div>
+          <div className="space-y-1.5"><Label>Teklif Tutarı</Label><Input aria-label="Teklif Tutarı" value={f.totalAmount} onChange={(e) => set({ totalAmount: e.target.value })} placeholder="0,00" inputMode="decimal" /></div>
           <div className="space-y-1.5"><Label>Geçerlilik Tarihi</Label><Input type="date" value={f.validUntil} onChange={(e) => set({ validUntil: e.target.value })} /></div>
           <div className="space-y-1.5"><Label>Teslim Tarihi</Label><Input type="date" value={f.deliveryDate} onChange={(e) => set({ deliveryDate: e.target.value })} /></div>
           <div className="flex items-end gap-2 pb-1"><input id="invoiced" type="checkbox" checked={f.invoiced} onChange={(e) => set({ invoiced: e.target.checked })} className="size-4" /><Label htmlFor="invoiced" className="!mb-0">Faturalandı</Label></div>
@@ -97,7 +97,7 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Onaylı LME Kaydı</Label>
-              <Select value={f.tech.lmeRecordId} onChange={(e) => setTech({ lmeRecordId: e.target.value })}>
+              <Select aria-label="Onaylı LME Kaydı" value={f.tech.lmeRecordId} onChange={(e) => setTech({ lmeRecordId: e.target.value })}>
                 <option value="">Referans yok</option>
                 {lmeOptions.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
               </Select>
@@ -121,5 +121,5 @@ export function OfferInfoForm({ initial, salesReps, lmeOptions }: { initial: Off
 }
 
 function Field({ label, value, onChange, type }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
-  return <div className="space-y-1.5"><Label>{label}</Label><Input type={type} value={value} onChange={(e) => onChange(e.target.value)} /></div>;
+  return <div className="space-y-1.5"><Label>{label}</Label><Input aria-label={label} type={type} value={value} onChange={(e) => onChange(e.target.value)} /></div>;
 }

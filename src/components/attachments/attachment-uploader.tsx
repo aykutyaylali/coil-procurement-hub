@@ -33,6 +33,7 @@ export function AttachmentUploader({
   includeInternal = true,
   showInternalToggle = false,
   internalToggleLabel = "İç belge (tedarikçi görmez)",
+  enableDrop = false,
 }: {
   entityType: string;
   entityId: string;
@@ -46,12 +47,15 @@ export function AttachmentUploader({
   /** true ise yüklerken "iç belge" onay kutusu gösterilir (iç kullanıcı seçebilir). */
   showInternalToggle?: boolean;
   internalToggleLabel?: string;
+  /** true ise sürükle-bırak alanı gösterilir (varsayılan kapalı; mevcut kullanımlar etkilenmez). */
+  enableDrop?: boolean;
 }) {
   const [items, setItems] = useState<AttachmentMeta[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [uploadInternal, setUploadInternal] = useState(isInternal);
+  const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => {
@@ -157,6 +161,18 @@ export function AttachmentUploader({
               </div>
             ),
           )}
+        </div>
+      )}
+
+      {canEdit && enableDrop && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); void onFiles(e.dataTransfer.files); }}
+          onClick={() => inputRef.current?.click()}
+          className={`cursor-pointer rounded-md border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${dragOver ? "border-primary bg-primary/5 text-primary" : "border-muted-foreground/30 text-muted-foreground hover:border-primary/50"}`}
+        >
+          {busy ? "Yükleniyor…" : "📎 Dosyaları buraya sürükleyip bırakın ya da tıklayıp seçin"}
         </div>
       )}
 

@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { statusTone } from "@/lib/enums";
 import { formatDate } from "@/lib/dates";
 import { countryFlag } from "@/lib/country";
-import { SalesRfqRowActions, RFQ_STATUS, RFQ_STATUS_LABEL } from "./rfq-row-actions";
+import { SalesRfqRowActions } from "./rfq-row-actions";
+import { RFQ_STATUS, RFQ_STATUS_LABEL } from "./status";
+import { RfqKanban, type KanbanCard } from "./rfq-kanban";
 
 export const metadata: Metadata = { title: "Müşteri Talepleri" };
 
@@ -18,6 +20,9 @@ export default async function SalesRfqsPage({ searchParams }: { searchParams: Pr
   const user = await requirePermission(PERMISSIONS.SALES_VIEW);
   const canManage = userCan(user, PERMISSIONS.SALES_MANAGE);
   const sp = await searchParams;
+  const view = sp.view === "kanban" ? "kanban" : "list";
+  const qsBase = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== "view" && v) as [string, string][]).toString();
+  const withView = (v: string) => `/sales/rfqs?${qsBase}${qsBase ? "&" : ""}view=${v}`;
 
   const where: Record<string, unknown> = { tenantId: user.tenantId, deletedAt: null };
   if (sp.status) where.status = sp.status;
@@ -33,9 +38,20 @@ export default async function SalesRfqsPage({ searchParams }: { searchParams: Pr
   ]);
   const repName = Object.fromEntries(salesReps.map((r) => [r.id, r.name] as const));
 
+  const cards: KanbanCard[] = rfqs.map((r) => ({
+    id: r.id, number: r.number, customerName: r.customer.name, country: r.customer.country,
+    status: r.status, salesRepName: r.salesRepId ? repName[r.salesRepId] ?? null : null,
+    industry: r.industry, offersCount: r.offers.length,
+  }));
+
   return (
     <div>
       <PageHeader title="Müşteri Talepleri" description="Sales RFQ — müşteri taleplerini yönetin, teklife dönüştürün." action={canManage ? { label: "Yeni Talep", href: "/sales/rfqs/new" } : undefined} />
+
+      <div className="mb-4 inline-flex overflow-hidden rounded-md border text-sm">
+        <Link href={withView("list")} className={`px-3 py-1.5 ${view === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}>☰ Liste</Link>
+        <Link href={withView("kanban")} className={`px-3 py-1.5 ${view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}>▤ Kanban</Link>
+      </div>
 
       <Card className="mb-4">
         <CardContent className="pt-4">
@@ -50,6 +66,11 @@ export default async function SalesRfqsPage({ searchParams }: { searchParams: Pr
         </CardContent>
       </Card>
 
+      {view === "kanban" ? (
+        rfqs.length === 0
+          ? <Card><EmptyState title="Talep bulunamadı" hint={canManage ? "Yeni Talep ile ekleyin." : undefined} /></Card>
+          : <RfqKanban cards={cards} canManage={canManage} />
+      ) : (
       <Card>
         {rfqs.length === 0 ? <EmptyState title="Talep bulunamadı" hint={canManage ? "Yeni Talep ile ekleyin." : undefined} /> : (
           <Table>
@@ -70,6 +91,7 @@ export default async function SalesRfqsPage({ searchParams }: { searchParams: Pr
           </Table>
         )}
       </Card>
+      )}
     </div>
   );
 }

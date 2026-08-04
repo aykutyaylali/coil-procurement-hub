@@ -78,7 +78,9 @@ export default async function SalesOfferEditorPage({ params, searchParams }: { p
             {offer.revisionDate ? ` · Son revizyon: ${formatDate(offer.revisionDate)}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <a href={`/sales/offers/${offer.id}/pdf?lang=tr`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent">📄 PDF (TR)</a>
+          <a href={`/sales/offers/${offer.id}/pdf?lang=en`} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent">📄 PDF (EN)</a>
           {canManage && <ReviseButton offerId={offer.id} />}
           <Link href="/sales/offers" className="text-sm text-primary hover:underline">← Liste</Link>
         </div>
@@ -100,7 +102,7 @@ export default async function SalesOfferEditorPage({ params, searchParams }: { p
       )}
       {activeTab === "notes" && <OfferNotes offerId={offer.id} notes={noteItems} canManage={canManage} />}
       {activeTab === "docs" && (
-        <AttachmentUploader entityType="SalesOffer" entityId={offer.id} label="Teklif Dokümanları" accept="image/png,image/jpeg,image/webp,application/pdf,.xlsx,.docx" isInternal={false} canEdit={canManage} />
+        <AttachmentUploader entityType="SalesOffer" entityId={offer.id} label="Teklif Dokümanları" accept="image/png,image/jpeg,image/webp,application/pdf,.xlsx,.docx" isInternal={false} canEdit={canManage} enableDrop />
       )}
     </div>
   );

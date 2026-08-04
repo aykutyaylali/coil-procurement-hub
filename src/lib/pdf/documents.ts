@@ -285,4 +285,106 @@ export async function buildSupplierEvalPdf(id: string, tenantId: string, locale:
   return renderPdf(spec);
 }
 
+/** Müşteri Teklifi (Sales Offer) PDF — profesyonel TR/EN çıktı. */
+export async function buildSalesOfferPdf(id: string, tenantId: string, locale: L): Promise<Buffer> {
+  const offer = await prisma.salesOffer.findFirst({
+    where: { id, tenantId, deletedAt: null },
+    include: { customer: true, technicalDetail: true, salesRfq: { select: { number: true } } },
+  });
+  if (!offer) throw new NotFoundError("Teklif bulunamadı.");
+
+  const [company, rep, lme, notes] = await Promise.all([
+    prisma.company.findFirst({ where: { tenantId } }),
+    offer.salesRepId ? prisma.user.findUnique({ where: { id: offer.salesRepId }, select: { name: true } }) : Promise.resolve(null),
+    offer.technicalDetail?.lmeRecordId ? prisma.lmeRecord.findFirst({ where: { id: offer.technicalDetail.lmeRecordId, tenantId }, select: { priceDate: true, usdPerTon: true } }) : Promise.resolve(null),
+    prisma.salesOfferNote.findMany({ where: { offerId: offer.id }, orderBy: { createdAt: "asc" } }),
+  ]);
+
+  const t = offer.technicalDetail;
+  const dash = "-";
+  const statusLabel = ((): string => {
+    switch (offer.status) {
+      case "OPEN": return tr(locale, "Açık", "Open");
+      case "ORDER": return tr(locale, "Siparişe Dönüştü", "Ordered");
+      case "CLOSED": return tr(locale, "Kapandı", "Closed");
+      case "REJECTED": return tr(locale, "Reddedildi", "Rejected");
+      default: return offer.status;
+    }
+  })();
+  const revLabel = offer.revisionNo < 26 ? `Rev ${String.fromCharCode(65 + offer.revisionNo)}` : `Rev ${offer.revisionNo + 1}`;
+
+  const custMeta = [
+    `${tr(locale, "Ülke", "Country")}: ${offer.customer.country}`,
+    offer.customer.industry ? `${tr(locale, "Sektör", "Industry")}: ${offer.customer.industry}` : null,
+    offer.customer.contactName ? `${tr(locale, "İlgili", "Contact")}: ${offer.customer.contactName}` : null,
+    offer.customer.contactEmail || null,
+  ].filter(Boolean) as string[];
+
+  const techRow = (label: string, value: string | number | null | undefined) => ({ k: label, v: value != null && value !== "" ? String(value) : dash });
+  const techRows = [
+    techRow(tr(locale, "Üretici (Manufacturer)", "Manufacturer"), t?.manufacturer),
+    techRow(tr(locale, "Tip (Type)", "Type"), t?.type),
+    techRow(tr(locale, "Güç (Power kW/MW)", "Power (kW/MW)"), t?.power),
+    techRow(tr(locale, "Gerilim (Voltage V)", "Voltage (V)"), t?.voltage),
+    techRow(tr(locale, "Kutup Sayısı (Pole)", "Number of Pole"), t?.numberOfPole),
+    techRow(tr(locale, "Bobin Sayısı (Coils)", "Number of Coils"), t?.numberOfCoils),
+    techRow(tr(locale, "Oluk Sayısı (Slot)", "Number of Slot"), t?.numberOfSlot),
+    techRow(tr(locale, "Set Sayısı (Set)", "Number of Set"), t?.numberOfSet),
+    techRow(tr(locale, "Sarım Sayısı (Turns)", "Number of Turns"), t?.numberOfTurns),
+    techRow(tr(locale, "İzolasyon Tipi", "Insulation Type"), t?.insulationType),
+    techRow(tr(locale, "Bobin Tipi (Type of Coil)", "Type of Coil"), t?.typeOfCoil?.replace(/_/g, " ")),
+    techRow(tr(locale, "Tel Genişliği (Wire W, mm)", "Wire Width (mm)"), t?.wireWidth),
+    techRow(tr(locale, "Tel Kalınlığı (Wire T, mm)", "Wire Thickness (mm)"), t?.wireThickness),
+  ];
+
+  const sections: NonNullable<PdfSpec["sections"]> = [];
+  if (lme) {
+    sections.push({
+      title: tr(locale, "LME Bakır Maliyet Referansı", "LME Copper Cost Reference"),
+      rows: [
+        { label: tr(locale, "LME Tarihi", "LME Date"), value: formatDate(lme.priceDate) },
+        { label: tr(locale, "LME (USD/ton)", "LME (USD/ton)"), value: lme.usdPerTon },
+        { label: tr(locale, "Referans (USD/kg)", "Reference (USD/kg)"), value: toStr(d(lme.usdPerTon).div(1000), 4), strong: true },
+      ],
+    });
+  }
+  if (notes.length > 0) {
+    sections.push({
+      title: tr(locale, "Notlar", "Notes"),
+      rows: notes.map((n) => ({ label: n.title || formatDate(n.createdAt), value: n.body })),
+    });
+  }
+  if (offer.reason) {
+    sections.push({ title: tr(locale, "Gerekçe / Açıklama", "Reason / Remarks"), rows: [{ label: "", value: offer.reason }] });
+  }
+
+  const spec: PdfSpec = {
+    locale,
+    docTypeLabel: tr(locale, "MÜŞTERİ TEKLİFİ", "SALES OFFER"),
+    number: `${offer.number} · ${revLabel}`,
+    revision: offer.revisionNo,
+    currency: offer.currency,
+    company: { name: company?.name ?? "Coil Partners", taxOffice: company?.taxOffice ?? null, taxNumber: company?.taxNumber ?? null, address: null },
+    party: { label: tr(locale, "MÜŞTERİ", "CUSTOMER"), name: offer.customer.name, meta: custMeta },
+    metaRows: [
+      { label: tr(locale, "Teklif Tarihi", "Offer Date"), value: formatDate(offer.offerDate) },
+      { label: tr(locale, "Durum", "Status"), value: statusLabel },
+      { label: tr(locale, "Satış Temsilcisi", "Sales Rep"), value: rep?.name ?? dash },
+      { label: tr(locale, "Geçerlilik Tarihi", "Valid Until"), value: offer.validUntil ? formatDate(offer.validUntil) : dash },
+      { label: tr(locale, "Teslim Tarihi", "Delivery Date"), value: offer.deliveryDate ? formatDate(offer.deliveryDate) : dash },
+      { label: tr(locale, "Faturalandı", "Invoiced"), value: offer.invoiced ? tr(locale, "Evet", "Yes") : tr(locale, "Hayır", "No") },
+      ...(offer.salesRfq ? [{ label: tr(locale, "İlgili Talep", "Related RFQ"), value: offer.salesRfq.number }] : []),
+    ],
+    columns: [
+      { header: tr(locale, "Teknik Parametre", "Technical Parameter"), key: "k", width: 55 },
+      { header: tr(locale, "Değer", "Value"), key: "v", width: 45 },
+    ],
+    rows: techRows,
+    totals: [{ label: tr(locale, "Teklif Tutarı", "Offer Amount"), value: formatCurrency(Number(toStr(d(offer.totalAmount || "0"), 2)), offer.currency, locale), bold: true }],
+    sections,
+    footerNote: tr(locale, "Bu teklif bilgilendirme amaçlıdır ve geçerlilik tarihine kadar geçerlidir.", "This offer is for information purposes and valid until the stated date."),
+  };
+  return renderPdf(spec);
+}
+
 export { d };

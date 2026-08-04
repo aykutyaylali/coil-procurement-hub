@@ -49,6 +49,10 @@ export const PERMISSIONS = {
   // Satış CRM & CPQ
   SALES_VIEW: "sales.view",
   SALES_MANAGE: "sales.manage",
+  // Üretim Saha Yönetimi (MES / Shop Floor)
+  PRODUCTION_VIEW: "production.view",       // panel / iş emri görüntüleme
+  PRODUCTION_MANAGE: "production.manage",    // iş emri / istasyon / operatör yönetimi
+  PRODUCTION_OPERATE: "production.operate",  // saha terminali (barkod okuma / üretim kaydı)
   // Sözleşme
   CONTRACT_VIEW: "contract.view",
   CONTRACT_MANAGE: "contract.manage",
@@ -188,6 +192,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.LME_MANAGE,
     P.SALES_VIEW,
     P.SALES_MANAGE,
+    P.PRODUCTION_VIEW,
+    P.PRODUCTION_MANAGE,
+    P.PRODUCTION_OPERATE,
     P.CONTRACT_VIEW,
     P.REPORT_VIEW,
     // PO Workspace (tam)
@@ -205,6 +212,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.LME_MANAGE,
     P.SALES_VIEW,
     P.SALES_MANAGE,
+    P.PRODUCTION_VIEW,
+    P.PRODUCTION_MANAGE,
+    P.PRODUCTION_OPERATE,
     P.REQUISITION_VIEW,
     P.REQUISITION_ASSIGN,
     P.REQUISITION_APPROVE,

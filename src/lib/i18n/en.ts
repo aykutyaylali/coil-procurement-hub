@@ -23,6 +23,9 @@ export const en: Record<keyof typeof tr, string> = {
   "nav.salesRfqs": "Customer RFQs",
   "nav.salesOffers": "Customer Offers",
   "nav.salesCustomers": "Customers",
+  "nav.productionDashboard": "Production Board",
+  "nav.productionWorkOrders": "Work Orders",
+  "nav.productionTerminal": "Shop Floor Terminal",
   "lme.title": "LME Copper Prices",
   "lme.subtitle": "LME values for copper wire pricing (USD/ton entered manually; USD/kg auto-calculated).",
   "lme.new": "New LME Record",
@@ -69,6 +72,7 @@ export const en: Record<keyof typeof tr, string> = {
 
   "group.sales": "Sales & CRM",
   "group.procurement": "Procurement",
+  "group.production": "Shop Floor",
   "group.supply": "Supply & Quality",
   "group.finance": "Finance",
   "group.master": "Master Data & Analytics",

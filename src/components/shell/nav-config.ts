@@ -6,7 +6,7 @@ export interface NavItem {
   label: string;
   icon: string; // lucide icon adı
   permission?: Permission;
-  group: "main" | "sales" | "procurement" | "supply" | "finance" | "master" | "admin";
+  group: "main" | "sales" | "procurement" | "production" | "supply" | "finance" | "master" | "admin";
   /** İleri-seviye: günlük kullanıcının ana menüsünü yormaz; grup altında "İleri" bölümünde toplanır. */
   secondary?: boolean;
 }
@@ -25,6 +25,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/requisitions", labelKey: "nav.requisitions", label: "Talepler", icon: "FileText", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/rfqs", labelKey: "nav.rfqs", label: "Teklif Talepleri", icon: "Send", permission: PERMISSIONS.RFQ_VIEW, group: "procurement" },
   { href: "/orders", labelKey: "nav.orders", label: "Siparişler", icon: "ShoppingCart", permission: PERMISSIONS.ORDER_VIEW, group: "procurement" },
+
+  // Üretim Saha Yönetimi (MES / Shop Floor)
+  { href: "/production/dashboard", labelKey: "nav.productionDashboard", label: "Üretim Panosu", icon: "Factory", permission: PERMISSIONS.PRODUCTION_VIEW, group: "production" },
+  { href: "/production/work-orders", labelKey: "nav.productionWorkOrders", label: "İş Emirleri", icon: "ClipboardList", permission: PERMISSIONS.PRODUCTION_VIEW, group: "production" },
+  { href: "/production/terminal", labelKey: "nav.productionTerminal", label: "Saha Terminali", icon: "ScanLine", permission: PERMISSIONS.PRODUCTION_OPERATE, group: "production" },
 
   { href: "/receipts", labelKey: "nav.receipts", label: "Mal Kabul", icon: "PackageCheck", permission: PERMISSIONS.RECEIPT_VIEW, group: "supply" },
   { href: "/quality", labelKey: "nav.quality", label: "Kalite", icon: "BadgeCheck", permission: PERMISSIONS.QUALITY_VIEW, group: "supply" },
@@ -48,6 +53,7 @@ export const GROUP_LABELS: Record<NavItem["group"], string> = {
   main: "",
   sales: "Satış & CRM",
   procurement: "Satınalma",
+  production: "Üretim Sahası",
   supply: "Tedarik & Kalite",
   finance: "Finans",
   master: "Ana Veri & Analiz",

@@ -4,6 +4,7 @@ import type { Locale } from "@/lib/i18n";
 import { formatDate } from "@/lib/dates";
 import { formatCurrency } from "@/lib/i18n";
 import { renderPdf, type PdfSpec } from "@/lib/pdf/render";
+import { renderLabelPdf } from "@/lib/pdf/label";
 import { lineNet, lineTax, add, toStr, d, formatMoney } from "@/lib/money";
 import { computeCopperPricing, lmeUsdPerKg } from "@/domain/lme-pricing";
 import { NotFoundError } from "@/lib/errors";
@@ -385,6 +386,30 @@ export async function buildSalesOfferPdf(id: string, tenantId: string, locale: L
     footerNote: tr(locale, "Bu teklif bilgilendirme amaçlıdır ve geçerlilik tarihine kadar geçerlidir.", "This offer is for information purposes and valid until the stated date."),
   };
   return renderPdf(spec);
+}
+
+/** İş Emri Barkod Etiketi (Code128) PDF — sahada yazdırılıp bobine yapıştırılır. */
+export async function buildWorkOrderLabelPdf(id: string, tenantId: string, locale: L): Promise<Buffer> {
+  const wo = await prisma.workOrder.findFirst({ where: { id, tenantId } });
+  if (!wo) throw new NotFoundError("İş emri bulunamadı.");
+  const company = await prisma.company.findFirst({ where: { tenantId }, select: { name: true } });
+  const rows = [
+    { label: tr(locale, "Müşteri", "Customer"), value: wo.customerName ?? "-" },
+    { label: tr(locale, "Hat", "Line"), value: wo.line ?? "-" },
+    { label: tr(locale, "Bobin Tipi", "Coil Type"), value: wo.coilType?.replace(/_/g, " ") ?? "-" },
+    { label: tr(locale, "Hedef Adet", "Target Qty"), value: String(wo.targetCoils) },
+    { label: tr(locale, "Teslim Tarihi", "Delivery Date"), value: wo.endDate ? formatDate(wo.endDate) : "-" },
+    { label: tr(locale, "Durum", "Status"), value: wo.status },
+  ];
+  return renderLabelPdf({
+    locale,
+    companyName: company?.name ?? "Coil Partners",
+    title: tr(locale, "İŞ EMRİ BARKODU", "WORK ORDER LABEL"),
+    number: wo.number,
+    barcodeValue: wo.number,
+    rows,
+    footer: tr(locale, "Üretim Saha Yönetimi", "Shop Floor Control"),
+  });
 }
 
 export { d };

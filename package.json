@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:sales": "tsx prisma/seed-sales-mock.ts",
+    "db:seed:production": "tsx prisma/seed-production-mock.ts",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest run",
     "test:watch": "vitest",

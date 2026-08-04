@@ -1994,3 +1994,100 @@ model SalesOfferDocument {
 
   @@index([offerId])
 }
+
+// ===========================================================================
+// ÜRETİM SAHA YÖNETİMİ (MES / Shop Floor Control) — Faz 1; additive.
+// tenantId/customerId/salesOfferId/createdBy scalar tutulur (User/Tenant/SalesOffer
+// modellerine dokunmaz — Satış modülüyle aynı additive yaklaşım). FK'ler yalnız yeni
+// modeller arasında (ProductionLog → WorkOrder/Station/Operator).
+// ===========================================================================
+
+// Üretim İstasyonu / Adımı: LO, PRO, SPR, CNS, NOMEX, THO, TEST, SURGE, HV, PACKAGE...
+model ProductionStation {
+  id             String   @id @default(cuid())
+  tenantId       String
+  code           String   // LO | PRO | SPR | CNS | NOMEX | THO | TEST | SURGE | HV | PACKAGE
+  name           String
+  sequence       Int      @default(0) // akış sırası (LO=1, PRO=2, ...)
+  defaultMinutes Int?     // varsayılan süre (dakika)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  logs ProductionLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// Saha Operatörü / Personel — rozet barkodu ile terminalde tanınır.
+model ProductionOperator {
+  id         String   @id @default(cuid())
+  tenantId   String
+  employeeNo String   // personel no
+  name       String
+  badgeCode  String   // rozet barkod kodu (ör. EMP-101)
+  line       String?  // aktif vardiye/hat (LINE-2 ...)
+  title      String?  // unvan
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  logs ProductionLog[]
+
+  @@unique([tenantId, badgeCode])
+  @@index([tenantId])
+}
+
+// İş Emri — üretilecek bobin partisi (WO-CP7612-001). SalesOffer/SalesRFQ ile
+// gevşek bağlanır (scalar id + denormalize müşteri adı; FK yok).
+model WorkOrder {
+  id             String   @id @default(cuid())
+  tenantId       String
+  number         String   // WO-CP7612-001
+  salesOfferId   String?  // ilgili SalesOffer (scalar referans)
+  salesRfqId     String?  // ilgili SalesRFQ (scalar referans)
+  customerId     String?  // Customer (scalar referans)
+  customerName   String?  // denormalize müşteri adı (kiosk/etiket için)
+  coilType       String?  // STATOR_COIL | ROTOR_COIL | POLE | OTHER
+  line           String?  // atanan hat (LINE-2 ...)
+  targetCoils    Int      @default(0) // hedef toplam bobin adedi
+  completedCoils Int      @default(0) // tamamlanan bobin adedi
+  status         String   @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
+  startDate      DateTime?
+  endDate        DateTime?
+  notes          String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  logs ProductionLog[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([customerId])
+}
+
+// Üretim & Barkod Okuma Kaydı — bir operatörün bir istasyonda bir iş emri
+// üzerindeki çalışma oturumu (check-in → +bobin/fire → check-out).
+model ProductionLog {
+  id             String   @id @default(cuid())
+  tenantId       String
+  workOrderId    String
+  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  stationId      String
+  station        ProductionStation @relation(fields: [stationId], references: [id])
+  operatorId     String
+  operator       ProductionOperator @relation(fields: [operatorId], references: [id])
+  scannedBarcode String?  // okutulan barkod (WO/bobin)
+  producedQty    Int      @default(0) // üretilen bobin adedi
+  scrapQty       Int      @default(0) // fire/hurda adedi
+  status         String   @default("ACTIVE") // ACTIVE | PAUSED | DONE
+  checkInAt      DateTime @default(now())
+  checkOutAt     DateTime?
+  elapsedMinutes Int?     // geçen süre (dakika) — çıkışta hesaplanır
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, status])
+  @@index([workOrderId])
+  @@index([operatorId])
+  @@index([stationId])
+}

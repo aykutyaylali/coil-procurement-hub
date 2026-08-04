@@ -122,7 +122,7 @@ export default async function ProductionDashboardPage() {
                     <TD className="font-medium">{l.operator.name}</TD>
                     <TD className="text-sm"><Link href={`/production/work-orders/${l.workOrderId}`} className="text-primary hover:underline">{l.workOrder.number}</Link></TD>
                     <TD className="text-sm">{l.station.code}</TD>
-                    <TD className="text-xs">{l.workOrder.line ?? "—"}</TD>
+                    <TD className="text-xs">{l.workOrder.line ? <Badge tone="info">{l.workOrder.line}</Badge> : "—"}</TD>
                     <TD className="text-center tabular-nums">{l.producedQty}</TD>
                     <TD className="text-center text-xs tabular-nums text-muted-foreground">{Math.floor(mins / 60)}s {mins % 60}dk</TD>
                     <TD className="text-sm">{badge.dot} {badge.label}</TD>

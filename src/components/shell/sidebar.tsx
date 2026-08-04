@@ -51,7 +51,7 @@ export function SidebarNav({ items, collapsed = false, onNavigate }: { items: Na
   };
 
   return (
-    <nav className="flex-1 overflow-y-auto px-2 py-3">
+    <nav className="flex-1 overflow-y-auto px-2 py-3 pb-24">
       {groups.map((group) => {
         const groupItems = items.filter((i) => i.group === group);
         if (groupItems.length === 0) return null;
@@ -61,7 +61,7 @@ export function SidebarNav({ items, collapsed = false, onNavigate }: { items: Na
         return (
           <div key={group} className="mb-3">
             {!collapsed && groupLabel(group) && (
-              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {groupLabel(group)}
               </div>
             )}

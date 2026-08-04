@@ -26,7 +26,7 @@ export function TH({ className, ...props }: React.ThHTMLAttributes<HTMLTableCell
   return (
     <th
       className={cn(
-        "h-10 px-3 text-left align-middle font-medium text-muted-foreground",
+        "h-10 px-3 text-left align-middle font-semibold text-foreground/70",
         className,
       )}
       {...props}

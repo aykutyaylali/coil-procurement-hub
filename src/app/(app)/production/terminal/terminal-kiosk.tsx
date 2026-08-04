@@ -94,7 +94,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
             value={stationId}
             onChange={(e) => setStationId(e.target.value)}
             disabled={Boolean(session)}
-            className="mt-0.5 block h-11 w-full rounded-md border bg-background px-3 text-base font-semibold disabled:opacity-60"
+            className="mt-1 block h-14 w-full rounded-md border bg-background px-3 text-lg font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
           >
             {stations.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}
           </select>
@@ -106,14 +106,14 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
         )}
       </div>
 
-      {/* Adım göstergesi */}
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <Step n={1} label="Operatör" done={Boolean(operator)} active={!operator} />
-        <div className="h-px flex-1 bg-border" />
-        <Step n={2} label="İş Emri" done={Boolean(session)} active={Boolean(operator) && !session} />
-        <div className="h-px flex-1 bg-border" />
-        <Step n={3} label="Üretim" done={false} active={Boolean(session)} />
-      </div>
+      {/* Adım göstergesi — bağlantı çizgileri daire MERKEZLERİ arasında hizalanır */}
+      <Stepper
+        steps={[
+          { n: 1, label: "Operatör", done: Boolean(operator), active: !operator },
+          { n: 2, label: "İş Emri", done: Boolean(session), active: Boolean(operator) && !session },
+          { n: 3, label: "Üretim", done: false, active: Boolean(session) },
+        ]}
+      />
 
       {error && <p className="mb-4 rounded-lg bg-destructive/10 px-4 py-3 text-center text-base font-medium text-destructive">{error}</p>}
       {flash && <p className="mb-4 rounded-lg bg-green-500/10 px-4 py-3 text-center text-base font-medium text-green-600">{flash}</p>}
@@ -143,13 +143,13 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
             disabled={busy}
             inputMode="text"
             placeholder={!operator ? "EMP-101" : "WO-2026-0001"}
-            className="mx-auto block h-16 w-full max-w-md rounded-lg border-2 border-primary/40 bg-background px-4 text-center text-3xl font-bold tracking-wider outline-none focus:border-primary"
+            className="mx-auto block h-20 w-full max-w-lg rounded-xl border border-input bg-background px-4 text-center text-4xl font-bold tracking-wider outline-none focus:border-primary focus:ring-4 focus:ring-primary/25"
           />
-          <div className="mt-4 flex justify-center gap-2">
-            <button type="submit" disabled={busy || !scan.trim()} className="rounded-lg bg-primary px-8 py-3 text-lg font-semibold text-primary-foreground disabled:opacity-50">
+          <div className="mt-5 flex justify-center gap-3">
+            <button type="submit" disabled={busy || !scan.trim()} className="inline-flex min-h-14 items-center justify-center rounded-xl bg-blue-700 px-10 py-4 text-xl font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-50">
               {busy ? "…" : "Onayla"}
             </button>
-            {scan && <button type="button" onClick={() => setScan("")} className="rounded-lg border px-6 py-3 text-lg hover:bg-accent">Temizle</button>}
+            {scan && <button type="button" onClick={() => setScan("")} className="inline-flex min-h-14 items-center justify-center rounded-xl border px-8 py-4 text-lg font-medium hover:bg-accent">Temizle</button>}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">Barkod okuyucu çalışmıyorsa değeri klavye/numpad ile yazıp Enter'a basın.</p>
         </form>
@@ -209,11 +209,31 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
   );
 }
 
-function Step({ n, label, done, active }: { n: number; label: string; done: boolean; active: boolean }) {
+type StepDef = { n: number; label: string; done: boolean; active: boolean };
+
+/**
+ * Yatay adım göstergesi. Her adım eşit genişlikte bir kolon; bağlantı çizgileri
+ * dairenin iki yanındaki flex-1 parçalardan oluşur, böylece kesintisiz olarak
+ * daire merkezinden daire merkezine hizalanır (etikete değil).
+ */
+function Stepper({ steps }: { steps: StepDef[] }) {
   return (
-    <div className={`flex items-center gap-2 ${active ? "text-primary" : done ? "text-green-600" : "text-muted-foreground"}`}>
-      <span className={`flex size-7 items-center justify-center rounded-full border-2 text-sm font-bold ${active ? "border-primary" : done ? "border-green-600 bg-green-600 text-white" : "border-muted-foreground/40"}`}>{done ? "✓" : n}</span>
-      <span className="font-medium">{label}</span>
+    <div className="mb-5 flex items-start">
+      {steps.map((s, i) => {
+        const next = steps[i + 1];
+        const leftLine = i === 0 ? "invisible" : s.done || s.active ? "bg-primary" : "bg-border";
+        const rightLine = i === steps.length - 1 ? "invisible" : next?.done || next?.active ? "bg-primary" : "bg-border";
+        return (
+          <div key={s.n} className="flex flex-1 flex-col items-center">
+            <div className="flex w-full items-center">
+              <span className={`h-0.5 flex-1 ${leftLine}`} />
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-base font-bold ${s.active ? "border-primary text-primary" : s.done ? "border-green-600 bg-green-600 text-white" : "border-muted-foreground/40 text-muted-foreground"}`}>{s.done ? "✓" : s.n}</span>
+              <span className={`h-0.5 flex-1 ${rightLine}`} />
+            </div>
+            <span className={`mt-1.5 text-sm font-medium ${s.active ? "text-primary" : s.done ? "text-green-600" : "text-muted-foreground"}`}>{s.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

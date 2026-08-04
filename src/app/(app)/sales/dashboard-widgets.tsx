@@ -9,13 +9,18 @@ const STAGE_COLOR: Record<string, string> = {
   CLOSED: "bg-muted-foreground/40",
 };
 
+/**
+ * Çoklu para birimi gösterimi — tek tutarlı "pill/badge" deseni. Satır yüksekliğini
+ * bozan dikey yığılmayı önlemek için tek satırda kalır (flex-nowrap + whitespace-nowrap);
+ * dar alanlarda kap kendi içinde yatay kayar (overflow-x-auto), satır ritmi korunur.
+ */
 export function MoneyChips({ amount, className = "" }: { amount: MoneyByCurrency; className?: string }) {
   const entries = Object.entries(amount).filter(([, v]) => Number(v) !== 0);
   if (entries.length === 0) return <span className={`text-xs text-muted-foreground ${className}`}>—</span>;
   return (
-    <span className={`flex flex-wrap gap-1 ${className}`}>
+    <span className={`flex flex-nowrap items-center gap-1 overflow-x-auto ${className}`}>
       {entries.map(([cur, v]) => (
-        <span key={cur} className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums">{formatMoney(v, cur)}</span>
+        <span key={cur} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium tabular-nums text-primary">{formatMoney(v, cur)}</span>
       ))}
     </span>
   );
@@ -31,12 +36,12 @@ export function FunnelChart({ stages }: { stages: PipelineStage[] }) {
         return (
           <div key={s.key} className="flex items-center gap-3">
             <div className="w-24 shrink-0 text-sm text-muted-foreground">{s.label}</div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className={`flex h-8 items-center rounded ${STAGE_COLOR[s.key] ?? "bg-primary/60"} px-2 text-sm font-medium text-foreground`} style={{ width: `${w}%` }}>
                 {s.count}
               </div>
             </div>
-            <div className="w-40 shrink-0 text-right"><MoneyChips amount={s.amount} className="justify-end" /></div>
+            <div className="w-48 shrink-0"><MoneyChips amount={s.amount} className="justify-end" /></div>
           </div>
         );
       })}

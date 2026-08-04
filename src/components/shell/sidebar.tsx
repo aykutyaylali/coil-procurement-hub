@@ -23,8 +23,16 @@ export function SidebarNav({ items, collapsed = false, onNavigate }: { items: Na
   const groups = Array.from(new Set(items.map((i) => i.group)));
   const groupLabel = (g: NavItem["group"]) => (g === "main" ? "" : t(`group.${g}` as TranslationKey));
 
+  // Aktif menü = geçerli yola uyan EN UZUN href (böylece /sales, /sales/rfqs ile
+  // aynı anda "aktif" görünmez; yalnız en özgün eşleşen öğe vurgulanır).
+  const bestHref = items.reduce<string | null>((best, i) => {
+    const matches = pathname === i.href || pathname.startsWith(i.href + "/");
+    if (!matches) return best;
+    return best === null || i.href.length > best.length ? i.href : best;
+  }, null);
+
   const renderLink = (item: NavItem) => {
-    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const active = item.href === bestHref;
     return (
       <Link
         key={item.href}

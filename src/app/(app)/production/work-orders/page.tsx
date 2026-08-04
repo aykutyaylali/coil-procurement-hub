@@ -26,7 +26,10 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
   if (sp.q) where.OR = [{ number: { contains: sp.q } }, { customerName: { contains: sp.q } }];
 
   const [orders, counts] = await Promise.all([
-    prisma.workOrder.findMany({ where, orderBy: { createdAt: "desc" }, take: 300 }),
+    prisma.workOrder.findMany({
+      where, orderBy: { createdAt: "desc" }, take: 300,
+      select: { id: true, number: true, customerName: true, line: true, coilType: true, targetCoils: true, completedCoils: true, endDate: true, status: true },
+    }),
     prisma.workOrder.groupBy({ by: ["status"], where: { tenantId: user.tenantId }, _count: { _all: true } }),
   ]);
   const countBy = Object.fromEntries(counts.map((c) => [c.status, c._count._all]));

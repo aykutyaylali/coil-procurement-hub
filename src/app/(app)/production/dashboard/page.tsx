@@ -14,6 +14,7 @@ import {
   type ProdLogRow, type WorkOrderRow, type StationRow,
 } from "@/domain/production";
 import { WO_STATUS_LABEL, LOG_STATUS_BADGE, MILESTONE_STATIONS } from "../constants";
+import { getActiveStations } from "../data";
 
 export const metadata: Metadata = { title: "Üretim Panosu" };
 
@@ -24,11 +25,19 @@ export default async function ProductionDashboardPage() {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const [workOrders, stations, logsRaw] = await Promise.all([
-    prisma.workOrder.findMany({ where: { tenantId: t, status: { not: "CANCELLED" } }, take: 2000 }),
-    prisma.productionStation.findMany({ where: { tenantId: t, isActive: true }, orderBy: { sequence: "asc" } }),
+    prisma.workOrder.findMany({
+      where: { tenantId: t, status: { not: "CANCELLED" } }, take: 2000,
+      select: { id: true, number: true, customerName: true, line: true, targetCoils: true, completedCoils: true, status: true },
+    }),
+    getActiveStations(t),
     prisma.productionLog.findMany({
       where: { tenantId: t, OR: [{ checkOutAt: null }, { checkInAt: { gte: startOfToday } }] },
-      orderBy: { checkInAt: "desc" }, take: 3000, include: { station: true, operator: true, workOrder: true },
+      orderBy: { checkInAt: "desc" }, take: 3000,
+      select: {
+        id: true, operatorId: true, stationId: true, workOrderId: true, producedQty: true, scrapQty: true,
+        status: true, checkInAt: true, checkOutAt: true,
+        station: { select: { code: true } }, operator: { select: { name: true } }, workOrder: { select: { number: true, line: true } },
+      },
     }),
   ]);
 

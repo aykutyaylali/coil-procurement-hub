@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { loginAction, type LoginState } from "../actions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,9 +67,9 @@ export function LoginForm() {
             {pending ? "Giriş yapılıyor..." : "Giriş Yap"}
           </Button>
           <div className="text-center">
-            <a href="/forgot-password" className="text-xs text-primary hover:underline">
+            <Link href="/forgot-password" className="text-xs text-primary hover:underline">
               Parolamı unuttum
-            </a>
+            </Link>
           </div>
         </form>
       </CardContent>

@@ -2,20 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/context";
 import { PERMISSIONS } from "@/lib/rbac";
-import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { TerminalKiosk } from "./terminal-kiosk";
+import { getActiveStations } from "../data";
 
 export const metadata: Metadata = { title: "Saha Terminali" };
 
 export default async function TerminalPage() {
   const user = await requirePermission(PERMISSIONS.PRODUCTION_OPERATE);
-  const stations = await prisma.productionStation.findMany({
-    where: { tenantId: user.tenantId, isActive: true },
-    orderBy: { sequence: "asc" },
-    select: { id: true, code: true, name: true },
-  });
+  const stations = await getActiveStations(user.tenantId);
 
   return (
     <div>

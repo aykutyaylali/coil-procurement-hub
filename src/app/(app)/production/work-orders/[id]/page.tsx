@@ -13,6 +13,7 @@ import { statusTone } from "@/lib/enums";
 import { formatDate } from "@/lib/dates";
 import { stationProgress, woProgressPct, liveStatus, type ProdLogRow, type StationRow } from "@/domain/production";
 import { WO_STATUS_LABEL, LOG_STATUS_BADGE } from "../../constants";
+import { getActiveStations } from "../../data";
 import { WorkOrderForm, type WorkOrderInitial } from "../wo-form";
 
 export const metadata: Metadata = { title: "İş Emri" };
@@ -28,8 +29,15 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   if (!wo) notFound();
 
   const [stations, logs, customers] = await Promise.all([
-    prisma.productionStation.findMany({ where: { tenantId: user.tenantId, isActive: true }, orderBy: { sequence: "asc" } }),
-    prisma.productionLog.findMany({ where: { tenantId: user.tenantId, workOrderId: wo.id }, orderBy: { checkInAt: "desc" }, take: 100, include: { station: true, operator: true } }),
+    getActiveStations(user.tenantId),
+    prisma.productionLog.findMany({
+      where: { tenantId: user.tenantId, workOrderId: wo.id }, orderBy: { checkInAt: "desc" }, take: 100,
+      select: {
+        id: true, operatorId: true, stationId: true, workOrderId: true, producedQty: true, scrapQty: true,
+        status: true, checkInAt: true, checkOutAt: true, elapsedMinutes: true,
+        station: { select: { code: true, name: true } }, operator: { select: { name: true } },
+      },
+    }),
     canManage ? prisma.customer.findMany({ where: { tenantId: user.tenantId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
 

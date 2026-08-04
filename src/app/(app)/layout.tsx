@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             locale={locale}
             mobileMenu={<MobileMenu items={visibleNav} />}
           />
-          <main className="flex-1 overflow-x-hidden p-6">{children}</main>
+          <main className="flex-1 overflow-x-hidden p-8">{children}</main>
         </div>
       </div>
       </ToastProvider>

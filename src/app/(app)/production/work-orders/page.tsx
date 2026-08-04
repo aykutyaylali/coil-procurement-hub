@@ -69,7 +69,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
                 <TR key={o.id}>
                   <TD><Link href={`/production/work-orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link></TD>
                   <TD>{o.customerName ?? "—"}</TD>
-                  <TD className="text-xs">{o.line ? <Badge tone="info">{o.line}</Badge> : "—"}</TD>
+                  <TD className="text-xs">{o.line ? <Badge tone="neutral">{o.line}</Badge> : "—"}</TD>
                   <TD className="text-xs">{o.coilType?.replace(/_/g, " ") ?? "—"}</TD>
                   <TD className="text-center tabular-nums">{o.targetCoils}</TD>
                   <TD>

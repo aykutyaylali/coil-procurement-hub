@@ -52,7 +52,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge tone={statusTone(wo.status)}>{WO_STATUS_LABEL[wo.status] ?? wo.status}</Badge>
-        {wo.line && <Badge tone="info">{wo.line}</Badge>}
+        {wo.line && <Badge tone="neutral">{wo.line}</Badge>}
         <span className="text-sm text-muted-foreground">Tamamlanan: <b className="tabular-nums text-foreground">{wo.completedCoils}/{wo.targetCoils}</b> (%{overallPct})</span>
         <div className="ml-auto flex gap-2">
           <a href={`/production/work-orders/${wo.id}/label?lang=tr`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"><Printer className="size-4" /> Barkod (TR)</a>

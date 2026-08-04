@@ -47,7 +47,7 @@ export default async function SalesDashboardPage() {
       <PageHeader title="Satış Paneli" description="Sales CRM & CPQ — pipeline, dönüşüm oranları ve performans analizi." />
 
       {/* Dönüşüm & kazanma oranları */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Aktif Müşteri" value={String(customerCount)} href="/sales/customers" />
         <Kpi label="RFQ → Teklif Dönüşümü" value={`%${conv.rfqToOfferRate}`} sub={`${conv.rfqWithOffer}/${conv.rfqTotal} talep`} href="/sales/rfqs" />
         <Kpi label="Win Rate (Teklif → Sipariş)" value={`%${conv.winRate}`} sub={`${conv.orderCount}/${conv.offerTotal} teklif`} href="/sales/offers" />
@@ -55,7 +55,7 @@ export default async function SalesDashboardPage() {
       </div>
 
       {/* Pipeline / Huni */}
-      <Card className="mt-6">
+      <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Satış Hunisi (Pipeline)</CardTitle></CardHeader>
         <CardContent>
           {offerRows.length === 0 && conv.rfqTotal === 0 ? <p className="text-sm text-muted-foreground">Henüz veri yok.</p> : <FunnelChart stages={pipeline} />}
@@ -63,13 +63,13 @@ export default async function SalesDashboardPage() {
       </Card>
 
       {/* Top 5 müşteri & sektör */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <TopTable title="En Yüksek Kazanma — Müşteri (İlk 5)" rows={topCustomers} nameOf={(k) => customerName[k] ?? k} />
         <TopTable title="En Yüksek Kazanma — Sektör (İlk 5)" rows={topIndustries} nameOf={(k) => k} />
       </div>
 
       {/* Satış temsilcisi performansı */}
-      <Card className="mt-6">
+      <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Satış Temsilcisi Performansı</CardTitle></CardHeader>
         <CardContent className="p-0">
           {reps.length === 0 ? <EmptyState title="Teklif yok" /> : (
@@ -90,8 +90,17 @@ export default async function SalesDashboardPage() {
       </Card>
 
       {/* Aylık trend */}
-      <Card className="mt-6">
-        <CardHeader><CardTitle className="text-base">Aylık Teklif & Sipariş Hacim Trendi</CardTitle></CardHeader>
+      <Card className="mt-8">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Aylık Teklif & Sipariş Hacim Trendi</CardTitle>
+            {/* Tek global lejant — para birimi başına tekrar edilmez. */}
+            <span className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-blue-500/70" /> Teklif</span>
+              <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-green-500/70" /> Sipariş</span>
+            </span>
+          </div>
+        </CardHeader>
         <CardContent className="grid gap-8 lg:grid-cols-3">
           {[["EUR", trendEUR], ["USD", trendUSD], ["TRY", trendTRY]].map(([cur, pts]) => {
             const points = pts as typeof trendEUR;

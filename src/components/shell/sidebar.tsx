@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -89,7 +89,12 @@ export function SidebarNav({ items, collapsed = false, onNavigate }: { items: Na
 
 /** Masaüstü sidebar (lg+). */
 export function Sidebar({ items }: { items: NavItem[] }) {
+  const pathname = usePathname();
+  // Odak (Focus) Modu: Saha Terminali ekranında operatörü göreve odaklamak için
+  // sol menü otomatik daralır (kullanıcı isterse elle genişletebilir).
+  const isFocusMode = pathname.startsWith("/production/terminal");
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { if (isFocusMode) setCollapsed(true); }, [isFocusMode]);
   return (
     <aside className={cn("sticky top-0 hidden h-screen flex-col border-r bg-card transition-all duration-200 lg:flex", collapsed ? "w-16" : "w-64")}>
       <div className="flex h-14 items-center justify-center border-b px-2">

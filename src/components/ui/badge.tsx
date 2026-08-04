@@ -8,6 +8,8 @@ const toneClasses: Record<string, string> = {
   warning: "bg-warning/15 text-[hsl(38_92%_38%)] dark:text-warning border-warning/30",
   danger: "bg-destructive/15 text-destructive border-destructive/30",
   info: "bg-primary/15 text-primary border-primary/30",
+  // Nötr/pastel — anlam taşımayan etiketler için (ör. hat: LINE-2). Dikkat dağıtmaz.
+  neutral: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };
 
 export function Badge({

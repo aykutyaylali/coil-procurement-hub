@@ -86,7 +86,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
   return (
     <div className="mx-auto max-w-3xl">
       {/* İstasyon seçici */}
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-card p-5 shadow-sm">
         <ScanLine className="size-6 text-primary" />
         <div className="flex-1">
           <label className="text-xs font-medium text-muted-foreground">Bu Terminalin İstasyonu</label>
@@ -120,7 +120,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
 
       {/* Operatör kartı */}
       {operator && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border bg-primary/5 p-4">
+        <div className="mb-4 flex items-center gap-3 rounded-2xl bg-primary/5 p-5">
           <UserCheck className="size-8 text-primary" />
           <div>
             <div className="text-lg font-semibold">{operator.name}</div>
@@ -131,7 +131,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
 
       {/* Barkod giriş alanı (Adım 1 & 2) */}
       {!session && (
-        <form onSubmit={onScan} className="rounded-xl border bg-card p-6 text-center">
+        <form onSubmit={onScan} className="rounded-2xl bg-card p-8 text-center shadow-sm">
           <p className="mb-3 text-lg font-medium">
             {!operator ? "Operatör Rozetini Okutun veya Enter'a Basın" : "İş Emri / Bobin Barkodunu Okutun"}
           </p>
@@ -157,7 +157,7 @@ export function TerminalKiosk({ stations }: { stations: Station[] }) {
 
       {/* Üretim işlemleri (Adım 3) */}
       {session && (
-        <div className="rounded-xl border bg-card p-6">
+        <div className="rounded-2xl bg-card p-8 shadow-sm">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm text-muted-foreground">İş Emri</div>

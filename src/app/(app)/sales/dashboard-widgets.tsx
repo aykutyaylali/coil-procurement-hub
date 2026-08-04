@@ -10,17 +10,17 @@ const STAGE_COLOR: Record<string, string> = {
 };
 
 /**
- * Çoklu para birimi gösterimi — tek tutarlı "pill/badge" deseni. Satır yüksekliğini
- * bozan dikey yığılmayı önlemek için tek satırda kalır (flex-nowrap + whitespace-nowrap);
- * dar alanlarda kap kendi içinde yatay kayar (overflow-x-auto), satır ritmi korunur.
+ * Çoklu para birimi gösterimi — "Veriler metin" kuralı: rozet/dolgu YOK. Finansal
+ * değerler sade, hizalı monospaced-tabular metin (font-mono tabular-nums). Tek satırda
+ * kalır (flex-nowrap + whitespace-nowrap); dar alanda kap kendi içinde yatay kayar.
  */
 export function MoneyChips({ amount, className = "" }: { amount: MoneyByCurrency; className?: string }) {
   const entries = Object.entries(amount).filter(([, v]) => Number(v) !== 0);
   if (entries.length === 0) return <span className={`text-xs text-muted-foreground ${className}`}>—</span>;
   return (
-    <span className={`flex flex-nowrap items-center gap-1 overflow-x-auto ${className}`}>
+    <span className={`flex flex-nowrap items-center gap-3 overflow-x-auto ${className}`}>
       {entries.map(([cur, v]) => (
-        <span key={cur} className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium tabular-nums text-primary">{formatMoney(v, cur)}</span>
+        <span key={cur} className="shrink-0 whitespace-nowrap font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300">{formatMoney(v, cur)}</span>
       ))}
     </span>
   );
@@ -59,12 +59,9 @@ export function TrendChart({ currency, points }: { currency: string; points: Tre
   const max = Math.max(1, ...points.flatMap((p) => [Number(p.offered), Number(p.ordered)]));
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
+      {/* Lejant kart başlığında tek sefer (global) gösterilir — burada yalnız para birimi. */}
+      <div className="mb-2">
         <span className="text-sm font-medium">{currency}</span>
-        <span className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-blue-500/70" /> Teklif</span>
-          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-green-500/70" /> Sipariş</span>
-        </span>
       </div>
       <div className="flex items-end gap-3 border-b pb-1" style={{ height: "140px" }}>
         {points.map((p) => (

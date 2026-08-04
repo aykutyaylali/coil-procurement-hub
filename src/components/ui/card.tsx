@@ -4,7 +4,12 @@ import { cn } from "@/lib/utils";
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
+      className={cn(
+        // Sınır (border) yerine yumuşak ortam gölgesi + geniş köşe yuvarlama (Apple/Notion hissi).
+        // Işık modunda diffüz gölge; koyu modda gölge görünmediği için ince bir ring ile derinlik.
+        "rounded-2xl bg-card text-card-foreground shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-12px_rgba(16,24,40,0.12)] dark:shadow-none dark:ring-1 dark:ring-white/10",
+        className,
+      )}
       {...props}
     />
   );

@@ -61,7 +61,7 @@ export default async function ProductionDashboardPage() {
     <div>
       <PageHeader title="Üretim Panosu" description="MES / Shop Floor — canlı saha durumu, hat ve istasyon ilerlemesi." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Aktif Çalışan" value={String(activeOps)} sub="açık oturum" />
         <Kpi label="Aktif Hatlar" value={String(lines.length)} sub={lines.join(", ") || "—"} />
         <Kpi label="Günlük Çıkan Bobin" value={String(dailyCoils)} sub="bugün üretilen" />
@@ -69,7 +69,7 @@ export default async function ProductionDashboardPage() {
       </div>
 
       {/* Hat bazlı ilerleme */}
-      <Card className="mt-6">
+      <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Hat Bazlı İlerleme</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {lineRows.length === 0 ? <p className="text-sm text-muted-foreground">Henüz iş emri yok.</p> : lineRows.map((l) => (
@@ -83,7 +83,7 @@ export default async function ProductionDashboardPage() {
       </Card>
 
       {/* İş emri istasyon ilerlemesi */}
-      <Card className="mt-6">
+      <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Aktif İş Emirleri — İstasyon İlerlemesi (LO → PRO → SPR → TEST)</CardTitle></CardHeader>
         <CardContent className="p-0">
           {woProgress.length === 0 ? <EmptyState title="Üretimde iş emri yok" /> : (
@@ -93,7 +93,7 @@ export default async function ProductionDashboardPage() {
                 <TR key={wo.id}>
                   <TD><Link href={`/production/work-orders/${wo.id}`} className="font-medium text-primary hover:underline">{wo.number}</Link></TD>
                   <TD className="text-sm">{wo.customerName ?? "—"}</TD>
-                  <TD className="text-xs">{wo.line ? <Badge tone="info">{wo.line}</Badge> : "—"}</TD>
+                  <TD className="text-xs">{wo.line ? <Badge tone="neutral">{wo.line}</Badge> : "—"}</TD>
                   {MILESTONE_STATIONS.map((code) => {
                     const p = prog.find((x) => x.code === code);
                     return <TD key={code} className="text-center text-xs tabular-nums">{p ? `%${p.pct}` : "—"}</TD>;
@@ -107,7 +107,7 @@ export default async function ProductionDashboardPage() {
       </Card>
 
       {/* Operatör zaman akışı */}
-      <Card className="mt-6">
+      <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Operatör Zaman Akışı (Canlı)</CardTitle></CardHeader>
         <CardContent className="p-0">
           {openSessions.length === 0 ? <EmptyState title="Açık oturum yok" hint="Saha terminalinden operatör giriş yaptıkça burada görünür." /> : (
@@ -122,7 +122,7 @@ export default async function ProductionDashboardPage() {
                     <TD className="font-medium">{l.operator.name}</TD>
                     <TD className="text-sm"><Link href={`/production/work-orders/${l.workOrderId}`} className="text-primary hover:underline">{l.workOrder.number}</Link></TD>
                     <TD className="text-sm">{l.station.code}</TD>
-                    <TD className="text-xs">{l.workOrder.line ? <Badge tone="info">{l.workOrder.line}</Badge> : "—"}</TD>
+                    <TD className="text-xs">{l.workOrder.line ? <Badge tone="neutral">{l.workOrder.line}</Badge> : "—"}</TD>
                     <TD className="text-center tabular-nums">{l.producedQty}</TD>
                     <TD className="text-center text-xs tabular-nums text-muted-foreground">{Math.floor(mins / 60)}s {mins % 60}dk</TD>
                     <TD className="text-sm">{badge.dot} {badge.label}</TD>

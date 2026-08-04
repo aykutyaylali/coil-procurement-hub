@@ -18,6 +18,10 @@ export const tr = {
   "nav.suppliers": "Tedarikçiler",
   "nav.catalog": "Ürün Kataloğu",
   "nav.lme": "LME Bakır",
+  "nav.salesDashboard": "Satış Paneli",
+  "nav.salesRfqs": "Müşteri Talepleri",
+  "nav.salesOffers": "Müşteri Teklifleri",
+  "nav.salesCustomers": "Müşteriler",
   "lme.title": "LME Bakır Fiyatları",
   "lme.subtitle": "Bakır tel fiyatlandırması için LME değerleri (USD/ton manuel girilir; USD/kg otomatik hesaplanır).",
   "lme.new": "Yeni LME Kaydı",
@@ -62,6 +66,7 @@ export const tr = {
   "nav.users": "Kullanıcılar",
   "nav.settings": "Ayarlar",
 
+  "group.sales": "Satış & CRM",
   "group.procurement": "Satınalma",
   "group.supply": "Tedarik & Kalite",
   "group.finance": "Finans",

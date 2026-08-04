@@ -46,6 +46,9 @@ export const PERMISSIONS = {
   // LME Bakır fiyatlandırma
   LME_VIEW: "lme.view",
   LME_MANAGE: "lme.manage",
+  // Satış CRM & CPQ
+  SALES_VIEW: "sales.view",
+  SALES_MANAGE: "sales.manage",
   // Sözleşme
   CONTRACT_VIEW: "contract.view",
   CONTRACT_MANAGE: "contract.manage",
@@ -183,6 +186,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     P.CATALOG_VIEW,
     P.LME_VIEW,
     P.LME_MANAGE,
+    P.SALES_VIEW,
+    P.SALES_MANAGE,
     P.CONTRACT_VIEW,
     P.REPORT_VIEW,
     // PO Workspace (tam)
@@ -198,6 +203,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   PURCHASING_MANAGER: [
     P.LME_VIEW,
     P.LME_MANAGE,
+    P.SALES_VIEW,
+    P.SALES_MANAGE,
     P.REQUISITION_VIEW,
     P.REQUISITION_ASSIGN,
     P.REQUISITION_APPROVE,

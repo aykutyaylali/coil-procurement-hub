@@ -6,7 +6,7 @@ export interface NavItem {
   label: string;
   icon: string; // lucide icon adı
   permission?: Permission;
-  group: "main" | "procurement" | "supply" | "finance" | "master" | "admin";
+  group: "main" | "sales" | "procurement" | "supply" | "finance" | "master" | "admin";
   /** İleri-seviye: günlük kullanıcının ana menüsünü yormaz; grup altında "İleri" bölümünde toplanır. */
   secondary?: boolean;
 }
@@ -17,6 +17,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/approvals", labelKey: "nav.approvals", label: "Onaylarım", icon: "Stamp", group: "main" },
 
   // Satınalma grubu düz listelenir (tek öğe için "İleri" katlanır bölümü gereksizdi).
+  { href: "/sales", labelKey: "nav.salesDashboard", label: "Satış Paneli", icon: "TrendingUp", permission: PERMISSIONS.SALES_VIEW, group: "sales" },
+  { href: "/sales/rfqs", labelKey: "nav.salesRfqs", label: "Müşteri Talepleri", icon: "Inbox", permission: PERMISSIONS.SALES_VIEW, group: "sales" },
+  { href: "/sales/offers", labelKey: "nav.salesOffers", label: "Müşteri Teklifleri", icon: "FileText", permission: PERMISSIONS.SALES_VIEW, group: "sales" },
+  { href: "/sales/customers", labelKey: "nav.salesCustomers", label: "Müşteriler", icon: "Users", permission: PERMISSIONS.SALES_VIEW, group: "sales" },
   { href: "/islem-merkezi", labelKey: "nav.islemMerkezi", label: "Satınalma İşlem Merkezi", icon: "LayoutList", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/requisitions", labelKey: "nav.requisitions", label: "Talepler", icon: "FileText", permission: PERMISSIONS.REQUISITION_VIEW, group: "procurement" },
   { href: "/rfqs", labelKey: "nav.rfqs", label: "Teklif Talepleri", icon: "Send", permission: PERMISSIONS.RFQ_VIEW, group: "procurement" },
@@ -42,6 +46,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const GROUP_LABELS: Record<NavItem["group"], string> = {
   main: "",
+  sales: "Satış & CRM",
   procurement: "Satınalma",
   supply: "Tedarik & Kalite",
   finance: "Finans",

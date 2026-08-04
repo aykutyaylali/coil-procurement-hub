@@ -194,6 +194,8 @@ export function statusTone(status: string): "default" | "success" | "warning" | 
     case "RECEIVED":
     case "PAID":
     case "AWARDED":
+    case "OFFERED":
+    case "ORDER":
       return "success";
     case "PENDING_APPROVAL":
     case "PENDING":
@@ -220,7 +222,10 @@ export function statusTone(status: string): "default" | "success" | "warning" | 
     case "ACKNOWLEDGED":
     case "INVOICED":
     case "MATCHED":
+    case "REQUEST":
       return "info";
+    case "IN_PROCESS":
+      return "warning";
     default:
       return "default";
   }

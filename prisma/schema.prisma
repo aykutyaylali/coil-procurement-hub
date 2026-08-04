@@ -1862,3 +1862,135 @@ model AuditLog {
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, createdAt])
 }
+
+// ===========================================================================
+// SATIŞ CRM & CPQ (Sales) — additive; tenantId/salesRep/createdBy scalar (User/Tenant'a dokunmaz)
+// ===========================================================================
+model Customer {
+  id              String   @id @default(cuid())
+  tenantId        String
+  code            String   // müşteri kodu (otomatik)
+  name            String
+  country         String   @default("TR") // ISO ülke kodu
+  industry        String?  // OEM | REPAIR | UTILITY | OTHER
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  salesRepId      String?  // User
+  defaultCurrency String   @default("EUR")
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salesRfqs  SalesRFQ[]
+  salesOffers SalesOffer[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model SalesRFQ {
+  id           String   @id @default(cuid())
+  tenantId     String
+  number       String   // SRFQ-2026-0001
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id])
+  industry     String?
+  status       String   @default("REQUEST") // REQUEST | IN_PROCESS | OFFERED | REJECTED | CANCELLED
+  requestDate  DateTime @default(now())
+  targetDate   DateTime?
+  salesRepId   String?
+  coilType     String?  // STATOR_COIL | ROTOR_COIL | POLE | OTHER
+  notes        String?
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  offers SalesOffer[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([customerId])
+}
+
+model SalesOffer {
+  id           String   @id @default(cuid())
+  tenantId     String
+  number       String   // CP7612
+  salesRfqId   String?
+  salesRfq     SalesRFQ? @relation(fields: [salesRfqId], references: [id])
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id])
+  status       String   @default("OPEN") // OPEN | ORDER | CLOSED | REJECTED
+  offerDate    DateTime @default(now())
+  validUntil   DateTime?
+  deliveryDate DateTime?
+  currency     String   @default("EUR")
+  totalAmount  String   @default("0") // decimal-as-string
+  revisionNo   Int      @default(0)
+  revisionDate DateTime?
+  invoiced     Boolean  @default(false)
+  reason       String?  // kapanış/red gerekçesi
+  salesRepId   String?
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  technicalDetail SalesOfferTechnicalDetail?
+  notes           SalesOfferNote[]
+  documents       SalesOfferDocument[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([customerId])
+}
+
+model SalesOfferTechnicalDetail {
+  id             String   @id @default(cuid())
+  offerId        String   @unique
+  offer          SalesOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  manufacturer   String?
+  type           String?
+  power          String?  // kW/MW (decimal-as-string)
+  voltage        String?
+  numberOfPole   Int?
+  numberOfCoils  Int?
+  numberOfSlot   Int?
+  numberOfSet    Int?
+  numberOfTurns  Int?
+  insulationType String?
+  typeOfCoil     String?  // STATOR_COIL | ROTOR_COIL | POLE
+  wireWidth      String?  // Wire W (mm, decimal)
+  wireThickness  String?  // Wire T (mm, decimal)
+  lmeRecordId    String?  // LME bakır maliyet referansı (snapshot değil, referans)
+}
+
+model SalesOfferNote {
+  id          String   @id @default(cuid())
+  offerId     String
+  offer       SalesOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  title       String?
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([offerId])
+}
+
+model SalesOfferDocument {
+  id           String   @id @default(cuid())
+  offerId      String
+  offer        SalesOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  name         String
+  attachmentId String?  // Attachment (polimorfik) referansı
+  version      Int      @default(1)
+  note         String?
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  @@index([offerId])
+}
